@@ -1,13 +1,19 @@
+import { useState } from "react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import { Download, Eye, Calendar, DollarSign } from "lucide-react";
 import { Chatbot } from "@/components/Chatbot";
 
 const MyLoans = () => {
+  const [viewDialogOpen, setViewDialogOpen] = useState(false);
+  const [selectedLoan, setSelectedLoan] = useState<any>(null);
+
   const loans = [
     {
       id: "PREST-001",
@@ -43,6 +49,11 @@ const MyLoans = () => {
       nextPayment: "-"
     }
   ];
+
+  const handleViewLoan = (loan: any) => {
+    setSelectedLoan(loan);
+    setViewDialogOpen(true);
+  };
 
   const getStatusBadge = (status: string) => {
     if (status === 'active') {
@@ -156,7 +167,11 @@ const MyLoans = () => {
                         <TableCell>{getStatusBadge(loan.status)}</TableCell>
                         <TableCell>
                           <div className="flex gap-2">
-                            <Button size="sm" variant="outline">
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={() => handleViewLoan(loan)}
+                            >
                               <Eye className="h-3 w-3 mr-1" />
                               Ver
                             </Button>
@@ -234,6 +249,75 @@ const MyLoans = () => {
         </main>
 
         <Chatbot />
+
+        {/* View Loan Dialog */}
+        <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Detalles del Préstamo</DialogTitle>
+              <DialogDescription>Información completa de tu préstamo</DialogDescription>
+            </DialogHeader>
+            {selectedLoan && (
+              <div className="space-y-6">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>ID del Préstamo</Label>
+                    <p className="font-semibold">{selectedLoan.id}</p>
+                  </div>
+                  <div>
+                    <Label>Estado</Label>
+                    <div className="mt-1">{getStatusBadge(selectedLoan.status)}</div>
+                  </div>
+                  <div>
+                    <Label>Monto Original</Label>
+                    <p className="font-semibold">${selectedLoan.amount?.toLocaleString()} MXN</p>
+                  </div>
+                  <div>
+                    <Label>Fecha de Aprobación</Label>
+                    <p className="font-semibold">{selectedLoan.approved}</p>
+                  </div>
+                  <div>
+                    <Label>Tasa de Interés</Label>
+                    <p className="font-semibold">{selectedLoan.rate}%</p>
+                  </div>
+                  <div>
+                    <Label>Plazo</Label>
+                    <p className="font-semibold">{selectedLoan.term} meses</p>
+                  </div>
+                  <div>
+                    <Label>Monto Pagado</Label>
+                    <p className="font-semibold text-success">${selectedLoan.paid?.toLocaleString()} MXN</p>
+                  </div>
+                  <div>
+                    <Label>Saldo Restante</Label>
+                    <p className="font-semibold text-danger">${selectedLoan.remaining?.toLocaleString()} MXN</p>
+                  </div>
+                  {selectedLoan.status === 'active' && (
+                    <div className="col-span-2">
+                      <Label>Próximo Pago</Label>
+                      <p className="font-semibold">{selectedLoan.nextPayment}</p>
+                    </div>
+                  )}
+                </div>
+                <div className="pt-4 border-t">
+                  <h4 className="font-semibold mb-2">Progreso de Pago</h4>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span>Completado</span>
+                      <span>{((selectedLoan.paid / selectedLoan.amount) * 100).toFixed(1)}%</span>
+                    </div>
+                    <div className="h-3 bg-secondary rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-success transition-all"
+                        style={{ width: `${(selectedLoan.paid / selectedLoan.amount) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </SidebarProvider>
   );
