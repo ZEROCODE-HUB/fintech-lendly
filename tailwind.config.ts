@@ -22,6 +22,7 @@ export default {
         primary: {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",
+          hover: "hsl(var(--primary-hover))",
         },
         secondary: {
           DEFAULT: "hsl(var(--secondary))",
@@ -30,6 +31,14 @@ export default {
         destructive: {
           DEFAULT: "hsl(var(--destructive))",
           foreground: "hsl(var(--destructive-foreground))",
+        },
+        danger: {
+          DEFAULT: "hsl(var(--danger))",
+          foreground: "hsl(var(--danger-foreground))",
+        },
+        success: {
+          DEFAULT: "hsl(var(--success))",
+          foreground: "hsl(var(--success-foreground))",
         },
         muted: {
           DEFAULT: "hsl(var(--muted))",
@@ -57,6 +66,15 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+      },
+      boxShadow: {
+        'soft': 'var(--shadow-soft)',
+        'medium': 'var(--shadow-medium)',
+        'strong': 'var(--shadow-strong)',
+      },
+      backgroundImage: {
+        'gradient-hero': 'var(--gradient-hero)',
+        'gradient-accent': 'var(--gradient-accent)',
       },
       borderRadius: {
         lg: "var(--radius)",
