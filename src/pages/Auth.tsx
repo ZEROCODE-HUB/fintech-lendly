@@ -1,14 +1,29 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Separator } from "@/components/ui/separator";
 import loginHero from "@/assets/login-hero.jpg";
-import { ArrowRight, Lock, Mail, Phone, Upload } from "lucide-react";
+import { ArrowRight, Lock, Mail, Phone, Upload, UserCog, User } from "lucide-react";
+import { authService } from "@/utils/auth";
+import { useToast } from "@/hooks/use-toast";
 
 const Auth = () => {
   const [activeTab, setActiveTab] = useState("login");
+  const navigate = useNavigate();
+  const { toast } = useToast();
+
+  const handleDemoLogin = (role: 'admin' | 'client') => {
+    authService.loginDemo(role);
+    toast({
+      title: "Acceso Demo",
+      description: `Has ingresado como ${role === 'admin' ? 'Administrador' : 'Cliente'}`,
+    });
+    navigate("/dashboard");
+  };
 
   return (
     <div className="min-h-screen flex">
@@ -21,7 +36,7 @@ const Auth = () => {
           <div className="absolute inset-0 bg-gradient-to-br from-primary/90 to-primary/70 flex items-center justify-center p-12">
             <div className="text-center space-y-6 max-w-md">
               <h1 className="text-5xl font-bold text-white uppercase tracking-wide">
-                Bienvenido a Fintech
+                Increscendo Fintech
               </h1>
               <p className="text-xl text-white/90">
                 Digitaliza tus operaciones financieras con tecnología de punta
@@ -101,6 +116,34 @@ const Auth = () => {
                     Ingresar
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
+
+                  <Separator className="my-6" />
+
+                  <div className="space-y-3">
+                    <p className="text-sm text-center text-muted-foreground font-medium">
+                      Acceso Demo (Sin Registro)
+                    </p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <Button 
+                        variant="outline" 
+                        size="lg"
+                        onClick={() => handleDemoLogin('client')}
+                        className="w-full"
+                      >
+                        <User className="mr-2 h-4 w-4" />
+                        Cliente
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="lg"
+                        onClick={() => handleDemoLogin('admin')}
+                        className="w-full"
+                      >
+                        <UserCog className="mr-2 h-4 w-4" />
+                        Admin
+                      </Button>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
             </TabsContent>

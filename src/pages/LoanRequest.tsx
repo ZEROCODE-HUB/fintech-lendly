@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
+import { Chatbot } from "@/components/Chatbot";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -198,6 +199,8 @@ const LoanRequest = () => {
             </Card>
           </div>
         </main>
+
+        <Chatbot />
       </div>
     </SidebarProvider>
   );

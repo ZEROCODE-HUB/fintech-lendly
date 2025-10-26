@@ -1,5 +1,7 @@
-import { Home, CreditCard, DollarSign, History, Users, Settings, Bell, HelpCircle } from "lucide-react";
-import { NavLink } from "react-router-dom";
+import { Home, CreditCard, DollarSign, History, Users, Settings, Bell, HelpCircle, LogOut } from "lucide-react";
+import { NavLink, useNavigate } from "react-router-dom";
+import { authService } from "@/utils/auth";
+import { Button } from "@/components/ui/button";
 import {
   Sidebar,
   SidebarContent,
@@ -32,11 +34,19 @@ const supportItems = [
 export function AppSidebar() {
   const { state } = useSidebar();
   const isCollapsed = state === "collapsed";
+  const navigate = useNavigate();
+  const currentUser = authService.getCurrentUser();
+  const isAdmin = currentUser?.role === 'admin';
 
   const getNavClass = ({ isActive }: { isActive: boolean }) =>
     isActive 
       ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold" 
       : "hover:bg-sidebar-accent/50";
+
+  const handleLogout = () => {
+    authService.logout();
+    navigate("/auth");
+  };
 
   return (
     <Sidebar className={isCollapsed ? "w-16" : "w-64"} collapsible="icon">
@@ -44,13 +54,18 @@ export function AppSidebar() {
         {/* Brand */}
         <div className="px-6 py-6 border-b border-sidebar-border">
           {!isCollapsed && (
-            <h2 className="text-xl font-bold text-sidebar-foreground">
-              FINTECH
-            </h2>
+            <div className="space-y-2">
+              <h2 className="text-xl font-bold text-sidebar-foreground">
+                INCRESCENDO
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                {currentUser?.name || 'Usuario'}
+              </p>
+            </div>
           )}
           {isCollapsed && (
             <div className="text-xl font-bold text-sidebar-foreground text-center">
-              F
+              I
             </div>
           )}
         </div>
@@ -74,24 +89,26 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* Admin Section - would be conditional based on user role */}
-        <SidebarGroup>
-          <SidebarGroupLabel>Administración</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {adminItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
-                    <NavLink to={item.url} className={getNavClass}>
-                      <item.icon className="h-5 w-5" />
-                      {!isCollapsed && <span>{item.title}</span>}
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {/* Admin Section - conditional based on user role */}
+        {isAdmin && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Administración</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {adminItems.map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton asChild>
+                      <NavLink to={item.url} className={getNavClass}>
+                        <item.icon className="h-5 w-5" />
+                        {!isCollapsed && <span>{item.title}</span>}
+                      </NavLink>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
 
         {/* Support */}
         <SidebarGroup>
@@ -108,6 +125,26 @@ export function AppSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        {/* Logout */}
+        <SidebarGroup className="mt-auto">
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild>
+                  <Button
+                    variant="ghost"
+                    onClick={handleLogout}
+                    className="w-full justify-start hover:bg-sidebar-accent/50"
+                  >
+                    <LogOut className="h-5 w-5" />
+                    {!isCollapsed && <span>Cerrar Sesión</span>}
+                  </Button>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
