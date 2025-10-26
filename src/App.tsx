@@ -9,6 +9,10 @@ import Dashboard from "./pages/Dashboard";
 import LoanRequest from "./pages/LoanRequest";
 import MyLoans from "./pages/MyLoans";
 import History from "./pages/History";
+import AdminDashboard from "./pages/admin/AdminDashboard";
+import LoanManagement from "./pages/admin/LoanManagement";
+import ClientManagement from "./pages/admin/ClientManagement";
+import SystemConfig from "./pages/admin/SystemConfig";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -26,6 +30,10 @@ const App = () => (
           <Route path="/loan-request" element={<LoanRequest />} />
           <Route path="/my-loans" element={<MyLoans />} />
           <Route path="/history" element={<History />} />
+          <Route path="/admin/dashboard" element={<AdminDashboard />} />
+          <Route path="/admin/loans" element={<LoanManagement />} />
+          <Route path="/admin/clients" element={<ClientManagement />} />
+          <Route path="/admin/config" element={<SystemConfig />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

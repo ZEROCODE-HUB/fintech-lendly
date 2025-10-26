@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-import { ArrowRight, Shield, Zap, BarChart3, TrendingUp, Users, Clock } from "lucide-react";
+import { ArrowRight, Shield, Zap, BarChart3, TrendingUp, Users, Clock, DollarSign, CheckCircle } from "lucide-react";
+import heroImage from "@/assets/hero-landing.jpg";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -30,51 +31,42 @@ const Index = () => {
       </header>
 
       {/* Hero Section */}
-      <section className="bg-gradient-hero min-h-screen flex items-center justify-center px-4 pt-16">
-        <div className="max-w-6xl mx-auto text-center text-white space-y-10">
-          <div className="space-y-4">
-            <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold uppercase tracking-wide">
-              Increscendo Fintech
+      <section className="relative overflow-hidden pt-24 pb-12">
+        <div className="max-w-7xl mx-auto px-4 grid lg:grid-cols-2 gap-12 items-center">
+          <div className="space-y-6">
+            <h1 className="text-5xl lg:text-6xl font-bold uppercase tracking-wide">
+              Increscendo <span className="text-primary">Fintech</span>
             </h1>
-            <p className="text-xl md:text-2xl text-white/90 max-w-3xl mx-auto">
+            <p className="text-xl text-muted-foreground">
               Digitaliza tus operaciones de préstamo con tecnología avanzada, inteligencia artificial 
               y análisis de Big Data para potenciar el crecimiento de tu negocio
             </p>
+            <div className="flex flex-col sm:flex-row gap-4">
+              <Button size="lg" onClick={() => navigate("/auth")}>
+                Comenzar Ahora
+                <ArrowRight className="ml-2 h-5 w-5" />
+              </Button>
+              <Button size="lg" variant="outline" onClick={() => window.location.href = '#features'}>
+                Conocer Más
+              </Button>
+            </div>
+            <div className="grid grid-cols-3 gap-6 pt-6">
+              <div>
+                <p className="text-3xl font-bold text-primary">245+</p>
+                <p className="text-sm text-muted-foreground">Clientes</p>
+              </div>
+              <div>
+                <p className="text-3xl font-bold text-primary">$2.4M</p>
+                <p className="text-sm text-muted-foreground">Desembolsado</p>
+              </div>
+              <div>
+                <p className="text-3xl font-bold text-primary">94.5%</p>
+                <p className="text-sm text-muted-foreground">Cobranza</p>
+              </div>
+            </div>
           </div>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center pt-8">
-            <Button 
-              size="lg" 
-              variant="success"
-              onClick={() => navigate("/auth")}
-              className="text-lg px-10 py-7 shadow-glow"
-            >
-              Comenzar Ahora
-              <ArrowRight className="ml-2 h-5 w-5" />
-            </Button>
-            <Button 
-              size="lg" 
-              variant="outline"
-              className="text-lg px-10 py-7 bg-white/10 text-white border-white hover:bg-white hover:text-primary"
-              onClick={() => window.location.href = '#features'}
-            >
-              Conocer Más
-            </Button>
-          </div>
-          
-          {/* Stats */}
-          <div className="grid md:grid-cols-3 gap-8 pt-16 max-w-4xl mx-auto">
-            <div className="space-y-2">
-              <p className="text-4xl font-bold">10,000+</p>
-              <p className="text-white/80">Clientes Activos</p>
-            </div>
-            <div className="space-y-2">
-              <p className="text-4xl font-bold">$500M+</p>
-              <p className="text-white/80">Préstamos Procesados</p>
-            </div>
-            <div className="space-y-2">
-              <p className="text-4xl font-bold">99.8%</p>
-              <p className="text-white/80">Tasa de Satisfacción</p>
-            </div>
+          <div className="relative hidden lg:block">
+            <img src={heroImage} alt="Equipo Increscendo" className="rounded-2xl shadow-2xl object-cover w-full h-[500px]" />
           </div>
         </div>
       </section>

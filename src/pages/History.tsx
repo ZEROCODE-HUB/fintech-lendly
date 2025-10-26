@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,9 +8,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Download, Filter, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Chatbot } from "@/components/Chatbot";
 
 const History = () => {
+  const [viewDialogOpen, setViewDialogOpen] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<any>(null);
+
   const loanHistory = [
     { id: "PREST-001", type: "Préstamo", amount: 10000, date: "2024-10-01", status: "Aprobado" },
     { id: "PREST-002", type: "Préstamo", amount: 15000, date: "2024-09-15", status: "Aprobado" },
@@ -29,6 +35,11 @@ const History = () => {
     { id: "SERV-119", type: "Pago", description: "CFE - Luz", date: "2024-10-20", status: "Completado" },
     { id: "SERV-118", type: "Recarga", description: "Recarga Movistar $100", date: "2024-10-15", status: "Completado" },
   ];
+
+  const handleViewDetails = (item: any, type: string) => {
+    setSelectedItem({ ...item, type });
+    setViewDialogOpen(true);
+  };
 
   const getStatusBadge = (status: string) => {
     const variants: Record<string, { bg: string; text: string; border: string }> = {
@@ -120,7 +131,11 @@ const History = () => {
                             <TableCell>{item.date}</TableCell>
                             <TableCell>{getStatusBadge(item.status)}</TableCell>
                             <TableCell>
-                              <Button size="sm" variant="outline">
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                onClick={() => handleViewDetails(item, 'loan')}
+                              >
                                 Ver Detalles
                               </Button>
                             </TableCell>
@@ -209,7 +224,11 @@ const History = () => {
                             <TableCell>{service.date}</TableCell>
                             <TableCell>{getStatusBadge(service.status)}</TableCell>
                             <TableCell>
-                              <Button size="sm" variant="outline">
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                onClick={() => handleViewDetails(service, 'service')}
+                              >
                                 Ver Detalles
                               </Button>
                             </TableCell>
@@ -225,6 +244,68 @@ const History = () => {
         </main>
 
         <Chatbot />
+
+        {/* View Details Dialog */}
+        <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Detalles del Registro</DialogTitle>
+              <DialogDescription>Información completa de la transacción</DialogDescription>
+            </DialogHeader>
+            {selectedItem && (
+              <div className="space-y-4">
+                {selectedItem.type === 'loan' && (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label>ID de Préstamo</Label>
+                      <p className="font-semibold">{selectedItem.id}</p>
+                    </div>
+                    <div>
+                      <Label>Tipo</Label>
+                      <p className="font-semibold">{selectedItem.type}</p>
+                    </div>
+                    <div>
+                      <Label>Monto</Label>
+                      <p className="font-semibold">${selectedItem.amount?.toLocaleString()} MXN</p>
+                    </div>
+                    <div>
+                      <Label>Fecha de Solicitud</Label>
+                      <p className="font-semibold">{selectedItem.date}</p>
+                    </div>
+                    <div>
+                      <Label>Estado</Label>
+                      <div className="mt-1">{getStatusBadge(selectedItem.status)}</div>
+                    </div>
+                  </div>
+                )}
+                {selectedItem.type === 'service' && (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label>ID de Servicio</Label>
+                      <p className="font-semibold">{selectedItem.id}</p>
+                    </div>
+                    <div>
+                      <Label>Tipo</Label>
+                      <p className="font-semibold">{selectedItem.type}</p>
+                    </div>
+                    <div className="col-span-2">
+                      <Label>Descripción</Label>
+                      <p className="font-semibold">{selectedItem.description}</p>
+                    </div>
+                    <div>
+                      <Label>Fecha</Label>
+                      <p className="font-semibold">{selectedItem.date}</p>
+                    </div>
+                    <div>
+                      <Label>Estado</Label>
+                      <div className="mt-1">{getStatusBadge(selectedItem.status)}</div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </SidebarProvider>
   );

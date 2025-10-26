@@ -1,4 +1,4 @@
-import { Home, CreditCard, DollarSign, History, Users, Settings, Bell, HelpCircle, LogOut } from "lucide-react";
+import { Home, CreditCard, DollarSign, History, Users, Settings, Bell, HelpCircle, LogOut, LayoutDashboard, Cog } from "lucide-react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { authService } from "@/utils/auth";
 import { Button } from "@/components/ui/button";
@@ -22,8 +22,10 @@ const menuItems = [
 ];
 
 const adminItems = [
-  { title: "Gestión de Usuarios", url: "/admin/users", icon: Users },
-  { title: "Configuración", url: "/admin/settings", icon: Settings },
+  { title: "Dashboard Admin", url: "/admin/dashboard", icon: LayoutDashboard },
+  { title: "Gestión de Préstamos", url: "/admin/loans", icon: CreditCard },
+  { title: "Gestión de Clientes", url: "/admin/clients", icon: Users },
+  { title: "Configuración", url: "/admin/config", icon: Cog },
 ];
 
 const supportItems = [
