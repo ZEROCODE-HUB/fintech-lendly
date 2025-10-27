@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Search, Filter, Eye, CheckCircle, XCircle, Edit, Trash2, Calendar } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 
 const LoanManagement = () => {
@@ -20,6 +21,7 @@ const LoanManagement = () => {
   const [approveDialogOpen, setApproveDialogOpen] = useState(false);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
   const [selectedLoan, setSelectedLoan] = useState<any>(null);
 
   const pendingLoans = [
@@ -52,6 +54,11 @@ const LoanManagement = () => {
   const handleDelete = (loan: any) => {
     setSelectedLoan(loan);
     setDeleteDialogOpen(true);
+  };
+
+  const handleViewSchedule = (loan: any) => {
+    setSelectedLoan(loan);
+    setScheduleDialogOpen(true);
   };
 
   const confirmApproval = () => {
@@ -225,6 +232,9 @@ const LoanManagement = () => {
                                 <Button size="sm" variant="ghost" onClick={() => handleView(loan)}>
                                   <Eye className="h-4 w-4" />
                                 </Button>
+                                <Button size="sm" variant="ghost" onClick={() => handleViewSchedule(loan)}>
+                                  <Calendar className="h-4 w-4" />
+                                </Button>
                                 <Button size="sm" variant="ghost" onClick={() => handleDelete(loan)}>
                                   <Trash2 className="h-4 w-4" />
                                 </Button>
@@ -397,6 +407,156 @@ const LoanManagement = () => {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        {/* Payment Schedule Dialog */}
+        <Dialog open={scheduleDialogOpen} onOpenChange={setScheduleDialogOpen}>
+          <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Cronograma de Pagos</DialogTitle>
+              <DialogDescription>
+                Estado del cronograma de pagos para {selectedLoan?.client}
+              </DialogDescription>
+            </DialogHeader>
+            {selectedLoan && (
+              <div className="space-y-6">
+                {/* Loan Summary */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-muted/50 rounded-lg">
+                  <div>
+                    <Label className="text-xs text-muted-foreground">ID Préstamo</Label>
+                    <p className="font-semibold">{selectedLoan.id}</p>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Monto Original</Label>
+                    <p className="font-semibold">${selectedLoan.amount?.toLocaleString()} MXN</p>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Saldo Restante</Label>
+                    <p className="font-semibold text-primary">${selectedLoan.remaining?.toLocaleString()} MXN</p>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Interés Anual</Label>
+                    <p className="font-semibold">{selectedLoan.interest}%</p>
+                  </div>
+                </div>
+
+                {/* Payment Progress */}
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span>Progreso de Pagos</span>
+                    <span className="font-semibold">
+                      {((selectedLoan.amount - selectedLoan.remaining) / selectedLoan.amount * 100).toFixed(1)}%
+                    </span>
+                  </div>
+                  <Progress 
+                    value={(selectedLoan.amount - selectedLoan.remaining) / selectedLoan.amount * 100} 
+                    className="h-2"
+                  />
+                </div>
+
+                {/* Payment Schedule Table */}
+                <div className="border rounded-lg">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-16">#</TableHead>
+                        <TableHead>Fecha de Pago</TableHead>
+                        <TableHead>Pago Mensual</TableHead>
+                        <TableHead>Capital</TableHead>
+                        <TableHead>Interés</TableHead>
+                        <TableHead>Saldo</TableHead>
+                        <TableHead>Estado</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {(() => {
+                        const principal = selectedLoan.amount;
+                        const months = 12;
+                        const monthlyRate = selectedLoan.interest / 100 / 12;
+                        const monthlyPayment = (principal * monthlyRate * Math.pow(1 + monthlyRate, months)) / 
+                                              (Math.pow(1 + monthlyRate, months) - 1);
+                        let balance = principal;
+                        const payments = [];
+                        const today = new Date();
+
+                        for (let i = 1; i <= months; i++) {
+                          const interestPayment = balance * monthlyRate;
+                          const principalPayment = monthlyPayment - interestPayment;
+                          balance -= principalPayment;
+
+                          const paymentDate = new Date(2024, 9, 15);
+                          paymentDate.setMonth(paymentDate.getMonth() + i);
+                          
+                          let status = 'Pendiente';
+                          let statusClass = 'bg-muted/20 text-muted-foreground border-muted';
+                          
+                          if (balance > selectedLoan.remaining) {
+                            status = 'Pagado';
+                            statusClass = 'bg-success/20 text-success border-success';
+                          } else if (paymentDate < today && balance <= selectedLoan.remaining) {
+                            status = 'Atrasado';
+                            statusClass = 'bg-danger/20 text-danger border-danger';
+                          } else if (i === Math.ceil((principal - selectedLoan.remaining) / principalPayment) + 1) {
+                            status = 'Próximo';
+                            statusClass = 'bg-warning/20 text-warning border-warning';
+                          }
+
+                          payments.push(
+                            <TableRow key={i}>
+                              <TableCell className="font-medium">{i}</TableCell>
+                              <TableCell>{paymentDate.toLocaleDateString('es-MX')}</TableCell>
+                              <TableCell className="font-semibold">${monthlyPayment.toFixed(2)}</TableCell>
+                              <TableCell>${principalPayment.toFixed(2)}</TableCell>
+                              <TableCell>${interestPayment.toFixed(2)}</TableCell>
+                              <TableCell>${Math.max(0, balance).toFixed(2)}</TableCell>
+                              <TableCell>
+                                <Badge className={statusClass}>
+                                  {status}
+                                </Badge>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        }
+
+                        return payments;
+                      })()}
+                    </TableBody>
+                  </Table>
+                </div>
+
+                {/* Summary Stats */}
+                <div className="grid grid-cols-3 gap-4">
+                  <Card>
+                    <CardContent className="pt-6">
+                      <div className="text-sm text-muted-foreground">Pagos Realizados</div>
+                      <div className="text-2xl font-bold text-success">
+                        {Math.round((selectedLoan.amount - selectedLoan.remaining) / (selectedLoan.amount / 12))} / 12
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="pt-6">
+                      <div className="text-sm text-muted-foreground">Próximo Pago</div>
+                      <div className="text-2xl font-bold">{selectedLoan.nextPayment}</div>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="pt-6">
+                      <div className="text-sm text-muted-foreground">Estado General</div>
+                      <div className="text-2xl font-bold">
+                        {getStatusBadge(selectedLoan.status)}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
+            )}
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setScheduleDialogOpen(false)}>
+                Cerrar
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </SidebarProvider>
   );
