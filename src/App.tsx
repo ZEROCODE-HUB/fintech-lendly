@@ -10,6 +10,7 @@ import LoanRequest from "./pages/LoanRequest";
 import MyLoans from "./pages/MyLoans";
 import History from "./pages/History";
 import Notifications from "./pages/Notifications";
+import PaymentMethods from "./pages/PaymentMethods";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import LoanManagement from "./pages/admin/LoanManagement";
 import ClientManagement from "./pages/admin/ClientManagement";
@@ -32,6 +33,7 @@ const App = () => (
           <Route path="/my-loans" element={<MyLoans />} />
           <Route path="/history" element={<History />} />
           <Route path="/notifications" element={<Notifications />} />
+          <Route path="/payment-methods" element={<PaymentMethods />} />
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
           <Route path="/admin/loans" element={<LoanManagement />} />
           <Route path="/admin/clients" element={<ClientManagement />} />

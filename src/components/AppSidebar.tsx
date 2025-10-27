@@ -1,4 +1,4 @@
-import { Home, CreditCard, DollarSign, History, Users, Settings, Bell, HelpCircle, LogOut, LayoutDashboard, Cog } from "lucide-react";
+import { Home, CreditCard, DollarSign, History, Users, Settings, Bell, HelpCircle, LogOut, LayoutDashboard, Cog, Wallet } from "lucide-react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { authService } from "@/utils/auth";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,7 @@ const menuItems = [
   { title: "Solicitar Préstamo", url: "/loan-request", icon: DollarSign },
   { title: "Mis Préstamos", url: "/my-loans", icon: CreditCard },
   { title: "Historial", url: "/history", icon: History },
+  { title: "Métodos de Pago", url: "/payment-methods", icon: Wallet },
 ];
 
 const adminItems = [

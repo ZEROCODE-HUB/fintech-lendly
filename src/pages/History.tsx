@@ -93,10 +93,9 @@ const History = () => {
 
             {/* Tabs */}
             <Tabs defaultValue="loans" className="w-full">
-              <TabsList className="grid w-full max-w-md grid-cols-3">
+              <TabsList className="grid w-full max-w-md grid-cols-2">
                 <TabsTrigger value="loans">Préstamos</TabsTrigger>
                 <TabsTrigger value="payments">Pagos</TabsTrigger>
-                <TabsTrigger value="services">Servicios</TabsTrigger>
               </TabsList>
 
               {/* Loan History */}
@@ -153,54 +152,7 @@ const History = () => {
                   <CardHeader>
                     <CardTitle>Historial de Pagos</CardTitle>
                     <CardDescription>
-                      Registro completo de pagos realizados
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>ID Pago</TableHead>
-                          <TableHead>Préstamo</TableHead>
-                          <TableHead>Monto</TableHead>
-                          <TableHead>Fecha</TableHead>
-                          <TableHead>Método</TableHead>
-                          <TableHead>Estado</TableHead>
-                          <TableHead>Acciones</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {paymentHistory.map((payment) => (
-                          <TableRow key={payment.id}>
-                            <TableCell className="font-medium">{payment.id}</TableCell>
-                            <TableCell>{payment.loan}</TableCell>
-                            <TableCell className="font-semibold">
-                              ${payment.amount.toLocaleString()}
-                            </TableCell>
-                            <TableCell>{payment.date}</TableCell>
-                            <TableCell>{payment.method}</TableCell>
-                            <TableCell>{getStatusBadge(payment.status)}</TableCell>
-                            <TableCell>
-                              <Button size="sm" variant="outline">
-                                <Download className="h-3 w-3 mr-1" />
-                                Recibo
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              {/* Service History */}
-              <TabsContent value="services" className="mt-6">
-                <Card className="shadow-soft">
-                  <CardHeader>
-                    <CardTitle>Historial de Servicios</CardTitle>
-                    <CardDescription>
-                      Recargas, pagos de servicios y otras operaciones
+                      Registro completo de todos tus pagos
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
@@ -208,30 +160,24 @@ const History = () => {
                       <TableHeader>
                         <TableRow>
                           <TableHead>ID</TableHead>
-                          <TableHead>Tipo</TableHead>
-                          <TableHead>Descripción</TableHead>
+                          <TableHead>Préstamo</TableHead>
+                          <TableHead>Monto</TableHead>
                           <TableHead>Fecha</TableHead>
+                          <TableHead>Método</TableHead>
                           <TableHead>Estado</TableHead>
-                          <TableHead>Acciones</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {serviceHistory.map((service) => (
-                          <TableRow key={service.id}>
-                            <TableCell className="font-medium">{service.id}</TableCell>
-                            <TableCell>{service.type}</TableCell>
-                            <TableCell>{service.description}</TableCell>
-                            <TableCell>{service.date}</TableCell>
-                            <TableCell>{getStatusBadge(service.status)}</TableCell>
-                            <TableCell>
-                              <Button 
-                                size="sm" 
-                                variant="outline"
-                                onClick={() => handleViewDetails(service, 'service')}
-                              >
-                                Ver Detalles
-                              </Button>
+                        {paymentHistory.map((item) => (
+                          <TableRow key={item.id}>
+                            <TableCell className="font-medium">{item.id}</TableCell>
+                            <TableCell>{item.loan}</TableCell>
+                            <TableCell className="font-semibold">
+                              ${item.amount.toLocaleString()}
                             </TableCell>
+                            <TableCell>{item.date}</TableCell>
+                            <TableCell>{item.method}</TableCell>
+                            <TableCell>{getStatusBadge(item.status)}</TableCell>
                           </TableRow>
                         ))}
                       </TableBody>

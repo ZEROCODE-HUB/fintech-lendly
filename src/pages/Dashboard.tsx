@@ -220,15 +220,11 @@ const Dashboard = () => {
               </CardHeader>
               <CardContent>
                 <div className="grid gap-4 md:grid-cols-3">
-                  <Button size="lg" className="h-auto py-6 flex-col gap-2">
+                  <Button size="lg" className="h-auto py-6 flex-col gap-2" onClick={() => window.location.href = '/loan-request'}>
                     <DollarSign className="h-6 w-6" />
                     <span>Solicitar Préstamo</span>
                   </Button>
-                  <Button size="lg" variant="outline" className="h-auto py-6 flex-col gap-2">
-                    <CreditCard className="h-6 w-6" />
-                    <span>Realizar Pago</span>
-                  </Button>
-                  <Button size="lg" variant="outline" className="h-auto py-6 flex-col gap-2">
+                  <Button size="lg" variant="outline" className="h-auto py-6 flex-col gap-2" onClick={() => window.location.href = '/history'}>
                     <Calendar className="h-6 w-6" />
                     <span>Ver Historial</span>
                   </Button>

@@ -55,9 +55,23 @@ const LoanManagement = () => {
   };
 
   const confirmApproval = () => {
+    // Generate payment schedule when approving loan
+    const principal = selectedLoan?.amount || 0;
+    const months = 12; // Default term
+    const monthlyRate = 0.18 / 12; // 18% annual rate
+    const monthlyPayment = (principal * monthlyRate * Math.pow(1 + monthlyRate, months)) / (Math.pow(1 + monthlyRate, months) - 1);
+    
+    console.log('Cronograma generado automáticamente:', {
+      loanId: selectedLoan?.id,
+      principal,
+      monthlyPayment: monthlyPayment.toFixed(2),
+      term: months,
+      totalToPay: (monthlyPayment * months).toFixed(2)
+    });
+    
     toast({
       title: "Préstamo Aprobado",
-      description: `La solicitud ${selectedLoan?.id} ha sido aprobada exitosamente.`,
+      description: `La solicitud ${selectedLoan?.id} ha sido aprobada. Se generó el cronograma de pagos automáticamente.`,
     });
     setApproveDialogOpen(false);
   };

@@ -6,7 +6,54 @@ import { Badge } from "@/components/ui/badge";
 import { Bell, CheckCircle, AlertCircle, Info, Trash2 } from "lucide-react";
 
 const Notifications = () => {
-  const notifications = [
+  // Check if user is admin
+  const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+  const isAdmin = currentUser.role === 'admin';
+
+  const adminNotifications = [
+    {
+      id: 1,
+      type: "warning",
+      title: "Nueva Solicitud de Préstamo",
+      message: "María González ha solicitado un préstamo de $15,000 MXN (SOL-001).",
+      time: "Hace 10 minutos",
+      read: false
+    },
+    {
+      id: 2,
+      type: "warning",
+      title: "Pago Atrasado",
+      message: "El cliente Roberto García (PREST-043) tiene un pago atrasado de $2,100 MXN.",
+      time: "Hace 1 hora",
+      read: false
+    },
+    {
+      id: 3,
+      type: "success",
+      title: "Cobro Exitoso",
+      message: "Cobro automático de $2,500 MXN procesado para Juan Pérez (PREST-045).",
+      time: "Hace 3 horas",
+      read: false
+    },
+    {
+      id: 4,
+      type: "info",
+      title: "Nueva Membresía",
+      message: "Sofía Martínez ha activado una membresía Premium por $500 MXN.",
+      time: "Hace 1 día",
+      read: true
+    },
+    {
+      id: 5,
+      type: "warning",
+      title: "Fallo en Cobro Automático",
+      message: "El cobro automático de Laura Sánchez (PREST-044) falló. Revisar método de pago.",
+      time: "Hace 2 días",
+      read: true
+    }
+  ];
+
+  const clientNotifications = [
     {
       id: 1,
       type: "success",
@@ -43,11 +90,13 @@ const Notifications = () => {
       id: 5,
       type: "info",
       title: "Nueva Función Disponible",
-      message: "Ahora puedes pagar tus servicios directamente desde tu dashboard.",
+      message: "Ahora puedes gestionar tus métodos de pago desde el menú.",
       time: "Hace 5 días",
       read: true
     }
   ];
+
+  const notifications = isAdmin ? adminNotifications : clientNotifications;
 
   const getIcon = (type: string) => {
     switch (type) {

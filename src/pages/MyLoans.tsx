@@ -13,6 +13,7 @@ import { Chatbot } from "@/components/Chatbot";
 const MyLoans = () => {
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [selectedLoan, setSelectedLoan] = useState<any>(null);
+  const [selectedLoanId, setSelectedLoanId] = useState("PREST-001");
 
   const loans = [
     {
@@ -193,13 +194,26 @@ const MyLoans = () => {
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle>Cronograma de Pagos - PREST-001</CardTitle>
-                    <CardDescription>Calendario detallado de cuotas mensuales</CardDescription>
+                    <CardTitle>Cronograma de Pagos</CardTitle>
+                    <CardDescription>Selecciona un préstamo para ver su calendario de cuotas</CardDescription>
                   </div>
-                  <Button variant="outline" size="sm">
-                    <Calendar className="h-4 w-4 mr-2" />
-                    Exportar
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <select 
+                      className="border rounded-md px-3 py-2 text-sm"
+                      value={selectedLoanId}
+                      onChange={(e) => setSelectedLoanId(e.target.value)}
+                    >
+                      {loans.map((loan) => (
+                        <option key={loan.id} value={loan.id}>
+                          {loan.id} - ${loan.amount.toLocaleString()}
+                        </option>
+                      ))}
+                    </select>
+                    <Button variant="outline" size="sm">
+                      <Calendar className="h-4 w-4 mr-2" />
+                      Exportar
+                    </Button>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent>

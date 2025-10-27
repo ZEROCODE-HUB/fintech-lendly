@@ -9,11 +9,15 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { DollarSign, CreditCard, CheckCircle2, AlertTriangle, ArrowRight } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { DollarSign, CreditCard, CheckCircle2, AlertTriangle, ArrowRight, Calendar, Eye } from "lucide-react";
 
 const LoanRequest = () => {
   const [loanAmount, setLoanAmount] = useState("");
   const [estimatedPayment, setEstimatedPayment] = useState(0);
+  const [simulationDialogOpen, setSimulationDialogOpen] = useState(false);
+  const [paymentSchedule, setPaymentSchedule] = useState<any[]>([]);
 
   const calculatePayment = (amount: string) => {
     const principal = parseFloat(amount) || 0;
@@ -26,6 +30,37 @@ const LoanRequest = () => {
   const handleAmountChange = (value: string) => {
     setLoanAmount(value);
     calculatePayment(value);
+  };
+
+  const generatePaymentSchedule = () => {
+    const principal = parseFloat(loanAmount) || 0;
+    const monthlyRate = 0.05;
+    const months = 12;
+    const monthlyPayment = estimatedPayment;
+    
+    const schedule = [];
+    let remainingBalance = principal;
+    
+    for (let i = 1; i <= months; i++) {
+      const interestPayment = remainingBalance * monthlyRate;
+      const principalPayment = monthlyPayment - interestPayment;
+      remainingBalance -= principalPayment;
+      
+      const today = new Date();
+      const paymentDate = new Date(today.setMonth(today.getMonth() + i));
+      
+      schedule.push({
+        month: i,
+        date: paymentDate.toLocaleDateString('es-MX'),
+        principal: principalPayment,
+        interest: interestPayment,
+        total: monthlyPayment,
+        balance: Math.max(0, remainingBalance)
+      });
+    }
+    
+    setPaymentSchedule(schedule);
+    setSimulationDialogOpen(true);
   };
 
   return (
@@ -115,6 +150,14 @@ const LoanRequest = () => {
                         <p className="font-semibold">${(estimatedPayment * 12).toFixed(2)}</p>
                       </div>
                     </div>
+                    <Button 
+                      variant="outline" 
+                      className="w-full mt-4"
+                      onClick={generatePaymentSchedule}
+                    >
+                      <Calendar className="h-4 w-4 mr-2" />
+                      Ver Simulación del Cronograma
+                    </Button>
                   </div>
                 )}
               </CardContent>
@@ -201,6 +244,61 @@ const LoanRequest = () => {
         </main>
 
         <Chatbot />
+
+        {/* Payment Schedule Simulation Dialog */}
+        <Dialog open={simulationDialogOpen} onOpenChange={setSimulationDialogOpen}>
+          <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Simulación del Cronograma de Pagos</DialogTitle>
+              <DialogDescription>
+                Visualiza cómo se distribuirán tus pagos mensuales
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="bg-accent rounded-lg p-4">
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Monto Total</p>
+                    <p className="text-xl font-bold">${parseFloat(loanAmount).toLocaleString()} MXN</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Pago Mensual</p>
+                    <p className="text-xl font-bold">${estimatedPayment.toFixed(2)} MXN</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Total a Pagar</p>
+                    <p className="text-xl font-bold">${(estimatedPayment * 12).toFixed(2)} MXN</p>
+                  </div>
+                </div>
+              </div>
+              
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Cuota</TableHead>
+                    <TableHead>Fecha</TableHead>
+                    <TableHead>Capital</TableHead>
+                    <TableHead>Interés</TableHead>
+                    <TableHead>Total</TableHead>
+                    <TableHead>Saldo</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {paymentSchedule.map((payment) => (
+                    <TableRow key={payment.month}>
+                      <TableCell className="font-medium">#{payment.month}</TableCell>
+                      <TableCell>{payment.date}</TableCell>
+                      <TableCell>${payment.principal.toFixed(2)}</TableCell>
+                      <TableCell>${payment.interest.toFixed(2)}</TableCell>
+                      <TableCell className="font-semibold">${payment.total.toFixed(2)}</TableCell>
+                      <TableCell className="text-muted-foreground">${payment.balance.toFixed(2)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </SidebarProvider>
   );

@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Search, Filter, Eye, Edit, Trash2, FileText, CheckCircle, XCircle } from "lucide-react";
+import { Search, Filter, Eye, Edit, Trash2, FileText, CheckCircle, XCircle, IdCard } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const ClientManagement = () => {
@@ -56,11 +56,23 @@ const ClientManagement = () => {
     },
   ];
 
-  const memberships = [
+  const [memberships, setMemberships] = useState([
     { id: "MEM-001", client: "María González", type: "Premium", startDate: "2024-01-15", endDate: "2025-01-15", status: "Activa", amount: 999 },
     { id: "MEM-002", client: "Carlos Ramírez", type: "Básico", startDate: "2024-03-20", endDate: "2025-03-20", status: "Activa", amount: 499 },
     { id: "MEM-003", client: "Ana López", type: "Premium", startDate: "2024-05-10", endDate: "2024-11-10", status: "Vencida", amount: 999 },
-  ];
+  ]);
+
+  const toggleMembershipStatus = (membershipId: string) => {
+    setMemberships(memberships.map(m => 
+      m.id === membershipId 
+        ? { ...m, status: m.status === "Activa" ? "Inactiva" : "Activa" }
+        : m
+    ));
+    toast({
+      title: "Estado Actualizado",
+      description: "El estado de la membresía ha sido actualizado.",
+    });
+  };
 
   const handleView = (client: any) => {
     setSelectedClient(client);
@@ -243,15 +255,19 @@ const ClientManagement = () => {
                                 <Button size="sm" variant="ghost">
                                   <FileText className="h-4 w-4" />
                                 </Button>
-                                {membership.status === "Vencida" ? (
-                                  <Button size="sm" variant="ghost" className="text-success">
-                                    <CheckCircle className="h-4 w-4" />
-                                  </Button>
-                                ) : (
-                                  <Button size="sm" variant="ghost" className="text-danger">
+                                <Button 
+                                  size="sm" 
+                                  variant="ghost" 
+                                  className={membership.status === "Activa" ? "text-danger" : "text-success"}
+                                  onClick={() => toggleMembershipStatus(membership.id)}
+                                  title={membership.status === "Activa" ? "Marcar como inactiva" : "Marcar como activa"}
+                                >
+                                  {membership.status === "Activa" ? (
                                     <XCircle className="h-4 w-4" />
-                                  </Button>
-                                )}
+                                  ) : (
+                                    <CheckCircle className="h-4 w-4" />
+                                  )}
+                                </Button>
                               </div>
                             </TableCell>
                           </TableRow>
@@ -267,48 +283,117 @@ const ClientManagement = () => {
 
         {/* View Client Dialog */}
         <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-3xl">
             <DialogHeader>
               <DialogTitle>Información del Cliente</DialogTitle>
               <DialogDescription>Detalles completos del perfil</DialogDescription>
             </DialogHeader>
             {selectedClient && (
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label>ID de Cliente</Label>
-                    <p className="font-semibold">{selectedClient.id}</p>
+              <Tabs defaultValue="info" className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="info">Información</TabsTrigger>
+                  <TabsTrigger value="documents">Documentos</TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="info" className="mt-4">
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label>ID de Cliente</Label>
+                        <p className="font-semibold">{selectedClient.id}</p>
+                      </div>
+                      <div>
+                        <Label>Nombre Completo</Label>
+                        <p className="font-semibold">{selectedClient.name}</p>
+                      </div>
+                      <div>
+                        <Label>Email</Label>
+                        <p className="font-semibold">{selectedClient.email}</p>
+                      </div>
+                      <div>
+                        <Label>Teléfono</Label>
+                        <p className="font-semibold">{selectedClient.phone}</p>
+                      </div>
+                      <div>
+                        <Label>Membresía</Label>
+                        <p className="font-semibold">{selectedClient.membership}</p>
+                      </div>
+                      <div>
+                        <Label>Fecha de Registro</Label>
+                        <p className="font-semibold">{selectedClient.joinDate}</p>
+                      </div>
+                      <div>
+                        <Label>Total de Préstamos</Label>
+                        <p className="font-semibold">{selectedClient.totalLoans}</p>
+                      </div>
+                      <div>
+                        <Label>Préstamos Activos</Label>
+                        <p className="font-semibold">{selectedClient.activeLoans}</p>
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <Label>Nombre Completo</Label>
-                    <p className="font-semibold">{selectedClient.name}</p>
+                </TabsContent>
+
+                <TabsContent value="documents" className="mt-4">
+                  <div className="space-y-4">
+                    <Card>
+                      <CardHeader>
+                        <div className="flex items-center gap-3">
+                          <IdCard className="h-5 w-5 text-primary" />
+                          <div>
+                            <CardTitle className="text-base">Documento de Identidad</CardTitle>
+                            <CardDescription>INE / Pasaporte</CardDescription>
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-3">
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <Label>Tipo de Documento</Label>
+                              <p className="font-semibold">INE</p>
+                            </div>
+                            <div>
+                              <Label>Número</Label>
+                              <p className="font-semibold">1234567890123</p>
+                            </div>
+                            <div>
+                              <Label>Fecha de Emisión</Label>
+                              <p className="font-semibold">15/03/2019</p>
+                            </div>
+                            <div>
+                              <Label>Vigencia</Label>
+                              <p className="font-semibold">15/03/2029</p>
+                            </div>
+                          </div>
+                          <div className="pt-4 border-t">
+                            <Label className="mb-2 block">Imagen del Documento</Label>
+                            <div className="bg-accent rounded-lg p-8 text-center">
+                              <IdCard className="h-16 w-16 mx-auto mb-2 text-muted-foreground" />
+                              <p className="text-sm text-muted-foreground">
+                                Imagen del documento de identidad
+                              </p>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                (Simulación - en producción mostraría la imagen real)
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex gap-2 pt-2">
+                            <Button variant="outline" size="sm" className="flex-1">
+                              <Eye className="h-4 w-4 mr-2" />
+                              Ver Original
+                            </Button>
+                            <Button variant="outline" size="sm" className="flex-1">
+                              <FileText className="h-4 w-4 mr-2" />
+                              Descargar PDF
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
                   </div>
-                  <div>
-                    <Label>Email</Label>
-                    <p className="font-semibold">{selectedClient.email}</p>
-                  </div>
-                  <div>
-                    <Label>Teléfono</Label>
-                    <p className="font-semibold">{selectedClient.phone}</p>
-                  </div>
-                  <div>
-                    <Label>Membresía</Label>
-                    <p className="font-semibold">{selectedClient.membership}</p>
-                  </div>
-                  <div>
-                    <Label>Fecha de Registro</Label>
-                    <p className="font-semibold">{selectedClient.joinDate}</p>
-                  </div>
-                  <div>
-                    <Label>Total de Préstamos</Label>
-                    <p className="font-semibold">{selectedClient.totalLoans}</p>
-                  </div>
-                  <div>
-                    <Label>Préstamos Activos</Label>
-                    <p className="font-semibold">{selectedClient.activeLoans}</p>
-                  </div>
-                </div>
-              </div>
+                </TabsContent>
+              </Tabs>
             )}
           </DialogContent>
         </Dialog>
