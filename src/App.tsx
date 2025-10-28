@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
+import ServiceSelection from "./pages/ServiceSelection";
 import LoanRequest from "./pages/LoanRequest";
 import MyLoans from "./pages/MyLoans";
 import History from "./pages/History";
@@ -28,6 +29,7 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/auth" element={<Auth />} />
+          <Route path="/service-selection" element={<ServiceSelection />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/loan-request" element={<LoanRequest />} />
           <Route path="/my-loans" element={<MyLoans />} />

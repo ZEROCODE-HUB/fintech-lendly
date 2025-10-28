@@ -22,7 +22,7 @@ const Auth = () => {
       title: "Acceso Demo",
       description: `Has ingresado como ${role === 'admin' ? 'Administrador' : 'Cliente'}`,
     });
-    navigate(role === 'admin' ? '/admin/dashboard' : '/dashboard');
+    navigate(role === 'admin' ? '/admin/dashboard' : '/service-selection');
   };
 
   return (

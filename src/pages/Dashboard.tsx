@@ -1,87 +1,147 @@
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { AppSidebar } from "@/components/AppSidebar";
+import { Chatbot } from "@/components/Chatbot";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { CreditCard, Banknote, ArrowRight } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { DollarSign, TrendingUp, CreditCard, AlertCircle, ArrowRight, Clock } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 
 const Dashboard = () => {
   const navigate = useNavigate();
 
-  const handleServiciosClick = () => {
-    window.location.href = 'https://www.google.com';
-  };
-
-  const handlePrestamosClick = () => {
-    navigate('/loan-request');
-  };
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-accent/5">
-      {/* Main Content - Centered Cards */}
-      <div className="container mx-auto px-4 py-12 min-h-screen flex items-center justify-center">
-        <div className="w-full max-w-4xl">
-          {/* Welcome Message */}
-          <div className="text-center mb-12 animate-fade-in">
-            <h2 className="text-4xl font-bold mb-3 bg-gradient-hero bg-clip-text text-transparent">
-              Bienvenido a InCrescendo
-            </h2>
-            <p className="text-muted-foreground text-lg">
-              Selecciona un servicio para comenzar
-            </p>
-          </div>
+    <SidebarProvider>
+      <div className="min-h-screen flex w-full">
+        <AppSidebar />
+        
+        <main className="flex-1">
+          <header className="h-16 border-b border-border bg-card flex items-center px-6 gap-4 sticky top-0 z-10">
+            <SidebarTrigger />
+            <div className="flex-1">
+              <h1 className="text-2xl font-bold">Dashboard de Préstamos</h1>
+            </div>
+          </header>
 
-          {/* Cards Grid */}
-          <div className="grid md:grid-cols-2 gap-8">
-            {/* Card 1: Servicios y Recargas */}
-            <Card 
-              className="group cursor-pointer shadow-soft hover:shadow-elegant transition-all duration-300 hover:-translate-y-2 border-2 hover:border-primary/50 animate-fade-in"
-              onClick={handleServiciosClick}
-            >
-              <CardHeader className="text-center pb-4">
-                <div className="mx-auto mb-4 h-20 w-20 rounded-full bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-glow">
-                  <CreditCard className="h-10 w-10 text-white" />
-                </div>
-                <CardTitle className="text-2xl font-bold group-hover:text-primary transition-colors">
-                  Servicios y Recargas
-                </CardTitle>
+          <div className="p-6 space-y-6">
+            {/* Stats Cards */}
+            <div className="grid gap-6 md:grid-cols-3">
+              <Card className="shadow-soft">
+                <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+                  <CardTitle className="text-sm font-medium">Préstamo Activo</CardTitle>
+                  <DollarSign className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">$15,000.00</div>
+                  <p className="text-xs text-muted-foreground">
+                    Saldo actual de tu préstamo
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card className="shadow-soft">
+                <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+                  <CardTitle className="text-sm font-medium">Próximo Pago</CardTitle>
+                  <Clock className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">$1,450.00</div>
+                  <p className="text-xs text-muted-foreground">
+                    Vence el 15 de Diciembre
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card className="shadow-soft">
+                <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+                  <CardTitle className="text-sm font-medium">Historial</CardTitle>
+                  <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">95%</div>
+                  <p className="text-xs text-muted-foreground">
+                    Tasa de pagos a tiempo
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Quick Actions */}
+            <Card className="shadow-medium">
+              <CardHeader>
+                <CardTitle>Acciones Rápidas</CardTitle>
+                <CardDescription>Gestiona tus préstamos fácilmente</CardDescription>
               </CardHeader>
-              <CardContent className="text-center">
-                <CardDescription className="text-base mb-6">
-                  Paga servicios, recarga celular y más
-                </CardDescription>
-                <div className="flex items-center justify-center gap-2 text-primary font-medium group-hover:gap-4 transition-all">
-                  <span>Ir al servicio</span>
-                  <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
-                </div>
+              <CardContent className="grid gap-4 md:grid-cols-2">
+                <Button 
+                  className="h-24 text-lg"
+                  onClick={() => navigate('/loan-request')}
+                >
+                  <DollarSign className="mr-2 h-5 w-5" />
+                  Solicitar Nuevo Préstamo
+                  <ArrowRight className="ml-auto h-5 w-5" />
+                </Button>
+                <Button 
+                  variant="outline" 
+                  className="h-24 text-lg"
+                  onClick={() => navigate('/my-loans')}
+                >
+                  <CreditCard className="mr-2 h-5 w-5" />
+                  Ver Mis Préstamos
+                  <ArrowRight className="ml-auto h-5 w-5" />
+                </Button>
               </CardContent>
             </Card>
 
-            {/* Card 2: Préstamos */}
-            <Card 
-              className="group cursor-pointer shadow-soft hover:shadow-elegant transition-all duration-300 hover:-translate-y-2 border-2 hover:border-success/50 animate-fade-in"
-              onClick={handlePrestamosClick}
-              style={{ animationDelay: '0.1s' }}
-            >
-              <CardHeader className="text-center pb-4">
-                <div className="mx-auto mb-4 h-20 w-20 rounded-full bg-gradient-to-br from-success to-success/60 flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-glow">
-                  <Banknote className="h-10 w-10 text-white" />
-                </div>
-                <CardTitle className="text-2xl font-bold group-hover:text-success transition-colors">
-                  Préstamos
-                </CardTitle>
+            {/* Current Loan Status */}
+            <Card className="shadow-medium">
+              <CardHeader>
+                <CardTitle>Estado del Préstamo Actual</CardTitle>
+                <CardDescription>Préstamo #LP-2024-001</CardDescription>
               </CardHeader>
-              <CardContent className="text-center">
-                <CardDescription className="text-base mb-6">
-                  Solicita y gestiona tus préstamos
-                </CardDescription>
-                <div className="flex items-center justify-center gap-2 text-success font-medium group-hover:gap-4 transition-all">
-                  <span>Ir a préstamos</span>
-                  <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+              <CardContent className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Monto Original:</span>
+                  <span className="font-semibold">$20,000.00 MXN</span>
                 </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Saldo Restante:</span>
+                  <span className="font-semibold text-primary">$15,000.00 MXN</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Pagos Realizados:</span>
+                  <span className="font-semibold">5 de 12</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Estado:</span>
+                  <Badge className="bg-success text-success-foreground">Al Corriente</Badge>
+                </div>
+                <div className="w-full bg-muted rounded-full h-3 mt-4">
+                  <div className="bg-success h-3 rounded-full" style={{ width: '42%' }}></div>
+                </div>
+                <p className="text-xs text-muted-foreground text-center">42% completado</p>
+              </CardContent>
+            </Card>
+
+            {/* Alert */}
+            <Card className="border-primary bg-accent">
+              <CardContent className="flex items-center gap-4 py-4">
+                <AlertCircle className="h-8 w-8 text-primary flex-shrink-0" />
+                <div className="flex-1">
+                  <p className="font-semibold">Recordatorio de Pago</p>
+                  <p className="text-sm text-muted-foreground">
+                    Tu próximo pago vence en 5 días. Asegúrate de tener fondos disponibles.
+                  </p>
+                </div>
+                <Button variant="outline">Ver Detalles</Button>
               </CardContent>
             </Card>
           </div>
-        </div>
+        </main>
+
+        <Chatbot />
       </div>
-    </div>
+    </SidebarProvider>
   );
 };
 
