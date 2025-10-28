@@ -3,7 +3,7 @@ import { AppSidebar } from "@/components/AppSidebar";
 import { Chatbot } from "@/components/Chatbot";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { DollarSign, TrendingUp, CreditCard, AlertCircle, ArrowRight, Clock } from "lucide-react";
+import { DollarSign, TrendingUp, CreditCard, AlertCircle, ArrowRight, Clock, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 
@@ -21,6 +21,14 @@ const Dashboard = () => {
             <div className="flex-1">
               <h1 className="text-2xl font-bold">Dashboard de Préstamos</h1>
             </div>
+            <Button 
+              variant="outline" 
+              onClick={() => navigate('/service-selection')}
+              className="gap-2"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Volver a Servicios
+            </Button>
           </header>
 
           <div className="p-6 space-y-6">
