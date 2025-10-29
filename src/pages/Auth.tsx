@@ -26,7 +26,7 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen flex">
+    <div className="min-h-screen flex flex-col lg:flex-row">
       {/* Left side - Hero Image */}
       <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden">
         <div 
@@ -61,24 +61,24 @@ const Auth = () => {
       </div>
 
       {/* Right side - Auth Forms */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-accent/30">
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-4 sm:p-6 md:p-8 bg-accent/30">
         <div className="w-full max-w-md">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-8">
-              <TabsTrigger value="login">Iniciar Sesión</TabsTrigger>
-              <TabsTrigger value="register">Registrarse</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-2 mb-4 sm:mb-6 md:mb-8">
+              <TabsTrigger value="login" className="text-xs sm:text-sm">Iniciar Sesión</TabsTrigger>
+              <TabsTrigger value="register" className="text-xs sm:text-sm">Registrarse</TabsTrigger>
             </TabsList>
 
             {/* Login Tab */}
             <TabsContent value="login">
               <Card className="shadow-medium border-0">
-                <CardHeader>
-                  <CardTitle className="text-2xl">Accede a tu cuenta</CardTitle>
+                <CardHeader className="space-y-1 px-4 sm:px-6">
+                  <CardTitle className="text-xl sm:text-2xl">Accede a tu cuenta</CardTitle>
                   <CardDescription>
                     Ingresa tus credenciales para continuar
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-3 sm:space-y-4 px-4 sm:px-6">
                   <div className="space-y-2">
                     <Label htmlFor="email">Correo Electrónico</Label>
                     <div className="relative">
@@ -123,23 +123,24 @@ const Auth = () => {
                     <p className="text-sm text-center text-muted-foreground font-medium">
                       Acceso Demo (Sin Registro)
                     </p>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-2 gap-2 sm:gap-3">
                       <Button 
                         variant="outline" 
                         size="lg"
                         onClick={() => handleDemoLogin('client')}
-                        className="w-full"
+                        className="w-full text-xs sm:text-sm"
                       >
-                        <User className="mr-2 h-4 w-4" />
-                        Cliente
+                        <User className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+                        <span className="hidden sm:inline">Cliente</span>
+                        <span className="sm:hidden">Client</span>
                       </Button>
                       <Button 
                         variant="outline" 
                         size="lg"
                         onClick={() => handleDemoLogin('admin')}
-                        className="w-full"
+                        className="w-full text-xs sm:text-sm"
                       >
-                        <UserCog className="mr-2 h-4 w-4" />
+                        <UserCog className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
                         Admin
                       </Button>
                     </div>
@@ -151,14 +152,14 @@ const Auth = () => {
             {/* Register Tab */}
             <TabsContent value="register">
               <Card className="shadow-medium border-0">
-                <CardHeader>
-                  <CardTitle className="text-2xl">Crear cuenta</CardTitle>
+                <CardHeader className="space-y-1 px-4 sm:px-6">
+                  <CardTitle className="text-xl sm:text-2xl">Crear cuenta</CardTitle>
                   <CardDescription>
                     Completa el formulario para registrarte
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
+                <CardContent className="space-y-3 sm:space-y-4 px-4 sm:px-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="firstName">Nombre</Label>
                       <Input 

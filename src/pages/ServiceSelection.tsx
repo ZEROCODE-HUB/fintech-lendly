@@ -16,40 +16,40 @@ const ServiceSelection = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-accent/5">
       {/* Main Content - Centered Cards */}
-      <div className="container mx-auto px-4 py-12 min-h-screen flex items-center justify-center">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 min-h-screen flex items-center justify-center">
         <div className="w-full max-w-4xl">
           {/* Welcome Message */}
-          <div className="text-center mb-12 animate-fade-in">
-            <h2 className="text-4xl font-bold mb-3 bg-gradient-hero bg-clip-text text-transparent">
+          <div className="text-center mb-8 sm:mb-12 animate-fade-in">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-2 sm:mb-3 bg-gradient-hero bg-clip-text text-transparent">
               Bienvenido a InCrescendo
             </h2>
-            <p className="text-muted-foreground text-lg">
+            <p className="text-muted-foreground text-sm sm:text-base md:text-lg px-4">
               Selecciona un servicio para comenzar
             </p>
           </div>
 
           {/* Cards Grid */}
-          <div className="grid md:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 md:gap-8">
             {/* Card 1: Servicios y Recargas */}
             <Card 
               className="group cursor-pointer shadow-soft hover:shadow-elegant transition-all duration-300 hover:-translate-y-2 border-2 hover:border-primary/50 animate-fade-in"
               onClick={handleServiciosClick}
             >
-              <CardHeader className="text-center pb-4">
-                <div className="mx-auto mb-4 h-20 w-20 rounded-full bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-glow">
-                  <CreditCard className="h-10 w-10 text-white" />
+              <CardHeader className="text-center pb-3 sm:pb-4 px-4 sm:px-6">
+                <div className="mx-auto mb-3 sm:mb-4 h-16 w-16 sm:h-20 sm:w-20 rounded-full bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-glow">
+                  <CreditCard className="h-8 w-8 sm:h-10 sm:w-10 text-white" />
                 </div>
-                <CardTitle className="text-2xl font-bold group-hover:text-primary transition-colors">
+                <CardTitle className="text-lg sm:text-xl md:text-2xl font-bold group-hover:text-primary transition-colors">
                   Servicios y Recargas
                 </CardTitle>
               </CardHeader>
-              <CardContent className="text-center">
-                <CardDescription className="text-base mb-6">
+              <CardContent className="text-center px-4 sm:px-6">
+                <CardDescription className="text-sm sm:text-base mb-4 sm:mb-6">
                   Paga servicios, recarga celular y más
                 </CardDescription>
-                <div className="flex items-center justify-center gap-2 text-primary font-medium group-hover:gap-4 transition-all">
+                <div className="flex items-center justify-center gap-2 text-primary font-medium group-hover:gap-4 transition-all text-sm sm:text-base">
                   <span>Ir al servicio</span>
-                  <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                  <ArrowRight className="h-3 w-3 sm:h-4 sm:w-4 group-hover:translate-x-1 transition-transform" />
                 </div>
               </CardContent>
             </Card>
@@ -60,21 +60,21 @@ const ServiceSelection = () => {
               onClick={handlePrestamosClick}
               style={{ animationDelay: '0.1s' }}
             >
-              <CardHeader className="text-center pb-4">
-                <div className="mx-auto mb-4 h-20 w-20 rounded-full bg-gradient-to-br from-success to-success/60 flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-glow">
-                  <Banknote className="h-10 w-10 text-white" />
+              <CardHeader className="text-center pb-3 sm:pb-4 px-4 sm:px-6">
+                <div className="mx-auto mb-3 sm:mb-4 h-16 w-16 sm:h-20 sm:w-20 rounded-full bg-gradient-to-br from-success to-success/60 flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-glow">
+                  <Banknote className="h-8 w-8 sm:h-10 sm:w-10 text-white" />
                 </div>
-                <CardTitle className="text-2xl font-bold group-hover:text-success transition-colors">
+                <CardTitle className="text-lg sm:text-xl md:text-2xl font-bold group-hover:text-success transition-colors">
                   Préstamos
                 </CardTitle>
               </CardHeader>
-              <CardContent className="text-center">
-                <CardDescription className="text-base mb-6">
+              <CardContent className="text-center px-4 sm:px-6">
+                <CardDescription className="text-sm sm:text-base mb-4 sm:mb-6">
                   Solicita y gestiona tus préstamos
                 </CardDescription>
-                <div className="flex items-center justify-center gap-2 text-success font-medium group-hover:gap-4 transition-all">
+                <div className="flex items-center justify-center gap-2 text-success font-medium group-hover:gap-4 transition-all text-sm sm:text-base">
                   <span>Ir a préstamos</span>
-                  <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                  <ArrowRight className="h-3 w-3 sm:h-4 sm:w-4 group-hover:translate-x-1 transition-transform" />
                 </div>
               </CardContent>
             </Card>
