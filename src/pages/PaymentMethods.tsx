@@ -109,25 +109,26 @@ const PaymentMethods = () => {
         <AppSidebar />
         
         <main className="flex-1">
-          <header className="h-16 border-b border-border bg-card flex items-center px-6 gap-4 sticky top-0 z-10">
+          <header className="h-14 sm:h-16 border-b border-border bg-card flex items-center px-3 sm:px-4 md:px-6 gap-2 sm:gap-4 sticky top-0 z-10">
             <SidebarTrigger />
-            <div className="flex-1">
-              <h1 className="text-2xl font-bold">Métodos de Pago</h1>
+            <div className="flex-1 min-w-0">
+              <h1 className="text-lg sm:text-xl md:text-2xl font-bold truncate">Métodos de Pago</h1>
             </div>
-            <Button onClick={() => setAddDialogOpen(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Agregar Método
+            <Button onClick={() => setAddDialogOpen(true)} size="sm" className="text-xs sm:text-sm">
+              <Plus className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
+              <span className="hidden sm:inline">Agregar</span>
+              <span className="sm:hidden">Nuevo</span>
             </Button>
           </header>
 
-          <div className="p-6 space-y-6">
+          <div className="p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-6">
             {/* Info Alert */}
             <Card className="border-primary bg-accent">
-              <CardContent className="flex items-start gap-4 py-4">
-                <CheckCircle className="h-6 w-6 text-primary flex-shrink-0 mt-1" />
+              <CardContent className="flex items-start gap-3 sm:gap-4 py-3 sm:py-4">
+                <CheckCircle className="h-5 w-5 sm:h-6 sm:w-6 text-primary flex-shrink-0 mt-0.5 sm:mt-1" />
                 <div>
-                  <p className="font-semibold">Cobros Automáticos</p>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="font-semibold text-sm sm:text-base">Cobros Automáticos</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground">
                     El método marcado como predeterminado será usado para procesar tus pagos automáticos mensualmente.
                   </p>
                 </div>
@@ -135,29 +136,29 @@ const PaymentMethods = () => {
             </Card>
 
             {/* Payment Methods List */}
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-3 sm:gap-4 grid-cols-1 md:grid-cols-2">
               {paymentMethods.map((method) => (
                 <Card key={method.id} className={`shadow-soft ${method.isDefault ? 'border-primary' : ''}`}>
-                  <CardHeader>
+                  <CardHeader className="px-4 sm:px-6 py-4 sm:py-6">
                     <div className="flex items-start justify-between">
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2 sm:gap-3">
                         {method.type === "card" ? (
-                          <div className="h-12 w-12 rounded-lg bg-accent flex items-center justify-center">
+                          <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-lg bg-accent flex items-center justify-center flex-shrink-0">
                             {getCardIcon(method.cardType)}
                           </div>
                         ) : (
-                          <div className="h-12 w-12 rounded-lg bg-accent flex items-center justify-center">
-                            <Building2 className="h-5 w-5" />
+                          <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-lg bg-accent flex items-center justify-center flex-shrink-0">
+                            <Building2 className="h-4 w-4 sm:h-5 sm:w-5" />
                           </div>
                         )}
-                        <div>
-                          <CardTitle className="text-base flex items-center gap-2">
-                            {method.type === "card" ? method.cardType : method.bankName}
+                        <div className="min-w-0">
+                          <CardTitle className="text-sm sm:text-base flex items-center gap-2">
+                            <span className="truncate">{method.type === "card" ? method.cardType : method.bankName}</span>
                             {method.isDefault && (
-                              <Star className="h-4 w-4 text-primary fill-primary" />
+                              <Star className="h-3 w-3 sm:h-4 sm:w-4 text-primary fill-primary flex-shrink-0" />
                             )}
                           </CardTitle>
-                          <CardDescription>
+                          <CardDescription className="text-xs sm:text-sm">
                             {method.type === "card" 
                               ? `•••• ${method.lastFour}` 
                               : `CLABE •••• ${method.lastDigits}`
@@ -167,7 +168,7 @@ const PaymentMethods = () => {
                       </div>
                     </div>
                   </CardHeader>
-                  <CardContent className="space-y-3">
+                  <CardContent className="space-y-3 px-4 sm:px-6 pb-4 sm:pb-6">
                     <div className="space-y-2 text-sm">
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Titular:</span>
@@ -197,22 +198,23 @@ const PaymentMethods = () => {
                       )}
                     </div>
 
-                    <div className="flex gap-2 pt-2 border-t">
+                    <div className="flex flex-col sm:flex-row gap-2 pt-2 border-t">
                       {!method.isDefault && (
                         <Button 
                           variant="outline" 
                           size="sm" 
-                          className="flex-1"
+                          className="flex-1 text-xs sm:text-sm"
                           onClick={() => handleSetDefault(method.id)}
                         >
                           <Star className="h-3 w-3 mr-1" />
-                          Predeterminado
+                          <span className="hidden sm:inline">Predeterminado</span>
+                          <span className="sm:hidden">Predeterminado</span>
                         </Button>
                       )}
                       <Button 
                         variant="outline" 
                         size="sm" 
-                        className={method.isDefault ? "flex-1" : ""}
+                        className={`${method.isDefault ? "flex-1" : ""} text-xs sm:text-sm`}
                         onClick={() => handleEdit(method)}
                       >
                         <Edit className="h-3 w-3 mr-1" />
@@ -223,6 +225,7 @@ const PaymentMethods = () => {
                         size="sm"
                         onClick={() => handleDelete(method)}
                         disabled={method.isDefault}
+                        className="text-xs sm:text-sm"
                       >
                         <Trash2 className="h-3 w-3" />
                       </Button>
@@ -254,10 +257,10 @@ const PaymentMethods = () => {
 
         {/* Add Payment Method Dialog */}
         <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
-          <DialogContent>
+          <DialogContent className="max-w-[95vw] sm:max-w-lg">
             <DialogHeader>
-              <DialogTitle>Agregar Método de Pago</DialogTitle>
-              <DialogDescription>
+              <DialogTitle className="text-lg sm:text-xl">Agregar Método de Pago</DialogTitle>
+              <DialogDescription className="text-xs sm:text-sm">
                 Agrega una tarjeta o cuenta bancaria para cobros automáticos
               </DialogDescription>
             </DialogHeader>
@@ -343,10 +346,10 @@ const PaymentMethods = () => {
 
         {/* Edit Payment Method Dialog */}
         <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-          <DialogContent>
+          <DialogContent className="max-w-[95vw] sm:max-w-lg">
             <DialogHeader>
-              <DialogTitle>Editar Método de Pago</DialogTitle>
-              <DialogDescription>
+              <DialogTitle className="text-lg sm:text-xl">Editar Método de Pago</DialogTitle>
+              <DialogDescription className="text-xs sm:text-sm">
                 Actualiza la información de tu método de pago
               </DialogDescription>
             </DialogHeader>

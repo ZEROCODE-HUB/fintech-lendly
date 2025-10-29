@@ -119,61 +119,61 @@ const Notifications = () => {
         <AppSidebar />
         
         <main className="flex-1">
-          <header className="h-16 border-b border-border bg-card flex items-center px-6 gap-4 sticky top-0 z-10">
+          <header className="h-14 sm:h-16 border-b border-border bg-card flex items-center px-3 sm:px-4 md:px-6 gap-2 sm:gap-4 sticky top-0 z-10">
             <SidebarTrigger />
-            <div className="flex-1">
-              <h1 className="text-2xl font-bold">Notificaciones</h1>
+            <div className="flex-1 min-w-0">
+              <h1 className="text-lg sm:text-xl md:text-2xl font-bold truncate">Notificaciones</h1>
             </div>
             <div className="flex items-center gap-2">
               {unreadCount > 0 && (
-                <Badge variant="outline" className="border-primary text-primary">
-                  {unreadCount} nuevas
+                <Badge variant="outline" className="border-primary text-primary text-xs sm:text-sm">
+                  {unreadCount} {window.innerWidth < 640 ? '' : 'nuevas'}
                 </Badge>
               )}
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" className="text-xs sm:text-sm hidden sm:flex">
                 Marcar todo como leído
               </Button>
             </div>
           </header>
 
-          <div className="p-6 space-y-6">
+          <div className="p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-6">
             <Card className="shadow-soft">
-              <CardHeader>
-                <CardTitle>Todas las Notificaciones</CardTitle>
-                <CardDescription>
+              <CardHeader className="px-4 sm:px-6 py-4 sm:py-6">
+                <CardTitle className="text-lg sm:text-xl md:text-2xl">Todas las Notificaciones</CardTitle>
+                <CardDescription className="text-xs sm:text-sm">
                   Mantente al día con las actualizaciones de tu cuenta
                 </CardDescription>
               </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
+              <CardContent className="px-4 sm:px-6 pb-4 sm:pb-6">
+                <div className="space-y-3 sm:space-y-4">
                   {notifications.map((notification) => (
                     <div 
                       key={notification.id}
-                      className={`flex items-start gap-4 p-4 rounded-lg border transition-colors ${
+                      className={`flex items-start gap-3 sm:gap-4 p-3 sm:p-4 rounded-lg border transition-colors ${
                         !notification.read 
                           ? 'bg-accent/50 border-primary/20' 
                           : 'bg-background border-border hover:bg-accent/30'
                       }`}
                     >
-                      <div className="mt-1">
+                      <div className="mt-0.5 sm:mt-1 flex-shrink-0">
                         {getIcon(notification.type)}
                       </div>
-                      <div className="flex-1 space-y-1">
-                        <div className="flex items-start justify-between">
-                          <h4 className="font-semibold">{notification.title}</h4>
+                      <div className="flex-1 space-y-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2">
+                          <h4 className="font-semibold text-sm sm:text-base">{notification.title}</h4>
                           {!notification.read && (
-                            <div className="h-2 w-2 bg-primary rounded-full" />
+                            <div className="h-2 w-2 bg-primary rounded-full flex-shrink-0 mt-1" />
                           )}
                         </div>
-                        <p className="text-sm text-muted-foreground">
+                        <p className="text-xs sm:text-sm text-muted-foreground">
                           {notification.message}
                         </p>
                         <p className="text-xs text-muted-foreground">
                           {notification.time}
                         </p>
                       </div>
-                      <Button variant="ghost" size="sm">
-                        <Trash2 className="h-4 w-4" />
+                      <Button variant="ghost" size="sm" className="flex-shrink-0">
+                        <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
                       </Button>
                     </div>
                   ))}

@@ -72,16 +72,16 @@ const MyLoans = () => {
         <AppSidebar />
         
         <main className="flex-1">
-          <header className="h-16 border-b border-border bg-card flex items-center px-6 gap-4 sticky top-0 z-10">
+          <header className="h-14 sm:h-16 border-b border-border bg-card flex items-center px-3 sm:px-4 md:px-6 gap-2 sm:gap-4 sticky top-0 z-10">
             <SidebarTrigger />
-            <div className="flex-1">
-              <h1 className="text-2xl font-bold">Mis Préstamos</h1>
+            <div className="flex-1 min-w-0">
+              <h1 className="text-lg sm:text-xl md:text-2xl font-bold truncate">Mis Préstamos</h1>
             </div>
           </header>
 
-          <div className="p-6 space-y-6">
+          <div className="p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-6">
             {/* Summary Cards */}
-            <div className="grid gap-6 md:grid-cols-3">
+            <div className="grid gap-3 sm:gap-4 md:gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
               <Card className="shadow-soft">
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
                   <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -130,55 +130,57 @@ const MyLoans = () => {
 
             {/* Loans Table */}
             <Card className="shadow-soft">
-              <CardHeader>
-                <CardTitle>Detalle de Préstamos</CardTitle>
-                <CardDescription>
+              <CardHeader className="px-4 sm:px-6 py-4 sm:py-6">
+                <CardTitle className="text-lg sm:text-xl md:text-2xl">Detalle de Préstamos</CardTitle>
+                <CardDescription className="text-xs sm:text-sm">
                   Gestiona y consulta el estado de todos tus préstamos
                 </CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="px-2 sm:px-4 md:px-6 pb-4 sm:pb-6">
+                <div className="overflow-x-auto -mx-2 sm:mx-0">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>ID</TableHead>
-                      <TableHead>Monto</TableHead>
-                      <TableHead>Tasa</TableHead>
-                      <TableHead>Plazo</TableHead>
-                      <TableHead>Pagado</TableHead>
-                      <TableHead>Restante</TableHead>
-                      <TableHead>Próximo Pago</TableHead>
-                      <TableHead>Estado</TableHead>
-                      <TableHead>Acciones</TableHead>
+                      <TableHead className="text-xs sm:text-sm whitespace-nowrap">ID</TableHead>
+                      <TableHead className="text-xs sm:text-sm whitespace-nowrap">Monto</TableHead>
+                      <TableHead className="text-xs sm:text-sm whitespace-nowrap hidden md:table-cell">Tasa</TableHead>
+                      <TableHead className="text-xs sm:text-sm whitespace-nowrap hidden lg:table-cell">Plazo</TableHead>
+                      <TableHead className="text-xs sm:text-sm whitespace-nowrap hidden sm:table-cell">Pagado</TableHead>
+                      <TableHead className="text-xs sm:text-sm whitespace-nowrap">Restante</TableHead>
+                      <TableHead className="text-xs sm:text-sm whitespace-nowrap hidden xl:table-cell">Próximo Pago</TableHead>
+                      <TableHead className="text-xs sm:text-sm whitespace-nowrap">Estado</TableHead>
+                      <TableHead className="text-xs sm:text-sm whitespace-nowrap">Acciones</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {loans.map((loan) => (
                       <TableRow key={loan.id}>
-                        <TableCell className="font-medium">{loan.id}</TableCell>
-                        <TableCell>${loan.amount.toLocaleString()}</TableCell>
-                        <TableCell>{loan.rate}%</TableCell>
-                        <TableCell>{loan.term} meses</TableCell>
-                        <TableCell className="text-success">
+                        <TableCell className="font-medium text-xs sm:text-sm whitespace-nowrap">{loan.id}</TableCell>
+                        <TableCell className="text-xs sm:text-sm whitespace-nowrap">${loan.amount.toLocaleString()}</TableCell>
+                        <TableCell className="text-xs sm:text-sm whitespace-nowrap hidden md:table-cell">{loan.rate}%</TableCell>
+                        <TableCell className="text-xs sm:text-sm whitespace-nowrap hidden lg:table-cell">{loan.term}m</TableCell>
+                        <TableCell className="text-success text-xs sm:text-sm whitespace-nowrap hidden sm:table-cell">
                           ${loan.paid.toLocaleString()}
                         </TableCell>
-                        <TableCell className="text-danger">
+                        <TableCell className="text-danger text-xs sm:text-sm whitespace-nowrap">
                           ${loan.remaining.toLocaleString()}
                         </TableCell>
-                        <TableCell>{loan.nextPayment}</TableCell>
+                        <TableCell className="text-xs sm:text-sm whitespace-nowrap hidden xl:table-cell">{loan.nextPayment}</TableCell>
                         <TableCell>{getStatusBadge(loan.status)}</TableCell>
                         <TableCell>
-                          <div className="flex gap-2">
+                          <div className="flex flex-col sm:flex-row gap-1 sm:gap-2">
                             <Button 
                               size="sm" 
                               variant="outline"
                               onClick={() => handleViewLoan(loan)}
+                              className="text-xs whitespace-nowrap"
                             >
-                              <Eye className="h-3 w-3 mr-1" />
-                              Ver
+                              <Eye className="h-3 w-3 sm:mr-1" />
+                              <span className="hidden sm:inline">Ver</span>
                             </Button>
-                            <Button size="sm" variant="outline">
-                              <Download className="h-3 w-3 mr-1" />
-                              PDF
+                            <Button size="sm" variant="outline" className="text-xs whitespace-nowrap">
+                              <Download className="h-3 w-3 sm:mr-1" />
+                              <span className="hidden sm:inline">PDF</span>
                             </Button>
                           </div>
                         </TableCell>
@@ -186,20 +188,21 @@ const MyLoans = () => {
                     ))}
                   </TableBody>
                 </Table>
+                </div>
               </CardContent>
             </Card>
 
             {/* Payment Schedule */}
             <Card className="shadow-soft">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle>Cronograma de Pagos</CardTitle>
-                    <CardDescription>Selecciona un préstamo para ver su calendario de cuotas</CardDescription>
+              <CardHeader className="px-4 sm:px-6 py-4 sm:py-6">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
+                  <div className="flex-1 min-w-0">
+                    <CardTitle className="text-lg sm:text-xl md:text-2xl">Cronograma de Pagos</CardTitle>
+                    <CardDescription className="text-xs sm:text-sm">Selecciona un préstamo para ver su calendario de cuotas</CardDescription>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
                     <select 
-                      className="border rounded-md px-3 py-2 text-sm"
+                      className="border rounded-md px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm"
                       value={selectedLoanId}
                       onChange={(e) => setSelectedLoanId(e.target.value)}
                     >
@@ -209,35 +212,36 @@ const MyLoans = () => {
                         </option>
                       ))}
                     </select>
-                    <Button variant="outline" size="sm">
-                      <Calendar className="h-4 w-4 mr-2" />
+                    <Button variant="outline" size="sm" className="text-xs sm:text-sm">
+                      <Calendar className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
                       Exportar
                     </Button>
                   </div>
                 </div>
               </CardHeader>
-              <CardContent>
+              <CardContent className="px-2 sm:px-4 md:px-6 pb-4 sm:pb-6">
+                <div className="overflow-x-auto -mx-2 sm:mx-0">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Cuota</TableHead>
-                      <TableHead>Fecha</TableHead>
-                      <TableHead>Capital</TableHead>
-                      <TableHead>Interés</TableHead>
-                      <TableHead>Total</TableHead>
-                      <TableHead>Estado</TableHead>
+                      <TableHead className="text-xs sm:text-sm whitespace-nowrap">Cuota</TableHead>
+                      <TableHead className="text-xs sm:text-sm whitespace-nowrap">Fecha</TableHead>
+                      <TableHead className="text-xs sm:text-sm whitespace-nowrap hidden sm:table-cell">Capital</TableHead>
+                      <TableHead className="text-xs sm:text-sm whitespace-nowrap hidden md:table-cell">Interés</TableHead>
+                      <TableHead className="text-xs sm:text-sm whitespace-nowrap">Total</TableHead>
+                      <TableHead className="text-xs sm:text-sm whitespace-nowrap">Estado</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {Array.from({ length: 6 }).map((_, i) => (
                       <TableRow key={i}>
-                        <TableCell>#{i + 1}</TableCell>
-                        <TableCell>15/{String(i + 5).padStart(2, '0')}/2024</TableCell>
-                        <TableCell>$800</TableCell>
-                        <TableCell>$100</TableCell>
-                        <TableCell className="font-semibold">$900</TableCell>
+                        <TableCell className="text-xs sm:text-sm whitespace-nowrap">#{i + 1}</TableCell>
+                        <TableCell className="text-xs sm:text-sm whitespace-nowrap">15/{String(i + 5).padStart(2, '0')}/24</TableCell>
+                        <TableCell className="text-xs sm:text-sm whitespace-nowrap hidden sm:table-cell">$800</TableCell>
+                        <TableCell className="text-xs sm:text-sm whitespace-nowrap hidden md:table-cell">$100</TableCell>
+                        <TableCell className="font-semibold text-xs sm:text-sm whitespace-nowrap">$900</TableCell>
                         <TableCell>
-                          <Badge className="bg-success/20 text-success border-success">
+                          <Badge className="bg-success/20 text-success border-success text-xs">
                             Pagado
                           </Badge>
                         </TableCell>
@@ -245,18 +249,19 @@ const MyLoans = () => {
                     ))}
                     {Array.from({ length: 6 }).map((_, i) => (
                       <TableRow key={i + 6}>
-                        <TableCell>#{i + 7}</TableCell>
-                        <TableCell>15/{String(i + 11).padStart(2, '0')}/2024</TableCell>
-                        <TableCell>$800</TableCell>
-                        <TableCell>$100</TableCell>
-                        <TableCell className="font-semibold">$900</TableCell>
+                        <TableCell className="text-xs sm:text-sm whitespace-nowrap">#{i + 7}</TableCell>
+                        <TableCell className="text-xs sm:text-sm whitespace-nowrap">15/{String(i + 11).padStart(2, '0')}/24</TableCell>
+                        <TableCell className="text-xs sm:text-sm whitespace-nowrap hidden sm:table-cell">$800</TableCell>
+                        <TableCell className="text-xs sm:text-sm whitespace-nowrap hidden md:table-cell">$100</TableCell>
+                        <TableCell className="font-semibold text-xs sm:text-sm whitespace-nowrap">$900</TableCell>
                         <TableCell>
-                          <Badge variant="outline">Pendiente</Badge>
+                          <Badge variant="outline" className="text-xs">Pendiente</Badge>
                         </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
                 </Table>
+                </div>
               </CardContent>
             </Card>
           </div>
@@ -266,10 +271,10 @@ const MyLoans = () => {
 
         {/* View Loan Dialog */}
         <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-[95vw] sm:max-w-lg md:max-w-2xl">
             <DialogHeader>
-              <DialogTitle>Detalles del Préstamo</DialogTitle>
-              <DialogDescription>Información completa de tu préstamo</DialogDescription>
+              <DialogTitle className="text-lg sm:text-xl">Detalles del Préstamo</DialogTitle>
+              <DialogDescription className="text-xs sm:text-sm">Información completa de tu préstamo</DialogDescription>
             </DialogHeader>
             {selectedLoan && (
               <div className="space-y-6">

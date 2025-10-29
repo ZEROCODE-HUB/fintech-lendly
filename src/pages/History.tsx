@@ -64,124 +64,130 @@ const History = () => {
         <AppSidebar />
         
         <main className="flex-1">
-          <header className="h-16 border-b border-border bg-card flex items-center px-6 gap-4 sticky top-0 z-10">
+          <header className="h-14 sm:h-16 border-b border-border bg-card flex items-center px-3 sm:px-4 md:px-6 gap-2 sm:gap-4 sticky top-0 z-10">
             <SidebarTrigger />
-            <div className="flex-1">
-              <h1 className="text-2xl font-bold">Historial</h1>
+            <div className="flex-1 min-w-0">
+              <h1 className="text-lg sm:text-xl md:text-2xl font-bold truncate">Historial</h1>
             </div>
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm">
-                <Filter className="h-4 w-4 mr-2" />
-                Filtrar
+              <Button variant="outline" size="sm" className="hidden sm:flex">
+                <Filter className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
+                <span className="text-xs sm:text-sm">Filtrar</span>
               </Button>
               <Button variant="outline" size="sm">
-                <Download className="h-4 w-4 mr-2" />
-                Exportar
+                <Download className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" />
+                <span className="hidden sm:inline text-xs sm:text-sm">Exportar</span>
               </Button>
             </div>
           </header>
 
-          <div className="p-6 space-y-6">
+          <div className="p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-6">
             {/* Search */}
             <div className="relative max-w-md">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <Search className="absolute left-3 top-2.5 sm:top-3 h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
               <Input 
                 placeholder="Buscar en historial..." 
-                className="pl-10"
+                className="pl-8 sm:pl-10 text-xs sm:text-sm"
               />
             </div>
 
             {/* Tabs */}
             <Tabs defaultValue="loans" className="w-full">
               <TabsList className="grid w-full max-w-md grid-cols-2">
-                <TabsTrigger value="loans">Préstamos</TabsTrigger>
-                <TabsTrigger value="payments">Pagos</TabsTrigger>
+                <TabsTrigger value="loans" className="text-xs sm:text-sm">Préstamos</TabsTrigger>
+                <TabsTrigger value="payments" className="text-xs sm:text-sm">Pagos</TabsTrigger>
               </TabsList>
 
               {/* Loan History */}
-              <TabsContent value="loans" className="mt-6">
+              <TabsContent value="loans" className="mt-4 sm:mt-6">
                 <Card className="shadow-soft">
-                  <CardHeader>
-                    <CardTitle>Historial de Préstamos</CardTitle>
-                    <CardDescription>
+                  <CardHeader className="px-4 sm:px-6 py-4 sm:py-6">
+                    <CardTitle className="text-lg sm:text-xl md:text-2xl">Historial de Préstamos</CardTitle>
+                    <CardDescription className="text-xs sm:text-sm">
                       Todos los préstamos solicitados en tu cuenta
                     </CardDescription>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="px-2 sm:px-4 md:px-6 pb-4 sm:pb-6">
+                    <div className="overflow-x-auto -mx-2 sm:mx-0">
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>ID</TableHead>
-                          <TableHead>Tipo</TableHead>
-                          <TableHead>Monto</TableHead>
-                          <TableHead>Fecha de Solicitud</TableHead>
-                          <TableHead>Estado</TableHead>
-                          <TableHead>Acciones</TableHead>
+                          <TableHead className="text-xs sm:text-sm whitespace-nowrap">ID</TableHead>
+                          <TableHead className="text-xs sm:text-sm whitespace-nowrap hidden sm:table-cell">Tipo</TableHead>
+                          <TableHead className="text-xs sm:text-sm whitespace-nowrap">Monto</TableHead>
+                          <TableHead className="text-xs sm:text-sm whitespace-nowrap hidden md:table-cell">Fecha</TableHead>
+                          <TableHead className="text-xs sm:text-sm whitespace-nowrap">Estado</TableHead>
+                          <TableHead className="text-xs sm:text-sm whitespace-nowrap">Acciones</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {loanHistory.map((item) => (
                           <TableRow key={item.id}>
-                            <TableCell className="font-medium">{item.id}</TableCell>
-                            <TableCell>{item.type}</TableCell>
-                            <TableCell className="font-semibold">
+                            <TableCell className="font-medium text-xs sm:text-sm whitespace-nowrap">{item.id}</TableCell>
+                            <TableCell className="text-xs sm:text-sm whitespace-nowrap hidden sm:table-cell">{item.type}</TableCell>
+                            <TableCell className="font-semibold text-xs sm:text-sm whitespace-nowrap">
                               ${item.amount.toLocaleString()}
                             </TableCell>
-                            <TableCell>{item.date}</TableCell>
+                            <TableCell className="text-xs sm:text-sm whitespace-nowrap hidden md:table-cell">{item.date}</TableCell>
                             <TableCell>{getStatusBadge(item.status)}</TableCell>
                             <TableCell>
                               <Button 
                                 size="sm" 
                                 variant="outline"
                                 onClick={() => handleViewDetails(item, 'loan')}
+                                className="text-xs"
                               >
-                                Ver Detalles
+                                <span className="hidden sm:inline">Ver Detalles</span>
+                                <span className="sm:hidden">Ver</span>
                               </Button>
                             </TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
                     </Table>
+                    </div>
                   </CardContent>
                 </Card>
               </TabsContent>
 
               {/* Payment History */}
-              <TabsContent value="payments" className="mt-6">
+              <TabsContent value="payments" className="mt-4 sm:mt-6">
                 <Card className="shadow-soft">
-                  <CardHeader>
-                    <CardTitle>Historial de Pagos</CardTitle>
-                    <CardDescription>
+                  <CardHeader className="px-4 sm:px-6 py-4 sm:py-6">
+                    <CardTitle className="text-lg sm:text-xl md:text-2xl">Historial de Pagos</CardTitle>
+                    <CardDescription className="text-xs sm:text-sm">
                       Registro completo de todos tus pagos
                     </CardDescription>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="px-2 sm:px-4 md:px-6 pb-4 sm:pb-6">
+                    <div className="overflow-x-auto -mx-2 sm:mx-0">
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>ID</TableHead>
-                          <TableHead>Préstamo</TableHead>
-                          <TableHead>Monto</TableHead>
-                          <TableHead>Fecha</TableHead>
-                          <TableHead>Método</TableHead>
-                          <TableHead>Estado</TableHead>
+                          <TableHead className="text-xs sm:text-sm whitespace-nowrap">ID</TableHead>
+                          <TableHead className="text-xs sm:text-sm whitespace-nowrap hidden md:table-cell">Préstamo</TableHead>
+                          <TableHead className="text-xs sm:text-sm whitespace-nowrap">Monto</TableHead>
+                          <TableHead className="text-xs sm:text-sm whitespace-nowrap hidden sm:table-cell">Fecha</TableHead>
+                          <TableHead className="text-xs sm:text-sm whitespace-nowrap hidden lg:table-cell">Método</TableHead>
+                          <TableHead className="text-xs sm:text-sm whitespace-nowrap">Estado</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {paymentHistory.map((item) => (
                           <TableRow key={item.id}>
-                            <TableCell className="font-medium">{item.id}</TableCell>
-                            <TableCell>{item.loan}</TableCell>
-                            <TableCell className="font-semibold">
+                            <TableCell className="font-medium text-xs sm:text-sm whitespace-nowrap">{item.id}</TableCell>
+                            <TableCell className="text-xs sm:text-sm whitespace-nowrap hidden md:table-cell">{item.loan}</TableCell>
+                            <TableCell className="font-semibold text-xs sm:text-sm whitespace-nowrap">
                               ${item.amount.toLocaleString()}
                             </TableCell>
-                            <TableCell>{item.date}</TableCell>
-                            <TableCell>{item.method}</TableCell>
+                            <TableCell className="text-xs sm:text-sm whitespace-nowrap hidden sm:table-cell">{item.date}</TableCell>
+                            <TableCell className="text-xs sm:text-sm whitespace-nowrap hidden lg:table-cell">{item.method}</TableCell>
                             <TableCell>{getStatusBadge(item.status)}</TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
                     </Table>
+                    </div>
                   </CardContent>
                 </Card>
               </TabsContent>
@@ -193,10 +199,10 @@ const History = () => {
 
         {/* View Details Dialog */}
         <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-[95vw] sm:max-w-lg md:max-w-2xl">
             <DialogHeader>
-              <DialogTitle>Detalles del Registro</DialogTitle>
-              <DialogDescription>Información completa de la transacción</DialogDescription>
+              <DialogTitle className="text-lg sm:text-xl">Detalles del Registro</DialogTitle>
+              <DialogDescription className="text-xs sm:text-sm">Información completa de la transacción</DialogDescription>
             </DialogHeader>
             {selectedItem && (
               <div className="space-y-4">

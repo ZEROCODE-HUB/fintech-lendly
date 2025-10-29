@@ -69,38 +69,38 @@ const LoanRequest = () => {
         <AppSidebar />
         
         <main className="flex-1">
-          <header className="h-16 border-b border-border bg-card flex items-center px-6 gap-4 sticky top-0 z-10">
+          <header className="h-14 sm:h-16 border-b border-border bg-card flex items-center px-3 sm:px-4 md:px-6 gap-2 sm:gap-4 sticky top-0 z-10">
             <SidebarTrigger />
-            <div className="flex-1">
-              <h1 className="text-2xl font-bold">Solicitar Préstamo</h1>
+            <div className="flex-1 min-w-0">
+              <h1 className="text-lg sm:text-xl md:text-2xl font-bold truncate">Solicitar Préstamo</h1>
             </div>
           </header>
 
-          <div className="p-6 max-w-4xl mx-auto space-y-6">
+          <div className="p-3 sm:p-4 md:p-6 max-w-4xl mx-auto space-y-4 sm:space-y-6">
             {/* Membership Status Alert */}
             <Card className="border-success bg-accent">
-              <CardContent className="flex items-center gap-4 py-4">
-                <CheckCircle2 className="h-8 w-8 text-success flex-shrink-0" />
-                <div className="flex-1">
-                  <p className="font-semibold text-lg">Membresía Premium Activa</p>
-                  <p className="text-sm text-muted-foreground">Tienes acceso a tasas preferenciales y montos más altos</p>
+              <CardContent className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 py-3 sm:py-4">
+                <CheckCircle2 className="h-6 w-6 sm:h-8 sm:w-8 text-success flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-base sm:text-lg">Membresía Premium Activa</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground">Tienes acceso a tasas preferenciales y montos más altos</p>
                 </div>
-                <Badge className="bg-success text-success-foreground">Verificado</Badge>
+                <Badge className="bg-success text-success-foreground text-xs sm:text-sm shrink-0">Verificado</Badge>
               </CardContent>
             </Card>
 
             {/* Loan Calculator */}
             <Card className="shadow-medium">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <DollarSign className="h-5 w-5" />
+              <CardHeader className="px-4 sm:px-6 py-4 sm:py-6">
+                <CardTitle className="flex items-center gap-2 text-lg sm:text-xl md:text-2xl">
+                  <DollarSign className="h-4 w-4 sm:h-5 sm:w-5" />
                   Calculadora de Préstamo
                 </CardTitle>
-                <CardDescription>
+                <CardDescription className="text-xs sm:text-sm">
                   Ingresa el monto deseado y visualiza tus pagos mensuales
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-6">
+              <CardContent className="space-y-4 sm:space-y-6 px-4 sm:px-6 pb-4 sm:pb-6">
                 <div className="space-y-2">
                   <Label htmlFor="amount">Monto del Préstamo</Label>
                   <div className="relative">
@@ -114,13 +114,14 @@ const LoanRequest = () => {
                       className="pl-7 text-lg font-semibold"
                     />
                   </div>
-                  <div className="flex gap-2 mt-2">
+                  <div className="grid grid-cols-2 sm:flex gap-2 mt-2">
                     {[5000, 10000, 15000, 20000].map((amount) => (
                       <Button
                         key={amount}
                         variant="outline"
                         size="sm"
                         onClick={() => handleAmountChange(amount.toString())}
+                        className="text-xs sm:text-sm"
                       >
                         ${amount.toLocaleString()}
                       </Button>
@@ -129,33 +130,33 @@ const LoanRequest = () => {
                 </div>
 
                 {loanAmount && (
-                  <div className="bg-gradient-accent rounded-lg p-6 space-y-4">
-                    <div className="flex justify-between items-center">
-                      <span className="text-muted-foreground">Pago Mensual Estimado</span>
-                      <span className="text-3xl font-bold text-primary">
+                  <div className="bg-gradient-accent rounded-lg p-4 sm:p-6 space-y-3 sm:space-y-4">
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                      <span className="text-sm sm:text-base text-muted-foreground">Pago Mensual Estimado</span>
+                      <span className="text-2xl sm:text-3xl font-bold text-primary">
                         ${estimatedPayment.toFixed(2)}
                       </span>
                     </div>
-                    <div className="grid grid-cols-3 gap-4 pt-4 border-t border-border">
+                    <div className="grid grid-cols-3 gap-2 sm:gap-4 pt-3 sm:pt-4 border-t border-border">
                       <div>
                         <p className="text-xs text-muted-foreground">Plazo</p>
-                        <p className="font-semibold">12 meses</p>
+                        <p className="font-semibold text-sm sm:text-base">12 meses</p>
                       </div>
                       <div>
                         <p className="text-xs text-muted-foreground">Tasa Anual</p>
-                        <p className="font-semibold">60%</p>
+                        <p className="font-semibold text-sm sm:text-base">60%</p>
                       </div>
                       <div>
                         <p className="text-xs text-muted-foreground">Total a Pagar</p>
-                        <p className="font-semibold">${(estimatedPayment * 12).toFixed(2)}</p>
+                        <p className="font-semibold text-sm sm:text-base">${(estimatedPayment * 12).toFixed(2)}</p>
                       </div>
                     </div>
                     <Button 
                       variant="outline" 
-                      className="w-full mt-4"
+                      className="w-full mt-3 sm:mt-4 text-xs sm:text-sm"
                       onClick={generatePaymentSchedule}
                     >
-                      <Calendar className="h-4 w-4 mr-2" />
+                      <Calendar className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
                       Ver Simulación del Cronograma
                     </Button>
                   </div>
@@ -165,11 +166,11 @@ const LoanRequest = () => {
 
             {/* Application Form */}
             <Card className="shadow-medium">
-              <CardHeader>
-                <CardTitle>Detalles de la Solicitud</CardTitle>
-                <CardDescription>Completa la información para procesar tu préstamo</CardDescription>
+              <CardHeader className="px-4 sm:px-6 py-4 sm:py-6">
+                <CardTitle className="text-lg sm:text-xl md:text-2xl">Detalles de la Solicitud</CardTitle>
+                <CardDescription className="text-xs sm:text-sm">Completa la información para procesar tu préstamo</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-6">
+              <CardContent className="space-y-4 sm:space-y-6 px-4 sm:px-6 pb-4 sm:pb-6">
                 <div className="space-y-2">
                   <Label htmlFor="purpose">Destino del Préstamo</Label>
                   <Select>
@@ -222,20 +223,20 @@ const LoanRequest = () => {
                   </div>
                 </div>
 
-                <div className="flex gap-4">
+                <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
                   <Button 
                     variant="outline" 
-                    className="flex-1"
+                    className="flex-1 w-full"
                     onClick={() => window.history.back()}
                   >
                     Cancelar
                   </Button>
                   <Button 
-                    className="flex-1"
+                    className="flex-1 w-full"
                     disabled={!loanAmount}
                   >
                     Enviar Solicitud
-                    <ArrowRight className="ml-2 h-4 w-4" />
+                    <ArrowRight className="ml-2 h-3 w-3 sm:h-4 sm:w-4" />
                   </Button>
                 </div>
               </CardContent>
@@ -247,27 +248,27 @@ const LoanRequest = () => {
 
         {/* Payment Schedule Simulation Dialog */}
         <Dialog open={simulationDialogOpen} onOpenChange={setSimulationDialogOpen}>
-          <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogContent className="max-w-[95vw] sm:max-w-2xl md:max-w-4xl max-h-[85vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Simulación del Cronograma de Pagos</DialogTitle>
-              <DialogDescription>
+              <DialogTitle className="text-lg sm:text-xl">Simulación del Cronograma de Pagos</DialogTitle>
+              <DialogDescription className="text-xs sm:text-sm">
                 Visualiza cómo se distribuirán tus pagos mensuales
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-4">
-              <div className="bg-accent rounded-lg p-4">
-                <div className="grid grid-cols-3 gap-4">
+            <div className="space-y-3 sm:space-y-4">
+              <div className="bg-accent rounded-lg p-3 sm:p-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
                   <div>
-                    <p className="text-sm text-muted-foreground">Monto Total</p>
-                    <p className="text-xl font-bold">${parseFloat(loanAmount).toLocaleString()} MXN</p>
+                    <p className="text-xs sm:text-sm text-muted-foreground">Monto Total</p>
+                    <p className="text-lg sm:text-xl font-bold">${parseFloat(loanAmount).toLocaleString()} MXN</p>
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Pago Mensual</p>
-                    <p className="text-xl font-bold">${estimatedPayment.toFixed(2)} MXN</p>
+                    <p className="text-xs sm:text-sm text-muted-foreground">Pago Mensual</p>
+                    <p className="text-lg sm:text-xl font-bold">${estimatedPayment.toFixed(2)} MXN</p>
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Total a Pagar</p>
-                    <p className="text-xl font-bold">${(estimatedPayment * 12).toFixed(2)} MXN</p>
+                    <p className="text-xs sm:text-sm text-muted-foreground">Total a Pagar</p>
+                    <p className="text-lg sm:text-xl font-bold">${(estimatedPayment * 12).toFixed(2)} MXN</p>
                   </div>
                 </div>
               </div>
