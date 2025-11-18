@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import loginHero from "@/assets/login-hero.jpg";
-import logoFull from "@/assets/logo-full.png";
+import logoIcon from "@/assets/logo-icon.jpeg";
 import { ArrowRight, Lock, Mail, Phone, Upload, UserCog, User } from "lucide-react";
 import { authService } from "@/utils/auth";
 import { useToast } from "@/hooks/use-toast";
@@ -36,6 +36,9 @@ const Auth = () => {
         >
           <div className="absolute inset-0 bg-gradient-to-br from-primary/90 to-primary/70 flex items-center justify-center p-12">
             <div className="text-center space-y-6 max-w-md">
+              <div className="flex justify-center mb-6">
+                <img src={logoIcon} alt="Increscendo Fintech" className="h-32 w-32 rounded-full object-cover shadow-2xl" />
+              </div>
               <h1 className="text-5xl font-bold text-white uppercase tracking-wide">
                 Increscendo Fintech
               </h1>
@@ -66,7 +69,7 @@ const Auth = () => {
         <div className="w-full max-w-md">
           {/* Logo for mobile */}
           <div className="flex justify-center mb-6 lg:hidden">
-            <img src={logoFull} alt="Increscendo Fintech" className="h-16 sm:h-20 w-auto" />
+            <img src={logoIcon} alt="Increscendo Fintech" className="h-20 sm:h-24 w-20 sm:w-24 rounded-full object-cover shadow-lg" />
           </div>
           
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">

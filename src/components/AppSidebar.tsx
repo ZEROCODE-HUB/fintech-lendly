@@ -52,10 +52,15 @@ export function AppSidebar() {
     <Sidebar className={isCollapsed ? "w-16" : "w-64"} collapsible="icon">
       <SidebarContent>
         {/* Brand */}
-        <div className="px-4 py-6 border-b border-sidebar-border">
+        <div className="px-4 py-6 border-b border-sidebar-border bg-transparent">
           {!isCollapsed && (
             <div className="space-y-2">
-              <img src={logoHorizontal} alt="Increscendo Fintech" className="h-8 w-auto mb-2" />
+              <img 
+                src={logoHorizontal} 
+                alt="Increscendo Fintech" 
+                className="h-8 w-auto mb-2 brightness-0 invert" 
+                style={{ filter: 'brightness(0) invert(1)' }}
+              />
               <p className="text-xs text-muted-foreground">
                 {currentUser?.name || 'Usuario'}
               </p>
@@ -63,7 +68,12 @@ export function AppSidebar() {
           )}
           {isCollapsed && (
             <div className="flex justify-center">
-              <img src={logoIcon} alt="Increscendo" className="h-8 w-8 rounded-full object-cover" />
+              <img 
+                src={logoIcon} 
+                alt="Increscendo" 
+                className="h-8 w-8 rounded-full object-cover brightness-0 invert" 
+                style={{ filter: 'brightness(0) invert(1)' }}
+              />
             </div>
           )}
         </div>
