@@ -1,6 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { CreditCard, Banknote, ArrowRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import logoFull from "@/assets/logo-full.png";
 
 const ServiceSelection = () => {
   const navigate = useNavigate();
@@ -15,8 +16,15 @@ const ServiceSelection = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-accent/5">
+      {/* Logo Header */}
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-8">
+        <div className="flex justify-center">
+          <img src={logoFull} alt="Increscendo Fintech" className="h-16 sm:h-20 md:h-24 w-auto" />
+        </div>
+      </div>
+      
       {/* Main Content - Centered Cards */}
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 min-h-screen flex items-center justify-center">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 min-h-[calc(100vh-8rem)] flex items-center justify-center">
         <div className="w-full max-w-4xl">
           {/* Welcome Message */}
           <div className="text-center mb-8 sm:mb-12 animate-fade-in">

@@ -2,6 +2,8 @@ import { Home, CreditCard, DollarSign, History, Users, Settings, Bell, HelpCircl
 import { NavLink, useNavigate } from "react-router-dom";
 import { authService } from "@/utils/auth";
 import { Button } from "@/components/ui/button";
+import logoIcon from "@/assets/logo-icon.jpeg";
+import logoHorizontal from "@/assets/logo-horizontal.jpg";
 import {
   Sidebar,
   SidebarContent,
@@ -50,20 +52,18 @@ export function AppSidebar() {
     <Sidebar className={isCollapsed ? "w-16" : "w-64"} collapsible="icon">
       <SidebarContent>
         {/* Brand */}
-        <div className="px-6 py-6 border-b border-sidebar-border">
+        <div className="px-4 py-6 border-b border-sidebar-border">
           {!isCollapsed && (
             <div className="space-y-2">
-              <h2 className="text-xl font-bold text-sidebar-foreground">
-                INCRESCENDO
-              </h2>
+              <img src={logoHorizontal} alt="Increscendo Fintech" className="h-8 w-auto mb-2" />
               <p className="text-xs text-muted-foreground">
                 {currentUser?.name || 'Usuario'}
               </p>
             </div>
           )}
           {isCollapsed && (
-            <div className="text-xl font-bold text-sidebar-foreground text-center">
-              I
+            <div className="flex justify-center">
+              <img src={logoIcon} alt="Increscendo" className="h-8 w-8 rounded-full object-cover" />
             </div>
           )}
         </div>

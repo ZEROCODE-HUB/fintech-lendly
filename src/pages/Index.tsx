@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { ArrowRight, Shield, Zap, BarChart3, TrendingUp, Users, Clock, DollarSign, CheckCircle } from "lucide-react";
 import heroImage from "@/assets/hero-landing.jpg";
+import logoHorizontal from "@/assets/logo-horizontal.jpg";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -12,11 +13,8 @@ const Index = () => {
       <header className="fixed top-0 w-full bg-card/95 backdrop-blur-sm border-b border-border z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 bg-gradient-hero rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-xl">I</span>
-              </div>
-              <h1 className="text-xl font-bold uppercase tracking-wide">Increscendo Fintech</h1>
+            <div className="flex items-center">
+              <img src={logoHorizontal} alt="Increscendo Fintech" className="h-10 sm:h-12 w-auto" />
             </div>
             <nav className="hidden md:flex items-center gap-6">
               <a href="#features" className="text-muted-foreground hover:text-foreground transition-colors">Características</a>

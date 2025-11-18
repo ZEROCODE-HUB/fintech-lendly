@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import loginHero from "@/assets/login-hero.jpg";
+import logoFull from "@/assets/logo-full.png";
 import { ArrowRight, Lock, Mail, Phone, Upload, UserCog, User } from "lucide-react";
 import { authService } from "@/utils/auth";
 import { useToast } from "@/hooks/use-toast";
@@ -63,6 +64,11 @@ const Auth = () => {
       {/* Right side - Auth Forms */}
       <div className="w-full lg:w-1/2 flex items-center justify-center p-4 sm:p-6 md:p-8 bg-accent/30">
         <div className="w-full max-w-md">
+          {/* Logo for mobile */}
+          <div className="flex justify-center mb-6 lg:hidden">
+            <img src={logoFull} alt="Increscendo Fintech" className="h-16 sm:h-20 w-auto" />
+          </div>
+          
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="grid w-full grid-cols-2 mb-4 sm:mb-6 md:mb-8">
               <TabsTrigger value="login" className="text-xs sm:text-sm">Iniciar Sesión</TabsTrigger>
