@@ -3,7 +3,7 @@ import { NavLink, useNavigate } from "react-router-dom";
 import { authService } from "@/utils/auth";
 import { Button } from "@/components/ui/button";
 import logoIcon from "@/assets/logo-icon.jpeg";
-import logoHorizontal from "@/assets/logo-horizontal.jpg";
+import logoSidebar from "@/assets/logo-sidebar.png";
 import {
   Sidebar,
   SidebarContent,
@@ -56,10 +56,9 @@ export function AppSidebar() {
           {!isCollapsed && (
             <div className="space-y-2">
               <img 
-                src={logoHorizontal} 
+                src={logoSidebar} 
                 alt="Increscendo Fintech" 
-                className="h-8 w-auto mb-2 brightness-0 invert" 
-                style={{ filter: 'brightness(0) invert(1)' }}
+                className="h-8 w-auto mb-2" 
               />
               <p className="text-xs text-muted-foreground">
                 {currentUser?.name || 'Usuario'}
