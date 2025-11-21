@@ -52,7 +52,7 @@ export function AppSidebar() {
     <Sidebar className={isCollapsed ? "w-16" : "w-64"} collapsible="icon">
       <SidebarContent>
         {/* Brand */}
-        <div className="px-4 py-6 border-b border-sidebar-border bg-transparent">
+        <div className="px-4 py-6 border-b border-sidebar-border bg-sidebar-background">
           {!isCollapsed && (
             <div className="space-y-2">
               <img 
