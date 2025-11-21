@@ -58,7 +58,7 @@ export function AppSidebar() {
               <img 
                 src={logoSidebar} 
                 alt="Increscendo Fintech" 
-                className="h-8 w-auto mb-2" 
+                className="h-12 w-auto mb-2" 
               />
               <p className="text-xs text-muted-foreground">
                 {currentUser?.name || 'Usuario'}
