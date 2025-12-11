@@ -8,22 +8,32 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import loginHero from "@/assets/login-hero.jpg";
 import logoIcon from "@/assets/logo-icon.jpeg";
-import { ArrowRight, Lock, Mail, Phone, Upload, UserCog, User } from "lucide-react";
-import { authService } from "@/utils/auth";
+import { ArrowRight, Lock, Mail, Phone } from "lucide-react";
+
 import { useToast } from "@/hooks/use-toast";
 
 const Auth = () => {
   const [activeTab, setActiveTab] = useState("login");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const handleDemoLogin = (role: 'admin' | 'client') => {
-    authService.loginDemo(role);
-    toast({
-      title: "Acceso Demo",
-      description: `Has ingresado como ${role === 'admin' ? 'Administrador' : 'Cliente'}`,
-    });
-    navigate(role === 'admin' ? '/admin/dashboard' : '/service-selection');
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (email && password) {
+      toast({
+        title: "Bienvenido",
+        description: "Has iniciado sesión correctamente",
+      });
+      navigate('/service-selection');
+    } else {
+      toast({
+        title: "Error",
+        description: "Por favor ingresa tu correo y contraseña",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -85,72 +95,49 @@ const Auth = () => {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3 sm:space-y-4 px-4 sm:px-6">
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Correo Electrónico</Label>
-                    <div className="relative">
-                      <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                      <Input 
-                        id="email" 
-                        type="email" 
-                        placeholder="tu@email.com"
-                        className="pl-10"
-                      />
+                  <form onSubmit={handleLogin} className="space-y-3 sm:space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="email">Correo Electrónico</Label>
+                      <div className="relative">
+                        <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                        <Input 
+                          id="email" 
+                          type="email" 
+                          placeholder="tu@email.com"
+                          className="pl-10"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                        />
+                      </div>
                     </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="password">Contraseña</Label>
-                    <div className="relative">
-                      <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                      <Input 
-                        id="password" 
-                        type="password" 
-                        placeholder="••••••••"
-                        className="pl-10"
-                      />
+                    <div className="space-y-2">
+                      <Label htmlFor="password">Contraseña</Label>
+                      <div className="relative">
+                        <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                        <Input 
+                          id="password" 
+                          type="password" 
+                          placeholder="••••••••"
+                          className="pl-10"
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                        />
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input type="checkbox" className="rounded border-border" />
-                      <span className="text-muted-foreground">Recordarme</span>
-                    </label>
-                    <a href="#" className="text-primary hover:underline">
-                      ¿Olvidaste tu contraseña?
-                    </a>
-                  </div>
-                  <Button className="w-full" size="lg">
-                    Ingresar
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </Button>
-
-                  <Separator className="my-6" />
-
-                  <div className="space-y-3">
-                    <p className="text-sm text-center text-muted-foreground font-medium">
-                      Acceso Demo (Sin Registro)
-                    </p>
-                    <div className="grid grid-cols-2 gap-2 sm:gap-3">
-                      <Button 
-                        variant="outline" 
-                        size="lg"
-                        onClick={() => handleDemoLogin('client')}
-                        className="w-full text-xs sm:text-sm"
-                      >
-                        <User className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
-                        <span className="hidden sm:inline">Cliente</span>
-                        <span className="sm:hidden">Client</span>
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="lg"
-                        onClick={() => handleDemoLogin('admin')}
-                        className="w-full text-xs sm:text-sm"
-                      >
-                        <UserCog className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
-                        Admin
-                      </Button>
+                    <div className="flex items-center justify-between text-sm">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" className="rounded border-border" />
+                        <span className="text-muted-foreground">Recordarme</span>
+                      </label>
+                      <a href="#" className="text-primary hover:underline">
+                        ¿Olvidaste tu contraseña?
+                      </a>
                     </div>
-                  </div>
+                    <Button type="submit" className="w-full" size="lg">
+                      Ingresar
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </Button>
+                  </form>
                 </CardContent>
               </Card>
             </TabsContent>
@@ -215,16 +202,6 @@ const Auth = () => {
                         placeholder="••••••••"
                         className="pl-10"
                       />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="ine">Documento INE</Label>
-                    <div className="border-2 border-dashed border-border rounded-lg p-4 hover:border-primary transition-colors cursor-pointer">
-                      <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                        <Upload className="h-8 w-8" />
-                        <span className="text-sm">Haz clic para cargar tu INE</span>
-                        <span className="text-xs">PDF, JPG o PNG (máx. 5MB)</span>
-                      </div>
                     </div>
                   </div>
                   <div className="text-xs text-muted-foreground">
