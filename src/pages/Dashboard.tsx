@@ -9,6 +9,23 @@ import { useNavigate } from "react-router-dom";
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  
+  // Datos dinámicos (en una implementación real vendrían de la API/estado)
+  const clientName = "Hector";
+  const loanStatus = "Al día"; // Opciones: "Al día", "Cuota Pendiente", "Atrasado"
+
+  const getStatusBadgeVariant = (status: string) => {
+    switch (status) {
+      case "Al día":
+        return "bg-success text-success-foreground";
+      case "Cuota Pendiente":
+        return "bg-warning text-warning-foreground";
+      case "Atrasado":
+        return "bg-danger text-danger-foreground";
+      default:
+        return "bg-muted text-muted-foreground";
+    }
+  };
 
   return (
     <SidebarProvider>
@@ -19,7 +36,7 @@ const Dashboard = () => {
           <header className="h-14 sm:h-16 border-b border-border bg-card flex items-center px-3 sm:px-4 md:px-6 gap-2 sm:gap-4 sticky top-0 z-10">
             <SidebarTrigger />
             <div className="flex-1 min-w-0">
-              <h1 className="text-lg sm:text-xl md:text-2xl font-bold truncate">Dashboard de Préstamos</h1>
+              <h1 className="text-lg sm:text-xl md:text-2xl font-bold truncate">Bienvenido {clientName}</h1>
             </div>
             <Button 
               variant="outline" 
@@ -64,13 +81,15 @@ const Dashboard = () => {
 
               <Card className="shadow-soft">
                 <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-                  <CardTitle className="text-sm font-medium">Historial</CardTitle>
+                  <CardTitle className="text-sm font-medium">Estado</CardTitle>
                   <TrendingUp className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">95%</div>
-                  <p className="text-xs text-muted-foreground">
-                    Tasa de pagos a tiempo
+                  <Badge className={`text-base px-3 py-1 ${getStatusBadgeVariant(loanStatus)}`}>
+                    {loanStatus}
+                  </Badge>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Estado de tu préstamo
                   </p>
                 </CardContent>
               </Card>
@@ -82,24 +101,30 @@ const Dashboard = () => {
                 <CardTitle>Acciones Rápidas</CardTitle>
                 <CardDescription>Gestiona tus préstamos fácilmente</CardDescription>
               </CardHeader>
-              <CardContent className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2">
-                <Button 
-                  className="h-20 sm:h-24 text-sm sm:text-base md:text-lg flex-col sm:flex-row"
-                  onClick={() => navigate('/loan-request')}
-                >
-                  <DollarSign className="mb-1 sm:mb-0 sm:mr-2 h-4 w-4 sm:h-5 sm:w-5" />
-                  <span className="flex-1">Solicitar Nuevo Préstamo</span>
-                  <ArrowRight className="hidden sm:block ml-auto h-5 w-5" />
-                </Button>
-                <Button 
-                  variant="outline" 
-                  className="h-20 sm:h-24 text-sm sm:text-base md:text-lg flex-col sm:flex-row"
-                  onClick={() => navigate('/my-loans')}
-                >
-                  <CreditCard className="mb-1 sm:mb-0 sm:mr-2 h-4 w-4 sm:h-5 sm:w-5" />
-                  <span className="flex-1">Ver Mis Préstamos</span>
-                  <ArrowRight className="hidden sm:block ml-auto h-5 w-5" />
-                </Button>
+              <CardContent>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <Button 
+                    className="flex-1"
+                    onClick={() => navigate('/loan-request')}
+                  >
+                    <DollarSign className="mr-2 h-4 w-4" />
+                    Solicitar Préstamo
+                  </Button>
+                  <Button 
+                    className="flex-1"
+                    onClick={() => navigate('/payment-methods')}
+                  >
+                    <CreditCard className="mr-2 h-4 w-4" />
+                    Método de Pago
+                  </Button>
+                  <Button 
+                    className="flex-1"
+                    onClick={() => navigate('/my-loans')}
+                  >
+                    <TrendingUp className="mr-2 h-4 w-4" />
+                    Ver Membresía
+                  </Button>
+                </div>
               </CardContent>
             </Card>
 

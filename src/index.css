@@ -29,6 +29,10 @@ All colors MUST be HSL.
     --success: 168 62% 45%;
     --success-foreground: 0 0% 100%;
     
+    /* Warning - Yellow/Orange for pending states */
+    --warning: 45 93% 47%;
+    --warning-foreground: 0 0% 100%;
+    
     /* Neutrals */
     --secondary: 0 0% 96%;
     --secondary-foreground: 216 45% 20%;
