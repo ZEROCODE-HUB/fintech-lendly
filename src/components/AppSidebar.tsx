@@ -93,7 +93,7 @@ export function AppSidebar() {
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" sideOffset={8} className="w-48 bg-popover border border-border shadow-lg z-50">
-                <DropdownMenuItem className="cursor-pointer" onClick={() => navigate('/my-account')}>
+                <DropdownMenuItem className="cursor-pointer" onClick={() => navigate('/mi-cuenta')}>
                   <User className="mr-2 h-4 w-4" />
                   Mi Cuenta
                 </DropdownMenuItem>
@@ -122,7 +122,7 @@ export function AppSidebar() {
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent side="right" align="start" className="w-48 bg-popover border border-border shadow-lg z-50">
-                <DropdownMenuItem className="cursor-pointer" onClick={() => navigate('/my-account')}>
+                <DropdownMenuItem className="cursor-pointer" onClick={() => navigate('/mi-cuenta')}>
                   <User className="mr-2 h-4 w-4" />
                   Mi Cuenta
                 </DropdownMenuItem>
