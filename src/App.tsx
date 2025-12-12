@@ -18,6 +18,7 @@ import LoanManagement from "./pages/admin/LoanManagement";
 import ClientManagement from "./pages/admin/ClientManagement";
 import SystemConfig from "./pages/admin/SystemConfig";
 import MembershipManagement from "./pages/admin/MembershipManagement";
+import MyAccount from "./pages/MyAccount";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -39,6 +40,7 @@ const App = () => (
           <Route path="/notifications" element={<Notifications />} />
           <Route path="/payment-methods" element={<PaymentMethods />} />
           <Route path="/memberships" element={<Memberships />} />
+          <Route path="/mi-cuenta" element={<MyAccount />} />
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
           <Route path="/admin/loans" element={<LoanManagement />} />
           <Route path="/admin/clients" element={<ClientManagement />} />
