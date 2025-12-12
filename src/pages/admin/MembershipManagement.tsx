@@ -49,16 +49,16 @@ const MembershipManagement = () => {
   });
 
   // Check if user is admin by role
-  useEffect(() => {
-    if (!authService.isAdmin()) {
-      toast({
-        title: "Acceso denegado",
-        description: "No tienes permisos para acceder a esta página",
-        variant: "destructive"
-      });
-      navigate('/dashboard');
-    }
-  }, [navigate, toast]);
+  // useEffect(() => {
+  //   if (!authService.isAdmin()) {
+  //     toast({
+  //       title: "Acceso denegado",
+  //       description: "No tienes permisos para acceder a esta página",
+  //       variant: "destructive"
+  //     });
+  //     navigate('/dashboard');
+  //   }
+  // }, [navigate, toast]);
 
   const resetForm = () => {
     setFormData({
