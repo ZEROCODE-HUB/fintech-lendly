@@ -17,17 +17,17 @@ const ServiceSelection = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-accent/5">
       {/* Logo Header */}
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 pt-8 sm:pt-12">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-8">
         <div className="flex justify-center">
-          <img src={logoFull} alt="Increscendo Fintech" className="h-28 sm:h-36 md:h-44 lg:h-52 w-auto" />
+          <img src={logoFull} alt="Increscendo Fintech" className="h-48 sm:h-64 md:h-80 lg:h-96 w-auto" />
         </div>
       </div>
       
       {/* Main Content - Centered Cards */}
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 min-h-[calc(100vh-8rem)] flex items-center justify-center">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-2 sm:py-4 flex-1 flex items-center justify-center">
         <div className="w-full max-w-4xl">
           {/* Welcome Message */}
-          <div className="text-center mb-8 sm:mb-12 animate-fade-in">
+          <div className="text-center mb-6 sm:mb-8 animate-fade-in">
             <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-2 sm:mb-3 bg-gradient-hero bg-clip-text text-transparent">
               Bienvenido a InCrescendo
             </h2>
