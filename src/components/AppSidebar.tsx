@@ -29,6 +29,7 @@ const menuItems = [
   { title: "Dashboard", url: "/dashboard", icon: Home },
   { title: "Solicitar Préstamo", url: "loan-onboarding", icon: DollarSign, isOnboarding: true },
   { title: "Mis Préstamos", url: "/my-loans", icon: CreditCard },
+  { title: "Membresías", url: "/memberships", icon: Crown },
   { title: "Historial", url: "/history", icon: History },
   { title: "Métodos de Pago", url: "/payment-methods", icon: Wallet },
 ];
@@ -37,6 +38,7 @@ const adminItems = [
   { title: "Dashboard Admin", url: "/admin/dashboard", icon: LayoutDashboard },
   { title: "Gestión de Préstamos", url: "/admin/loans", icon: CreditCard },
   { title: "Gestión de Clientes", url: "/admin/clients", icon: Users },
+  { title: "Gestión de Membresías", url: "/admin/memberships", icon: Crown },
   { title: "Configuración", url: "/admin/config", icon: Cog },
 ];
 
@@ -95,7 +97,7 @@ export function AppSidebar() {
                   <User className="mr-2 h-4 w-4" />
                   Mi Cuenta
                 </DropdownMenuItem>
-                <DropdownMenuItem className="cursor-pointer" onClick={() => navigate('/membership')}>
+                <DropdownMenuItem className="cursor-pointer" onClick={() => navigate('/memberships')}>
                   <Crown className="mr-2 h-4 w-4" />
                   Mi Membresía
                 </DropdownMenuItem>
@@ -124,7 +126,7 @@ export function AppSidebar() {
                   <User className="mr-2 h-4 w-4" />
                   Mi Cuenta
                 </DropdownMenuItem>
-                <DropdownMenuItem className="cursor-pointer" onClick={() => navigate('/membership')}>
+                <DropdownMenuItem className="cursor-pointer" onClick={() => navigate('/memberships')}>
                   <Crown className="mr-2 h-4 w-4" />
                   Mi Membresía
                 </DropdownMenuItem>

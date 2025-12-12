@@ -12,10 +12,12 @@ import MyLoans from "./pages/MyLoans";
 import History from "./pages/History";
 import Notifications from "./pages/Notifications";
 import PaymentMethods from "./pages/PaymentMethods";
+import Memberships from "./pages/Memberships";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import LoanManagement from "./pages/admin/LoanManagement";
 import ClientManagement from "./pages/admin/ClientManagement";
 import SystemConfig from "./pages/admin/SystemConfig";
+import MembershipManagement from "./pages/admin/MembershipManagement";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -36,10 +38,12 @@ const App = () => (
           <Route path="/history" element={<History />} />
           <Route path="/notifications" element={<Notifications />} />
           <Route path="/payment-methods" element={<PaymentMethods />} />
+          <Route path="/memberships" element={<Memberships />} />
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
           <Route path="/admin/loans" element={<LoanManagement />} />
           <Route path="/admin/clients" element={<ClientManagement />} />
           <Route path="/admin/config" element={<SystemConfig />} />
+          <Route path="/admin/memberships" element={<MembershipManagement />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
