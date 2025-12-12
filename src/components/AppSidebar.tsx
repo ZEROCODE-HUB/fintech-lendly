@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Home, CreditCard, DollarSign, History, Users, Bell, LayoutDashboard, Cog, Wallet, User, Crown, LogOut } from "lucide-react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { authService } from "@/utils/auth";
@@ -22,10 +23,11 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { LoanOnboardingModal } from "@/components/LoanOnboardingModal";
 
 const menuItems = [
   { title: "Dashboard", url: "/dashboard", icon: Home },
-  { title: "Solicitar Préstamo", url: "/loan-request", icon: DollarSign },
+  { title: "Solicitar Préstamo", url: "loan-onboarding", icon: DollarSign, isOnboarding: true },
   { title: "Mis Préstamos", url: "/my-loans", icon: CreditCard },
   { title: "Historial", url: "/history", icon: History },
   { title: "Métodos de Pago", url: "/payment-methods", icon: Wallet },
@@ -44,6 +46,7 @@ export function AppSidebar() {
   const navigate = useNavigate();
   const currentUser = authService.getCurrentUser();
   const isAdmin = currentUser?.role === 'admin';
+  const [showLoanOnboarding, setShowLoanOnboarding] = useState(false);
 
   const getNavClass = ({ isActive }: { isActive: boolean }) =>
     isActive 
@@ -58,6 +61,13 @@ export function AppSidebar() {
   const getUserInitial = () => {
     const name = currentUser?.name || 'Usuario';
     return name.charAt(0).toUpperCase();
+  };
+
+  const handleMenuClick = (item: typeof menuItems[0], e: React.MouseEvent) => {
+    if ((item as any).isOnboarding) {
+      e.preventDefault();
+      setShowLoanOnboarding(true);
+    }
   };
 
   return (
@@ -160,10 +170,20 @@ export function AppSidebar() {
                   {menuItems.map((item) => (
                     <SidebarMenuItem key={item.title}>
                       <SidebarMenuButton asChild>
-                        <NavLink to={item.url} end className={getNavClass}>
-                          <item.icon className="h-5 w-5" />
-                          {!isCollapsed && <span>{item.title}</span>}
-                        </NavLink>
+                        {(item as any).isOnboarding ? (
+                          <button 
+                            onClick={(e) => handleMenuClick(item, e)}
+                            className={`flex items-center gap-2 w-full px-2 py-1.5 rounded-md hover:bg-sidebar-accent/50`}
+                          >
+                            <item.icon className="h-5 w-5" />
+                            {!isCollapsed && <span>{item.title}</span>}
+                          </button>
+                        ) : (
+                          <NavLink to={item.url} end className={getNavClass}>
+                            <item.icon className="h-5 w-5" />
+                            {!isCollapsed && <span>{item.title}</span>}
+                          </NavLink>
+                        )}
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                   ))}
@@ -229,6 +249,11 @@ export function AppSidebar() {
         )}
 
       </SidebarContent>
+
+      <LoanOnboardingModal 
+        open={showLoanOnboarding} 
+        onOpenChange={setShowLoanOnboarding} 
+      />
     </Sidebar>
   );
 }

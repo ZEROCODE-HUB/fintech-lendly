@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { Chatbot } from "@/components/Chatbot";
@@ -6,9 +7,11 @@ import { Badge } from "@/components/ui/badge";
 import { DollarSign, TrendingUp, CreditCard, AlertCircle, ArrowRight, Clock, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
+import { LoanOnboardingModal } from "@/components/LoanOnboardingModal";
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  const [showLoanOnboarding, setShowLoanOnboarding] = useState(false);
   
   // Datos dinámicos (en una implementación real vendrían de la API/estado)
   const clientName = "Hector";
@@ -105,7 +108,7 @@ const Dashboard = () => {
                 <div className="flex flex-col sm:flex-row gap-3">
                   <Button 
                     className="flex-1"
-                    onClick={() => navigate('/loan-request')}
+                    onClick={() => setShowLoanOnboarding(true)}
                   >
                     <DollarSign className="mr-2 h-4 w-4" />
                     Solicitar Préstamo
@@ -175,6 +178,11 @@ const Dashboard = () => {
         </main>
 
         <Chatbot />
+
+        <LoanOnboardingModal 
+          open={showLoanOnboarding} 
+          onOpenChange={setShowLoanOnboarding} 
+        />
       </div>
     </SidebarProvider>
   );

@@ -7,35 +7,42 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { DollarSign, CreditCard, CheckCircle2, AlertTriangle, ArrowRight, Calendar, Eye } from "lucide-react";
+import { DollarSign, CheckCircle2, AlertTriangle, ArrowRight, Calendar } from "lucide-react";
+
+const INTEREST_RATE = 0.42; // 42% tasa anual
+const MIN_INSTALLMENTS = 3;
 
 const LoanRequest = () => {
   const [loanAmount, setLoanAmount] = useState("");
+  const [installments, setInstallments] = useState("12");
   const [estimatedPayment, setEstimatedPayment] = useState(0);
   const [simulationDialogOpen, setSimulationDialogOpen] = useState(false);
   const [paymentSchedule, setPaymentSchedule] = useState<any[]>([]);
 
-  const calculatePayment = (amount: string) => {
+  const calculatePayment = (amount: string, months: number) => {
     const principal = parseFloat(amount) || 0;
-    const monthlyRate = 0.05; // 5% example rate
-    const months = 12;
+    const monthlyRate = INTEREST_RATE / 12;
     const payment = principal > 0 ? (principal * monthlyRate * Math.pow(1 + monthlyRate, months)) / (Math.pow(1 + monthlyRate, months) - 1) : 0;
     setEstimatedPayment(payment);
   };
 
   const handleAmountChange = (value: string) => {
     setLoanAmount(value);
-    calculatePayment(value);
+    calculatePayment(value, parseInt(installments));
+  };
+
+  const handleInstallmentsChange = (value: string) => {
+    setInstallments(value);
+    calculatePayment(loanAmount, parseInt(value));
   };
 
   const generatePaymentSchedule = () => {
     const principal = parseFloat(loanAmount) || 0;
-    const monthlyRate = 0.05;
-    const months = 12;
+    const monthlyRate = INTEREST_RATE / 12;
+    const months = parseInt(installments);
     const monthlyPayment = estimatedPayment;
     
     const schedule = [];
@@ -62,6 +69,8 @@ const LoanRequest = () => {
     setPaymentSchedule(schedule);
     setSimulationDialogOpen(true);
   };
+
+  const totalToPay = estimatedPayment * parseInt(installments);
 
   return (
     <SidebarProvider>
@@ -129,6 +138,23 @@ const LoanRequest = () => {
                   </div>
                 </div>
 
+                <div className="space-y-2">
+                  <Label htmlFor="installments">Número de Cuotas</Label>
+                  <Select value={installments} onValueChange={handleInstallmentsChange}>
+                    <SelectTrigger id="installments">
+                      <SelectValue placeholder="Selecciona el número de cuotas" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {[3, 6, 9, 12, 18, 24].map((num) => (
+                        <SelectItem key={num} value={num.toString()}>
+                          {num} cuotas
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">Mínimo {MIN_INSTALLMENTS} cuotas</p>
+                </div>
+
                 {loanAmount && (
                   <div className="bg-gradient-accent rounded-lg p-4 sm:p-6 space-y-3 sm:space-y-4">
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
@@ -140,15 +166,15 @@ const LoanRequest = () => {
                     <div className="grid grid-cols-3 gap-2 sm:gap-4 pt-3 sm:pt-4 border-t border-border">
                       <div>
                         <p className="text-xs text-muted-foreground">Plazo</p>
-                        <p className="font-semibold text-sm sm:text-base">12 meses</p>
+                        <p className="font-semibold text-sm sm:text-base">{installments} meses</p>
                       </div>
                       <div>
                         <p className="text-xs text-muted-foreground">Tasa Anual</p>
-                        <p className="font-semibold text-sm sm:text-base">60%</p>
+                        <p className="font-semibold text-sm sm:text-base">42%</p>
                       </div>
                       <div>
                         <p className="text-xs text-muted-foreground">Total a Pagar</p>
-                        <p className="font-semibold text-sm sm:text-base">${(estimatedPayment * 12).toFixed(2)}</p>
+                        <p className="font-semibold text-sm sm:text-base">${totalToPay.toFixed(2)}</p>
                       </div>
                     </div>
                     <Button 
@@ -161,58 +187,10 @@ const LoanRequest = () => {
                     </Button>
                   </div>
                 )}
-              </CardContent>
-            </Card>
 
-            {/* Application Form */}
-            <Card className="shadow-medium">
-              <CardHeader className="px-4 sm:px-6 py-4 sm:py-6">
-                <CardTitle className="text-lg sm:text-xl md:text-2xl">Detalles de la Solicitud</CardTitle>
-                <CardDescription className="text-xs sm:text-sm">Completa la información para procesar tu préstamo</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4 sm:space-y-6 px-4 sm:px-6 pb-4 sm:pb-6">
-                <div className="space-y-2">
-                  <Label htmlFor="purpose">Destino del Préstamo</Label>
-                  <Select>
-                    <SelectTrigger id="purpose">
-                      <SelectValue placeholder="Selecciona una opción" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="business">Negocio</SelectItem>
-                      <SelectItem value="personal">Personal</SelectItem>
-                      <SelectItem value="education">Educación</SelectItem>
-                      <SelectItem value="medical">Médico</SelectItem>
-                      <SelectItem value="home">Hogar</SelectItem>
-                      <SelectItem value="other">Otro</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="description">Descripción (Opcional)</Label>
-                  <Textarea
-                    id="description"
-                    placeholder="Cuéntanos más sobre el propósito de tu préstamo..."
-                    className="min-h-[100px]"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="payment-method">Método de Pago Preferido</Label>
-                  <Select>
-                    <SelectTrigger id="payment-method">
-                      <SelectValue placeholder="Selecciona un método" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="card">Tarjeta de Crédito/Débito</SelectItem>
-                      <SelectItem value="bank">Transferencia Bancaria</SelectItem>
-                      <SelectItem value="auto">Débito Automático</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
+                {/* Información Importante */}
                 <div className="bg-muted rounded-lg p-4 flex items-start gap-3">
-                  <AlertTriangle className="h-5 w-5 text-primary mt-0.5" />
+                  <AlertTriangle className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
                   <div className="text-sm">
                     <p className="font-semibold mb-1">Información Importante</p>
                     <ul className="space-y-1 text-muted-foreground">
@@ -223,22 +201,14 @@ const LoanRequest = () => {
                   </div>
                 </div>
 
-                <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-                  <Button 
-                    variant="outline" 
-                    className="flex-1 w-full"
-                    onClick={() => window.history.back()}
-                  >
-                    Cancelar
-                  </Button>
-                  <Button 
-                    className="flex-1 w-full"
-                    disabled={!loanAmount}
-                  >
-                    Enviar Solicitud
-                    <ArrowRight className="ml-2 h-3 w-3 sm:h-4 sm:w-4" />
-                  </Button>
-                </div>
+                <Button 
+                  className="w-full"
+                  disabled={!loanAmount}
+                  size="lg"
+                >
+                  Solicita el préstamo
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
               </CardContent>
             </Card>
           </div>
@@ -268,7 +238,7 @@ const LoanRequest = () => {
                   </div>
                   <div>
                     <p className="text-xs sm:text-sm text-muted-foreground">Total a Pagar</p>
-                    <p className="text-lg sm:text-xl font-bold">${(estimatedPayment * 12).toFixed(2)} MXN</p>
+                    <p className="text-lg sm:text-xl font-bold">${totalToPay.toFixed(2)} MXN</p>
                   </div>
                 </div>
               </div>
