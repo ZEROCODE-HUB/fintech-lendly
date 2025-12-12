@@ -119,10 +119,10 @@ const Memberships = () => {
             {!userMembership && (
               <>
                 {/* Header */}
-                <div className="bg-gradient-hero rounded-lg p-8 text-white text-center">
-                  <Crown className="h-12 w-12 mx-auto mb-4" />
+                <div className="text-center py-8">
+                  <Crown className="h-12 w-12 mx-auto mb-4 text-primary" />
                   <h2 className="text-3xl font-bold mb-2">Elige tu plan ideal</h2>
-                  <p className="text-white/90 max-w-2xl mx-auto">
+                  <p className="text-muted-foreground max-w-2xl mx-auto">
                     Selecciona la membresía que mejor se adapte a tus necesidades y comienza a disfrutar de todos los beneficios
                   </p>
                 </div>
@@ -132,15 +132,8 @@ const Memberships = () => {
                   {defaultMemberships.map((membership) => (
                     <Card 
                       key={membership.id} 
-                      className={`shadow-soft hover:shadow-elegant transition-all duration-300 hover:-translate-y-2 border-2 ${
-                        membership.id === 'gold' ? 'border-primary ring-2 ring-primary/20' : 'border-transparent'
-                      }`}
+                      className="shadow-soft hover:shadow-elegant transition-all duration-300 hover:-translate-y-2 border border-border"
                     >
-                      {membership.id === 'gold' && (
-                        <div className="bg-primary text-primary-foreground text-center py-1 text-sm font-semibold">
-                          Más Popular
-                        </div>
-                      )}
                       <CardHeader className="text-center pb-3">
                         <div className="mx-auto mb-3 h-16 w-16 rounded-full bg-gradient-hero flex items-center justify-center">
                           <Crown className="h-8 w-8 text-white" />
