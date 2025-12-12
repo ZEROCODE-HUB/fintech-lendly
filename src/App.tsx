@@ -8,6 +8,7 @@ import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import ServiceSelection from "./pages/ServiceSelection";
 import LoanRequest from "./pages/LoanRequest";
+import LoanProcess from "./pages/LoanProcess";
 import MyLoans from "./pages/MyLoans";
 import History from "./pages/History";
 import Notifications from "./pages/Notifications";
@@ -35,6 +36,7 @@ const App = () => (
           <Route path="/service-selection" element={<ServiceSelection />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/loan-request" element={<LoanRequest />} />
+          <Route path="/loan-process" element={<LoanProcess />} />
           <Route path="/my-loans" element={<MyLoans />} />
           <Route path="/history" element={<History />} />
           <Route path="/notifications" element={<Notifications />} />

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { Chatbot } from "@/components/Chatbot";
@@ -16,11 +17,24 @@ const INTEREST_RATE = 0.42; // 42% tasa anual
 const MIN_INSTALLMENTS = 3;
 
 const LoanRequest = () => {
+  const navigate = useNavigate();
   const [loanAmount, setLoanAmount] = useState("");
   const [installments, setInstallments] = useState("12");
   const [estimatedPayment, setEstimatedPayment] = useState(0);
   const [simulationDialogOpen, setSimulationDialogOpen] = useState(false);
   const [paymentSchedule, setPaymentSchedule] = useState<any[]>([]);
+
+  const handleStartLoanProcess = () => {
+    navigate("/loan-process", {
+      state: {
+        amount: parseFloat(loanAmount) || 0,
+        installments: parseInt(installments),
+        monthlyPayment: estimatedPayment,
+        interestRate: INTEREST_RATE * 100,
+        totalToPay: estimatedPayment * parseInt(installments),
+      },
+    });
+  };
 
   const calculatePayment = (amount: string, months: number) => {
     const principal = parseFloat(amount) || 0;
@@ -205,6 +219,7 @@ const LoanRequest = () => {
                   className="w-full"
                   disabled={!loanAmount}
                   size="lg"
+                  onClick={handleStartLoanProcess}
                 >
                   Solicita el préstamo
                   <ArrowRight className="ml-2 h-4 w-4" />
