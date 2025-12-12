@@ -72,91 +72,69 @@ export function AppSidebar() {
 
   return (
     <Sidebar className={isCollapsed ? "w-16" : "w-64"} collapsible="icon">
-      <SidebarContent>
-        {/* Brand - Premium Fintech Style */}
-        <div className="px-5 py-8 border-b border-sidebar-border/50 bg-gradient-to-b from-sidebar-background to-sidebar-background/80">
+      <SidebarContent className="flex flex-col h-full">
+        {/* User Profile - Top Section */}
+        <div className="px-4 py-5 border-b border-sidebar-border/50">
           {!isCollapsed && (
-            <div className="space-y-6">
-              {/* Logo Premium */}
-              <div className="flex items-center justify-center">
-                <img 
-                  src={logoSidebar} 
-                  alt="Increscendo Fintech" 
-                  className="h-16 w-auto drop-shadow-lg" 
-                />
-              </div>
-              
-              {/* User Avatar with Dropdown */}
-              <div className="flex justify-center">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <button className="flex flex-col items-center gap-2 group cursor-pointer focus:outline-none">
-                      <Avatar className="h-14 w-14 ring-2 ring-primary/20 ring-offset-2 ring-offset-sidebar-background transition-all group-hover:ring-primary/40 group-hover:scale-105">
-                        <AvatarImage src={currentUser?.avatar} alt={currentUser?.name} />
-                        <AvatarFallback className="bg-primary text-primary-foreground text-lg font-semibold">
-                          {getUserInitial()}
-                        </AvatarFallback>
-                      </Avatar>
-                      <span className="text-sm font-medium text-sidebar-foreground/80 group-hover:text-sidebar-foreground transition-colors">
-                        {currentUser?.name || 'Usuario'}
-                      </span>
-                    </button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="center" className="w-48 bg-popover border border-border shadow-lg z-50">
-                    <DropdownMenuItem className="cursor-pointer" onClick={() => navigate('/my-account')}>
-                      <User className="mr-2 h-4 w-4" />
-                      Mi Cuenta
-                    </DropdownMenuItem>
-                    <DropdownMenuItem className="cursor-pointer" onClick={() => navigate('/membership')}>
-                      <Crown className="mr-2 h-4 w-4" />
-                      Mi Membresía
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem className="cursor-pointer text-destructive focus:text-destructive" onClick={handleLogout}>
-                      <LogOut className="mr-2 h-4 w-4" />
-                      Cerrar Sesión
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="flex items-center gap-3 w-full group cursor-pointer focus:outline-none hover:bg-sidebar-accent/30 rounded-lg p-2 -m-2 transition-colors">
+                  <Avatar className="h-12 w-12 ring-2 ring-success/40 ring-offset-2 ring-offset-sidebar-background transition-all group-hover:ring-success/60 group-hover:scale-105 flex-shrink-0">
+                    <AvatarImage src={currentUser?.avatar} alt={currentUser?.name} />
+                    <AvatarFallback className="bg-success text-white text-lg font-bold">
+                      {getUserInitial()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="text-base font-semibold text-sidebar-foreground group-hover:text-success transition-colors truncate">
+                    {currentUser?.name || 'Usuario'}
+                  </span>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" sideOffset={8} className="w-48 bg-popover border border-border shadow-lg z-50">
+                <DropdownMenuItem className="cursor-pointer" onClick={() => navigate('/my-account')}>
+                  <User className="mr-2 h-4 w-4" />
+                  Mi Cuenta
+                </DropdownMenuItem>
+                <DropdownMenuItem className="cursor-pointer" onClick={() => navigate('/membership')}>
+                  <Crown className="mr-2 h-4 w-4" />
+                  Mi Membresía
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem className="cursor-pointer text-destructive focus:text-destructive" onClick={handleLogout}>
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Cerrar Sesión
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           )}
           {isCollapsed && (
-            <div className="flex flex-col items-center gap-4">
-              <img 
-                src={logoIcon} 
-                alt="Increscendo" 
-                className="h-10 w-10 rounded-full object-cover brightness-0 invert drop-shadow-md" 
-                style={{ filter: 'brightness(0) invert(1)' }}
-              />
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button className="focus:outline-none">
-                    <Avatar className="h-10 w-10 ring-2 ring-primary/20 ring-offset-1 ring-offset-sidebar-background hover:ring-primary/40 transition-all cursor-pointer">
-                      <AvatarImage src={currentUser?.avatar} alt={currentUser?.name} />
-                      <AvatarFallback className="bg-primary text-primary-foreground text-sm font-semibold">
-                        {getUserInitial()}
-                      </AvatarFallback>
-                    </Avatar>
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent side="right" align="start" className="w-48 bg-popover border border-border shadow-lg z-50">
-                  <DropdownMenuItem className="cursor-pointer" onClick={() => navigate('/my-account')}>
-                    <User className="mr-2 h-4 w-4" />
-                    Mi Cuenta
-                  </DropdownMenuItem>
-                  <DropdownMenuItem className="cursor-pointer" onClick={() => navigate('/membership')}>
-                    <Crown className="mr-2 h-4 w-4" />
-                    Mi Membresía
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem className="cursor-pointer text-destructive focus:text-destructive" onClick={handleLogout}>
-                    <LogOut className="mr-2 h-4 w-4" />
-                    Cerrar Sesión
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="flex justify-center w-full focus:outline-none">
+                  <Avatar className="h-10 w-10 ring-2 ring-success/40 ring-offset-1 ring-offset-sidebar-background hover:ring-success/60 transition-all cursor-pointer">
+                    <AvatarImage src={currentUser?.avatar} alt={currentUser?.name} />
+                    <AvatarFallback className="bg-success text-white text-sm font-bold">
+                      {getUserInitial()}
+                    </AvatarFallback>
+                  </Avatar>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent side="right" align="start" className="w-48 bg-popover border border-border shadow-lg z-50">
+                <DropdownMenuItem className="cursor-pointer" onClick={() => navigate('/my-account')}>
+                  <User className="mr-2 h-4 w-4" />
+                  Mi Cuenta
+                </DropdownMenuItem>
+                <DropdownMenuItem className="cursor-pointer" onClick={() => navigate('/membership')}>
+                  <Crown className="mr-2 h-4 w-4" />
+                  Mi Membresía
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem className="cursor-pointer text-destructive focus:text-destructive" onClick={handleLogout}>
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Cerrar Sesión
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           )}
         </div>
 
@@ -248,6 +226,36 @@ export function AppSidebar() {
           </>
         )}
 
+        {/* Logo - Bottom Section with Service Selection Palette */}
+        <div className="mt-auto px-4 py-6 border-t border-sidebar-border/30">
+          {!isCollapsed && (
+            <div className="flex flex-col items-center gap-3">
+              <div className="relative group">
+                <div className="absolute -inset-2 bg-gradient-to-br from-success/30 to-success/10 rounded-xl blur-sm group-hover:blur-md transition-all" />
+                <img 
+                  src={logoSidebar} 
+                  alt="Increscendo Fintech" 
+                  className="relative h-14 w-auto drop-shadow-lg" 
+                />
+              </div>
+              <p className="text-xs font-medium text-success/80 tracking-wider uppercase">
+                Fintech
+              </p>
+            </div>
+          )}
+          {isCollapsed && (
+            <div className="flex justify-center">
+              <div className="relative group">
+                <div className="absolute -inset-1 bg-success/20 rounded-full blur-sm group-hover:bg-success/30 transition-all" />
+                <img 
+                  src={logoIcon} 
+                  alt="Increscendo" 
+                  className="relative h-8 w-8 rounded-full object-cover ring-2 ring-success/50" 
+                />
+              </div>
+            </div>
+          )}
+        </div>
       </SidebarContent>
 
       <LoanOnboardingModal 
