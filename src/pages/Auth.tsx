@@ -138,6 +138,44 @@ const Auth = () => {
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </Button>
                   </form>
+
+                  {/* Test Access Buttons */}
+                  <Separator className="my-4" />
+                  <div className="space-y-2">
+                    <p className="text-xs text-muted-foreground text-center">Acceso rápido (solo testing)</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => {
+                          localStorage.setItem('testUserRole', 'client');
+                          localStorage.setItem('testUserEmail', 'cliente@test.com');
+                          toast({
+                            title: "Acceso Cliente",
+                            description: "Ingresando como usuario cliente",
+                          });
+                          navigate('/service-selection');
+                        }}
+                      >
+                        Cliente Test
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => {
+                          localStorage.setItem('testUserRole', 'admin');
+                          localStorage.setItem('testUserEmail', 'admin@gmail.com');
+                          toast({
+                            title: "Acceso Admin",
+                            description: "Ingresando como administrador",
+                          });
+                          navigate('/admin/memberships');
+                        }}
+                      >
+                        Admin Test
+                      </Button>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
             </TabsContent>
