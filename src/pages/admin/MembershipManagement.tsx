@@ -48,10 +48,9 @@ const MembershipManagement = () => {
     benefits: ''
   });
 
-  // Check if user is admin
+  // Check if user is admin by role
   useEffect(() => {
-    const user = authService.getCurrentUser();
-    if (!user || user.email !== 'admin@gmail.com') {
+    if (!authService.isAdmin()) {
       toast({
         title: "Acceso denegado",
         description: "No tienes permisos para acceder a esta página",
