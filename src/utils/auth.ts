@@ -5,6 +5,7 @@ export interface User {
   email: string;
   name: string;
   role: UserRole;
+  avatar?: string;
 }
 
 const STORAGE_KEY = 'increscendo_user';

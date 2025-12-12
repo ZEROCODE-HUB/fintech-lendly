@@ -1,9 +1,16 @@
-import { Home, CreditCard, DollarSign, History, Users, Settings, Bell, HelpCircle, LogOut, LayoutDashboard, Cog, Wallet } from "lucide-react";
+import { Home, CreditCard, DollarSign, History, Users, Bell, LayoutDashboard, Cog, Wallet, User, Crown, LogOut } from "lucide-react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { authService } from "@/utils/auth";
-import { Button } from "@/components/ui/button";
 import logoIcon from "@/assets/logo-icon.jpeg";
 import logoSidebar from "@/assets/logo-sidebar.png";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Sidebar,
   SidebarContent,
@@ -48,31 +55,97 @@ export function AppSidebar() {
     navigate("/auth");
   };
 
+  const getUserInitial = () => {
+    const name = currentUser?.name || 'Usuario';
+    return name.charAt(0).toUpperCase();
+  };
+
   return (
     <Sidebar className={isCollapsed ? "w-16" : "w-64"} collapsible="icon">
       <SidebarContent>
-        {/* Brand */}
-        <div className="px-4 py-6 border-b border-sidebar-border bg-sidebar-background">
+        {/* Brand - Premium Fintech Style */}
+        <div className="px-5 py-8 border-b border-sidebar-border/50 bg-gradient-to-b from-sidebar-background to-sidebar-background/80">
           {!isCollapsed && (
-            <div className="space-y-2">
-              <img 
-                src={logoSidebar} 
-                alt="Increscendo Fintech" 
-                className="h-12 w-auto mb-2" 
-              />
-              <p className="text-xs text-muted-foreground">
-                {currentUser?.name || 'Usuario'}
-              </p>
+            <div className="space-y-6">
+              {/* Logo Premium */}
+              <div className="flex items-center justify-center">
+                <img 
+                  src={logoSidebar} 
+                  alt="Increscendo Fintech" 
+                  className="h-16 w-auto drop-shadow-lg" 
+                />
+              </div>
+              
+              {/* User Avatar with Dropdown */}
+              <div className="flex justify-center">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button className="flex flex-col items-center gap-2 group cursor-pointer focus:outline-none">
+                      <Avatar className="h-14 w-14 ring-2 ring-primary/20 ring-offset-2 ring-offset-sidebar-background transition-all group-hover:ring-primary/40 group-hover:scale-105">
+                        <AvatarImage src={currentUser?.avatar} alt={currentUser?.name} />
+                        <AvatarFallback className="bg-primary text-primary-foreground text-lg font-semibold">
+                          {getUserInitial()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="text-sm font-medium text-sidebar-foreground/80 group-hover:text-sidebar-foreground transition-colors">
+                        {currentUser?.name || 'Usuario'}
+                      </span>
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="center" className="w-48 bg-popover border border-border shadow-lg z-50">
+                    <DropdownMenuItem className="cursor-pointer" onClick={() => navigate('/my-account')}>
+                      <User className="mr-2 h-4 w-4" />
+                      Mi Cuenta
+                    </DropdownMenuItem>
+                    <DropdownMenuItem className="cursor-pointer" onClick={() => navigate('/membership')}>
+                      <Crown className="mr-2 h-4 w-4" />
+                      Mi Membresía
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem className="cursor-pointer text-destructive focus:text-destructive" onClick={handleLogout}>
+                      <LogOut className="mr-2 h-4 w-4" />
+                      Cerrar Sesión
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
             </div>
           )}
           {isCollapsed && (
-            <div className="flex justify-center">
+            <div className="flex flex-col items-center gap-4">
               <img 
                 src={logoIcon} 
                 alt="Increscendo" 
-                className="h-8 w-8 rounded-full object-cover brightness-0 invert" 
+                className="h-10 w-10 rounded-full object-cover brightness-0 invert drop-shadow-md" 
                 style={{ filter: 'brightness(0) invert(1)' }}
               />
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="focus:outline-none">
+                    <Avatar className="h-10 w-10 ring-2 ring-primary/20 ring-offset-1 ring-offset-sidebar-background hover:ring-primary/40 transition-all cursor-pointer">
+                      <AvatarImage src={currentUser?.avatar} alt={currentUser?.name} />
+                      <AvatarFallback className="bg-primary text-primary-foreground text-sm font-semibold">
+                        {getUserInitial()}
+                      </AvatarFallback>
+                    </Avatar>
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent side="right" align="start" className="w-48 bg-popover border border-border shadow-lg z-50">
+                  <DropdownMenuItem className="cursor-pointer" onClick={() => navigate('/my-account')}>
+                    <User className="mr-2 h-4 w-4" />
+                    Mi Cuenta
+                  </DropdownMenuItem>
+                  <DropdownMenuItem className="cursor-pointer" onClick={() => navigate('/membership')}>
+                    <Crown className="mr-2 h-4 w-4" />
+                    Mi Membresía
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem className="cursor-pointer text-destructive focus:text-destructive" onClick={handleLogout}>
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Cerrar Sesión
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           )}
         </div>
@@ -155,25 +228,6 @@ export function AppSidebar() {
           </>
         )}
 
-        {/* Logout */}
-        <SidebarGroup className="mt-auto">
-          <SidebarGroupContent>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild>
-                  <Button
-                    variant="ghost"
-                    onClick={handleLogout}
-                    className="w-full justify-start hover:bg-sidebar-accent/50"
-                  >
-                    <LogOut className="h-5 w-5" />
-                    {!isCollapsed && <span>Cerrar Sesión</span>}
-                  </Button>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
       </SidebarContent>
     </Sidebar>
   );
