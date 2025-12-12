@@ -17,9 +17,9 @@ const ServiceSelection = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-accent/5">
       {/* Logo Header */}
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-8">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 pt-8 sm:pt-12">
         <div className="flex justify-center">
-          <img src={logoFull} alt="Increscendo Fintech" className="h-16 sm:h-20 md:h-24 w-auto" />
+          <img src={logoFull} alt="Increscendo Fintech" className="h-28 sm:h-36 md:h-44 lg:h-52 w-auto" />
         </div>
       </div>
       
