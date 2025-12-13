@@ -228,33 +228,27 @@ export function AppSidebar() {
           </>
         )}
 
-        {/* Logo - Bottom Section with Service Selection Palette */}
+        {/* Logo - Bottom Section */}
         <div className="mt-auto px-4 py-6 border-t border-sidebar-border/30">
           {!isCollapsed && (
             <div className="flex flex-col items-center gap-3">
-              <div className="relative group">
-                <div className="absolute -inset-2 bg-gradient-to-br from-success/30 to-success/10 rounded-xl blur-sm group-hover:blur-md transition-all" />
-                <img 
-                  src={logoSidebar} 
-                  alt="Increscendo Fintech" 
-                  className="relative h-14 w-auto drop-shadow-lg" 
-                />
-              </div>
-              <p className="text-xs font-medium text-success/80 tracking-wider uppercase">
+              <img 
+                src={logoSidebar} 
+                alt="Increscendo Fintech" 
+                className="h-14 w-auto brightness-0 invert" 
+              />
+              <p className="text-xs font-medium text-white/80 tracking-wider uppercase">
                 Fintech
               </p>
             </div>
           )}
           {isCollapsed && (
             <div className="flex justify-center">
-              <div className="relative group">
-                <div className="absolute -inset-1 bg-success/20 rounded-full blur-sm group-hover:bg-success/30 transition-all" />
-                <img 
-                  src={logoIcon} 
-                  alt="Increscendo" 
-                  className="relative h-8 w-8 rounded-full object-cover ring-2 ring-success/50" 
-                />
-              </div>
+              <img 
+                src={logoIcon} 
+                alt="Increscendo" 
+                className="h-8 w-8 rounded-full object-cover brightness-0 invert" 
+              />
             </div>
           )}
         </div>
