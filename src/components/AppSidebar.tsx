@@ -140,8 +140,8 @@ export function AppSidebar() {
           )}
         </div>
 
-        {/* Client Menu - Only visible for client users */}
-        {currentUser?.role === 'client' && (
+        {/* Client Menu - Always visible for non-admin users */}
+        {!isAdmin && (
           <>
             <SidebarGroup>
               <SidebarGroupLabel>Menú Principal</SidebarGroupLabel>
