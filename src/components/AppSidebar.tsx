@@ -97,10 +97,12 @@ export function AppSidebar() {
                   <User className="mr-2 h-4 w-4" />
                   Mi Cuenta
                 </DropdownMenuItem>
-                <DropdownMenuItem className="cursor-pointer" onClick={() => navigate('/memberships')}>
-                  <Crown className="mr-2 h-4 w-4" />
-                  Mi Membresía
-                </DropdownMenuItem>
+                {!isAdmin && (
+                  <DropdownMenuItem className="cursor-pointer" onClick={() => navigate('/memberships')}>
+                    <Crown className="mr-2 h-4 w-4" />
+                    Mi Membresía
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem className="cursor-pointer text-destructive focus:text-destructive" onClick={handleLogout}>
                   <LogOut className="mr-2 h-4 w-4" />
@@ -126,10 +128,12 @@ export function AppSidebar() {
                   <User className="mr-2 h-4 w-4" />
                   Mi Cuenta
                 </DropdownMenuItem>
-                <DropdownMenuItem className="cursor-pointer" onClick={() => navigate('/memberships')}>
-                  <Crown className="mr-2 h-4 w-4" />
-                  Mi Membresía
-                </DropdownMenuItem>
+                {!isAdmin && (
+                  <DropdownMenuItem className="cursor-pointer" onClick={() => navigate('/memberships')}>
+                    <Crown className="mr-2 h-4 w-4" />
+                    Mi Membresía
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem className="cursor-pointer text-destructive focus:text-destructive" onClick={handleLogout}>
                   <LogOut className="mr-2 h-4 w-4" />

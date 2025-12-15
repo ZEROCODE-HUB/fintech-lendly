@@ -7,8 +7,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { authService } from "@/utils/auth";
 
 const MyAccount = () => {
+  const currentUser = authService.getCurrentUser();
+  const isAdmin = currentUser?.role === 'admin';
   const { toast } = useToast();
 
   const [personalData, setPersonalData] = useState({
@@ -234,85 +237,87 @@ const MyAccount = () => {
               </CardContent>
             </Card>
 
-            {/* Card 3: INE Validation */}
-            <Card className="shadow-soft border-border/50">
-              <CardHeader className="pb-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2.5 rounded-xl bg-success/10">
-                    <CreditCard className="h-5 w-5 text-success" />
-                  </div>
-                  <div>
-                    <CardTitle className="text-lg">Documentación INE</CardTitle>
-                    <CardDescription>Sube o captura las fotos de tu INE para validar tu identidad</CardDescription>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* INE Front */}
-                  <div className="space-y-3">
-                    <Label className="text-sm font-medium">INE Frente</Label>
-                    <div className="border-2 border-dashed border-border rounded-xl p-6 flex flex-col items-center justify-center gap-4 bg-muted/30 hover:bg-muted/50 transition-colors min-h-[180px]">
-                      <div className="text-center">
-                        <CreditCard className="h-10 w-10 text-muted-foreground mx-auto mb-2" />
-                        <p className="text-sm text-muted-foreground">Parte frontal de tu INE</p>
-                      </div>
-                      <div className="flex gap-3">
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          onClick={() => handleUploadImage("front")}
-                          className="gap-2"
-                        >
-                          <Upload className="h-4 w-4" />
-                          Subir
-                        </Button>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          onClick={() => handleOpenCamera("front")}
-                          className="gap-2"
-                        >
-                          <Camera className="h-4 w-4" />
-                          Cámara
-                        </Button>
-                      </div>
+            {/* Card 3: INE Validation - Only for non-admin users */}
+            {!isAdmin && (
+              <Card className="shadow-soft border-border/50">
+                <CardHeader className="pb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 rounded-xl bg-success/10">
+                      <CreditCard className="h-5 w-5 text-success" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-lg">Documentación INE</CardTitle>
+                      <CardDescription>Sube o captura las fotos de tu INE para validar tu identidad</CardDescription>
                     </div>
                   </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* INE Front */}
+                    <div className="space-y-3">
+                      <Label className="text-sm font-medium">INE Frente</Label>
+                      <div className="border-2 border-dashed border-border rounded-xl p-6 flex flex-col items-center justify-center gap-4 bg-muted/30 hover:bg-muted/50 transition-colors min-h-[180px]">
+                        <div className="text-center">
+                          <CreditCard className="h-10 w-10 text-muted-foreground mx-auto mb-2" />
+                          <p className="text-sm text-muted-foreground">Parte frontal de tu INE</p>
+                        </div>
+                        <div className="flex gap-3">
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={() => handleUploadImage("front")}
+                            className="gap-2"
+                          >
+                            <Upload className="h-4 w-4" />
+                            Subir
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={() => handleOpenCamera("front")}
+                            className="gap-2"
+                          >
+                            <Camera className="h-4 w-4" />
+                            Cámara
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
 
-                  {/* INE Back */}
-                  <div className="space-y-3">
-                    <Label className="text-sm font-medium">INE Reverso</Label>
-                    <div className="border-2 border-dashed border-border rounded-xl p-6 flex flex-col items-center justify-center gap-4 bg-muted/30 hover:bg-muted/50 transition-colors min-h-[180px]">
-                      <div className="text-center">
-                        <CreditCard className="h-10 w-10 text-muted-foreground mx-auto mb-2" />
-                        <p className="text-sm text-muted-foreground">Parte trasera de tu INE</p>
-                      </div>
-                      <div className="flex gap-3">
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          onClick={() => handleUploadImage("back")}
-                          className="gap-2"
-                        >
-                          <Upload className="h-4 w-4" />
-                          Subir
-                        </Button>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          onClick={() => handleOpenCamera("back")}
-                          className="gap-2"
-                        >
-                          <Camera className="h-4 w-4" />
-                          Cámara
-                        </Button>
+                    {/* INE Back */}
+                    <div className="space-y-3">
+                      <Label className="text-sm font-medium">INE Reverso</Label>
+                      <div className="border-2 border-dashed border-border rounded-xl p-6 flex flex-col items-center justify-center gap-4 bg-muted/30 hover:bg-muted/50 transition-colors min-h-[180px]">
+                        <div className="text-center">
+                          <CreditCard className="h-10 w-10 text-muted-foreground mx-auto mb-2" />
+                          <p className="text-sm text-muted-foreground">Parte trasera de tu INE</p>
+                        </div>
+                        <div className="flex gap-3">
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={() => handleUploadImage("back")}
+                            className="gap-2"
+                          >
+                            <Upload className="h-4 w-4" />
+                            Subir
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={() => handleOpenCamera("back")}
+                            className="gap-2"
+                          >
+                            <Camera className="h-4 w-4" />
+                            Cámara
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            )}
           </div>
         </main>
       </div>

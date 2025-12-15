@@ -169,7 +169,7 @@ const Auth = () => {
                             title: "Acceso Admin",
                             description: "Ingresando como administrador",
                           });
-                          navigate('/admin/memberships');
+                          navigate('/admin/dashboard');
                         }}
                       >
                         Admin Test
