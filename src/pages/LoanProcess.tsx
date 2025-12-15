@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   CheckCircle2, 
   ArrowRight, 
@@ -24,9 +25,12 @@ import {
   Loader2,
   PartyPopper,
   Crown,
-  Star
+  Star,
+  RefreshCw,
+  Building2
 } from "lucide-react";
 import { defaultMemberships } from "@/data/memberships";
+import { useToast } from "@/hooks/use-toast";
 
 const STEPS = [
   { id: 1, title: "Confirma", icon: DollarSign },
@@ -37,9 +41,25 @@ const STEPS = [
   { id: 6, title: "Desembolso", icon: Wallet },
 ];
 
+const INTEREST_RATE = 0.42;
+
+const BANKS = [
+  "BBVA México",
+  "Santander",
+  "Banorte",
+  "Citibanamex",
+  "HSBC",
+  "Scotiabank",
+  "Banco Azteca",
+  "Inbursa",
+  "BanCoppel",
+  "Compartamos",
+];
+
 const LoanProcess = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { toast } = useToast();
   const [currentStep, setCurrentStep] = useState(1);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isApproved, setIsApproved] = useState(false);
@@ -47,13 +67,19 @@ const LoanProcess = () => {
   const [selectedMembership, setSelectedMembership] = useState<string | null>(null);
 
   // Get loan data from navigation state or use defaults
-  const loanData = location.state || {
+  const initialLoanData = location.state || {
     amount: 10000,
     installments: 12,
     monthlyPayment: 952.38,
     interestRate: 42,
     totalToPay: 11428.56,
   };
+
+  // Editable loan data state for Step 1
+  const [loanAmount, setLoanAmount] = useState(initialLoanData.amount.toString());
+  const [loanInstallments, setLoanInstallments] = useState(initialLoanData.installments.toString());
+  const [monthlyPayment, setMonthlyPayment] = useState(initialLoanData.monthlyPayment);
+  const [totalToPay, setTotalToPay] = useState(initialLoanData.totalToPay);
 
   // Personal data state for KYC
   const [personalData, setPersonalData] = useState({
@@ -66,13 +92,39 @@ const LoanProcess = () => {
     curp: "",
   });
 
+  // Deposit data for Step 3
+  const [depositData, setDepositData] = useState({
+    bank: "",
+    clabe: "",
+  });
+
   const handlePersonalDataChange = (field: string, value: string) => {
     setPersonalData(prev => ({ ...prev, [field]: value }));
   };
 
+  const handleDepositDataChange = (field: string, value: string) => {
+    setDepositData(prev => ({ ...prev, [field]: value }));
+  };
+
+  // Calculate payment based on amount and installments
+  const calculatePayment = () => {
+    const principal = parseFloat(loanAmount) || 0;
+    const months = parseInt(loanInstallments) || 12;
+    const monthlyRate = INTEREST_RATE / 12;
+    
+    if (principal > 0) {
+      const payment = (principal * monthlyRate * Math.pow(1 + monthlyRate, months)) / (Math.pow(1 + monthlyRate, months) - 1);
+      setMonthlyPayment(payment);
+      setTotalToPay(payment * months);
+      toast({
+        title: "Cálculo actualizado",
+        description: "Los valores del préstamo han sido recalculados.",
+      });
+    }
+  };
+
   const handleNext = () => {
     if (currentStep === 4 && !isApproved) {
-      // Start analysis simulation
       setIsAnalyzing(true);
       setTimeout(() => {
         setIsAnalyzing(false);
@@ -93,6 +145,10 @@ const LoanProcess = () => {
 
   const handleGoToDashboard = () => {
     navigate("/dashboard");
+  };
+
+  const handleGoToSimulator = () => {
+    navigate("/loan-request");
   };
 
   // Stepper Component
@@ -132,40 +188,87 @@ const LoanProcess = () => {
     </div>
   );
 
-  // Step 1: Confirm Loan
+  // Step 1: Confirm Loan (Updated with editable fields)
   const StepConfirm = () => (
     <Card className="shadow-medium">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-xl">
-          <DollarSign className="h-5 w-5 text-primary" />
-          Confirma tu Préstamo
-        </CardTitle>
-        <CardDescription>Revisa los detalles de tu solicitud</CardDescription>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2 text-xl">
+              <DollarSign className="h-5 w-5 text-primary" />
+              Confirma tu Préstamo
+            </CardTitle>
+            <CardDescription>Revisa y ajusta los detalles de tu solicitud</CardDescription>
+          </div>
+          <Button variant="outline" size="sm" onClick={handleGoToSimulator}>
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Volver al Simulador
+          </Button>
+        </div>
       </CardHeader>
       <CardContent className="space-y-6">
+        {/* Editable Fields */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="loan-amount">Monto Solicitado</Label>
+            <div className="relative">
+              <span className="absolute left-3 top-3 text-muted-foreground">$</span>
+              <Input
+                id="loan-amount"
+                type="number"
+                placeholder="10000"
+                value={loanAmount}
+                onChange={(e) => setLoanAmount(e.target.value)}
+                className="pl-7 text-lg font-semibold"
+              />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="loan-installments">Número de Cuotas</Label>
+            <Select value={loanInstallments} onValueChange={setLoanInstallments}>
+              <SelectTrigger id="loan-installments">
+                <SelectValue placeholder="Selecciona el número de cuotas" />
+              </SelectTrigger>
+              <SelectContent>
+                {[3, 6, 9, 12, 18, 24].map((num) => (
+                  <SelectItem key={num} value={num.toString()}>
+                    {num} cuotas
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        <Button variant="outline" onClick={calculatePayment} className="w-full md:w-auto">
+          <RefreshCw className="h-4 w-4 mr-2" />
+          Actualizar
+        </Button>
+
+        {/* Summary Display */}
         <div className="bg-gradient-to-br from-primary/10 to-accent/30 rounded-xl p-6">
           <div className="grid grid-cols-2 gap-4">
             <div>
               <p className="text-sm text-muted-foreground">Monto Solicitado</p>
-              <p className="text-2xl font-bold text-primary">${loanData.amount.toLocaleString()} MXN</p>
+              <p className="text-2xl font-bold text-primary">${parseFloat(loanAmount || "0").toLocaleString()} MXN</p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Plazo</p>
-              <p className="text-2xl font-bold">{loanData.installments} cuotas</p>
+              <p className="text-2xl font-bold">{loanInstallments} cuotas</p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Tasa de Interés</p>
-              <p className="text-xl font-semibold">{loanData.interestRate}% anual</p>
+              <p className="text-xl font-semibold">{INTEREST_RATE * 100}% anual</p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Cuota Mensual</p>
-              <p className="text-xl font-semibold text-primary">${loanData.monthlyPayment.toFixed(2)} MXN</p>
+              <p className="text-xl font-semibold text-primary">${monthlyPayment.toFixed(2)} MXN</p>
             </div>
           </div>
           <Separator className="my-4" />
           <div className="flex justify-between items-center">
             <p className="text-muted-foreground">Total a Pagar</p>
-            <p className="text-2xl font-bold">${loanData.totalToPay.toFixed(2)} MXN</p>
+            <p className="text-2xl font-bold">${totalToPay.toFixed(2)} MXN</p>
           </div>
         </div>
       </CardContent>
@@ -260,7 +363,7 @@ const LoanProcess = () => {
     </Card>
   );
 
-  // Step 3: KYC Validation
+  // Step 3: KYC Validation (Updated with Deposit section)
   const StepValidation = () => (
     <div className="space-y-6">
       {/* Personal Information */}
@@ -312,6 +415,50 @@ const LoanProcess = () => {
                 value={personalData.phone}
                 onChange={(e) => handlePersonalDataChange("phone", e.target.value)}
               />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Deposit Section (NEW) */}
+      <Card className="shadow-medium">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Building2 className="h-5 w-5 text-primary" />
+            Depósito
+          </CardTitle>
+          <CardDescription>Información bancaria para el desembolso</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Banco</Label>
+              <Select value={depositData.bank} onValueChange={(v) => handleDepositDataChange("bank", v)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona tu banco" />
+                </SelectTrigger>
+                <SelectContent>
+                  {BANKS.map((bank) => (
+                    <SelectItem key={bank} value={bank}>
+                      {bank}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>CLABE Interbancaria</Label>
+              <Input
+                type="number"
+                placeholder="18 dígitos"
+                maxLength={18}
+                value={depositData.clabe}
+                onChange={(e) => {
+                  const value = e.target.value.slice(0, 18);
+                  handleDepositDataChange("clabe", value);
+                }}
+              />
+              <p className="text-xs text-muted-foreground">Ingresa los 18 dígitos de tu CLABE</p>
             </div>
           </div>
         </CardContent>
@@ -498,11 +645,11 @@ const LoanProcess = () => {
           <div className="grid grid-cols-2 gap-4 text-left">
             <div className="bg-muted/50 rounded-lg p-4">
               <p className="text-sm text-muted-foreground">Monto aprobado</p>
-              <p className="text-xl font-bold text-primary">${loanData.amount.toLocaleString()} MXN</p>
+              <p className="text-xl font-bold text-primary">${parseFloat(loanAmount).toLocaleString()} MXN</p>
             </div>
             <div className="bg-muted/50 rounded-lg p-4">
               <p className="text-sm text-muted-foreground">Primera cuota</p>
-              <p className="text-xl font-bold">${loanData.monthlyPayment.toFixed(2)} MXN</p>
+              <p className="text-xl font-bold">${monthlyPayment.toFixed(2)} MXN</p>
             </div>
           </div>
         </div>
