@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,6 +26,7 @@ import {
 } from "@/data/memberships";
 
 const Memberships = () => {
+  const navigate = useNavigate();
   const { toast } = useToast();
   
   // Toggle this to simulate having/not having an active membership
@@ -34,27 +36,9 @@ const Memberships = () => {
   const [paymentHistory] = useState<PaymentHistory[]>(mockPaymentHistory);
 
   const handleAcquireMembership = (membershipId: string) => {
-    const membership = defaultMemberships.find(m => m.id === membershipId);
-    if (membership) {
-      // Simulate acquiring membership
-      const now = new Date();
-      const expirationDate = new Date(now.setFullYear(now.getFullYear() + 1));
-      
-      setUserMembership({
-        id: `user-mem-${Date.now()}`,
-        membershipId: membership.id,
-        membershipTitle: membership.title,
-        status: 'active',
-        startDate: new Date().toISOString().split('T')[0],
-        expirationDate: expirationDate.toISOString().split('T')[0],
-        autoRenewal: true
-      });
-      
-      toast({
-        title: "¡Membresía adquirida!",
-        description: `Has adquirido ${membership.title} exitosamente`
-      });
-    }
+    navigate("/membership-checkout", {
+      state: { membershipId, returnTo: "/memberships" }
+    });
   };
 
   const handleAutoRenewalToggle = (checked: boolean) => {

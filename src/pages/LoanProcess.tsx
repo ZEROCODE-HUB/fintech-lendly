@@ -224,7 +224,7 @@ const LoanProcess = () => {
                     ${membership.cost.toLocaleString()} <span className="text-sm font-normal text-muted-foreground">MXN</span>
                   </p>
                   <p className="text-sm text-muted-foreground mb-4">Renovación {membership.renewalPeriod}</p>
-                  <ul className="space-y-2">
+                  <ul className="space-y-2 mb-4">
                     {membership.benefits.map((benefit, i) => (
                       <li key={i} className="flex items-center gap-2 text-sm">
                         <CheckCircle2 className="h-4 w-4 text-success" />
@@ -232,6 +232,18 @@ const LoanProcess = () => {
                       </li>
                     ))}
                   </ul>
+                  <Button
+                    className="w-full"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate("/membership-checkout", {
+                        state: { membershipId: membership.id, returnTo: "/loan-process" }
+                      });
+                    }}
+                  >
+                    Adquirir Membresía
+                  </Button>
                 </div>
               ))}
             </div>

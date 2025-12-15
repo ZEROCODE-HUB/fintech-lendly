@@ -14,6 +14,7 @@ import History from "./pages/History";
 import Notifications from "./pages/Notifications";
 import PaymentMethods from "./pages/PaymentMethods";
 import Memberships from "./pages/Memberships";
+import MembershipCheckout from "./pages/MembershipCheckout";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import LoanManagement from "./pages/admin/LoanManagement";
 import ClientManagement from "./pages/admin/ClientManagement";
@@ -42,6 +43,7 @@ const App = () => (
           <Route path="/notifications" element={<Notifications />} />
           <Route path="/payment-methods" element={<PaymentMethods />} />
           <Route path="/memberships" element={<Memberships />} />
+          <Route path="/membership-checkout" element={<MembershipCheckout />} />
           <Route path="/mi-cuenta" element={<MyAccount />} />
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
           <Route path="/admin/loans" element={<LoanManagement />} />
