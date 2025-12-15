@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Home, CreditCard, DollarSign, History, Users, Bell, LayoutDashboard, Cog, Wallet, User, Crown, LogOut } from "lucide-react";
-import { NavLink, useNavigate } from "react-router-dom";
+import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import { authService } from "@/utils/auth";
 import logoIcon from "@/assets/logo-icon.jpeg";
 import logoSidebar from "@/assets/logo-sidebar.png";
@@ -35,10 +35,10 @@ const menuItems = [
 ];
 
 const adminItems = [
-  { title: "Dashboard Admin", url: "/admin/dashboard", icon: LayoutDashboard },
-  { title: "Gestión de Préstamos", url: "/admin/loans", icon: CreditCard },
-  { title: "Gestión de Clientes", url: "/admin/clients", icon: Users },
-  { title: "Gestión de Membresías", url: "/admin/memberships", icon: Crown },
+  { title: "Dashboard", url: "/admin/dashboard", icon: LayoutDashboard },
+  { title: "Gestión Préstamos", url: "/admin/loans", icon: CreditCard },
+  { title: "Gestión Clientes", url: "/admin/clients", icon: Users },
+  { title: "Gestión Membresías", url: "/admin/memberships", icon: Crown },
   { title: "Configuración", url: "/admin/config", icon: Cog },
 ];
 
@@ -46,8 +46,10 @@ export function AppSidebar() {
   const { state } = useSidebar();
   const isCollapsed = state === "collapsed";
   const navigate = useNavigate();
+  const location = useLocation();
   const currentUser = authService.getCurrentUser();
   const isAdmin = currentUser?.role === 'admin';
+  const isAdminRoute = location.pathname.startsWith('/admin/');
   const [showLoanOnboarding, setShowLoanOnboarding] = useState(false);
 
   const getNavClass = ({ isActive }: { isActive: boolean }) =>
@@ -144,8 +146,8 @@ export function AppSidebar() {
           )}
         </div>
 
-        {/* Client Menu - Always visible for non-admin users */}
-        {!isAdmin && (
+        {/* Client Menu - Only visible when NOT on admin routes */}
+        {!isAdminRoute && (
           <>
             <SidebarGroup>
               <SidebarGroupLabel>Menú Principal</SidebarGroupLabel>
@@ -193,11 +195,11 @@ export function AppSidebar() {
           </>
         )}
 
-        {/* Admin Section - Only visible for admin users */}
-        {isAdmin && (
+        {/* Admin Section - Only visible on admin routes */}
+        {isAdminRoute && (
           <>
             <SidebarGroup>
-              <SidebarGroupLabel>Administración</SidebarGroupLabel>
+              <SidebarGroupLabel>Menú Principal</SidebarGroupLabel>
               <SidebarGroupContent>
                 <SidebarMenu>
                   {adminItems.map((item) => (
