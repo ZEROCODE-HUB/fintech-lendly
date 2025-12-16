@@ -307,6 +307,8 @@ const LoanManagement = () => {
                       onSortChange={setContractSort}
                       columns={contractColumns}
                       onColumnsChange={setContractColumns}
+                      showExport
+                      onExport={exportToExcel}
                     />
                     <div className="overflow-x-auto">
                       <Table>
@@ -388,6 +390,8 @@ const LoanManagement = () => {
                       onSortChange={setDisbursementSort}
                       columns={disbursementColumns}
                       onColumnsChange={setDisbursementColumns}
+                      showExport
+                      onExport={exportToExcel}
                     />
                     <div className="overflow-x-auto">
                       <Table>
@@ -470,6 +474,8 @@ const LoanManagement = () => {
                       onSortChange={setActiveSort}
                       columns={activeColumns}
                       onColumnsChange={setActiveColumns}
+                      showExport
+                      onExport={exportToExcel}
                     />
                     <div className="overflow-x-auto">
                       <Table>
@@ -527,6 +533,8 @@ const LoanManagement = () => {
                       onSortChange={setOverdueSort}
                       columns={overdueColumns}
                       onColumnsChange={setOverdueColumns}
+                      showExport
+                      onExport={exportToExcel}
                     />
                     <div className="overflow-x-auto">
                       <Table>
@@ -610,6 +618,8 @@ const LoanManagement = () => {
                       onSortChange={setHistorySort}
                       columns={historyColumns}
                       onColumnsChange={setHistoryColumns}
+                      showExport
+                      onExport={exportToExcel}
                     />
                     <div className="overflow-x-auto">
                       <Table>
