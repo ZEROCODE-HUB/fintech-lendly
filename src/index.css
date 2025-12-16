@@ -176,20 +176,4 @@ All colors MUST be HSL.
     animation: fade-in-up 0.5s ease-out forwards;
     opacity: 0;
   }
-
-  .animate-float {
-    animation: float 3s ease-in-out infinite;
-  }
-
-  .animate-pulse-glow {
-    animation: pulse-glow 2s ease-in-out infinite;
-  }
-
-  .hover-lift {
-    @apply transition-all duration-300 hover:-translate-y-1 hover:shadow-medium;
-  }
-
-  .hover-glow {
-    @apply transition-all duration-300 hover:shadow-glow;
-  }
 }
