@@ -48,18 +48,22 @@ const Index = () => {
                 Conocer Más
               </Button>
             </div>
-            <div className="grid grid-cols-3 gap-6 pt-6">
-              <div>
-                <p className="text-3xl font-bold text-primary">245+</p>
-                <p className="text-sm text-muted-foreground">Clientes</p>
+            <div className="grid grid-cols-4 gap-0 pt-6">
+              <div className="text-center px-4">
+                <p className="text-3xl font-bold text-[hsl(222,47%,25%)]">+400</p>
+                <p className="text-sm text-muted-foreground">Productos</p>
               </div>
-              <div>
-                <p className="text-3xl font-bold text-primary">$2.4M</p>
-                <p className="text-sm text-muted-foreground">Desembolsado</p>
+              <div className="text-center px-4 border-l border-border/50">
+                <p className="text-3xl font-bold text-[hsl(222,47%,25%)]">$5.0 MDP</p>
+                <p className="text-sm text-muted-foreground">Financiamiento</p>
               </div>
-              <div>
-                <p className="text-3xl font-bold text-primary">94.5%</p>
-                <p className="text-sm text-muted-foreground">Cobranza</p>
+              <div className="text-center px-4 border-l border-border/50">
+                <p className="text-3xl font-bold text-[hsl(222,47%,25%)]">100%</p>
+                <p className="text-sm text-muted-foreground">Seguro</p>
+              </div>
+              <div className="text-center px-4 border-l border-border/50">
+                <p className="text-3xl font-bold text-[hsl(222,47%,25%)]">24/7</p>
+                <p className="text-sm text-muted-foreground">Atención</p>
               </div>
             </div>
           </div>
