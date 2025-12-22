@@ -49,21 +49,21 @@ const Index = () => {
               </Button>
             </div>
             <div className="grid grid-cols-4 gap-0 pt-6">
-              <div className="text-center px-4">
-                <p className="text-3xl font-bold text-[hsl(222,47%,25%)]">+400</p>
-                <p className="text-sm text-muted-foreground">Productos</p>
+              <div className="flex flex-col items-center justify-between px-2 sm:px-4 min-h-[56px]">
+                <p className="text-lg sm:text-2xl md:text-3xl font-bold text-[hsl(222,47%,25%)] whitespace-nowrap">+400</p>
+                <p className="text-xs sm:text-sm text-muted-foreground">Productos</p>
               </div>
-              <div className="text-center px-4 border-l border-border/50">
-                <p className="text-3xl font-bold text-[hsl(222,47%,25%)]">$5.0 MDP</p>
-                <p className="text-sm text-muted-foreground">Financiamiento</p>
+              <div className="flex flex-col items-center justify-between px-2 sm:px-4 min-h-[56px] border-l border-border/50">
+                <p className="text-lg sm:text-2xl md:text-3xl font-bold text-[hsl(222,47%,25%)] whitespace-nowrap">$5.0 MDP</p>
+                <p className="text-xs sm:text-sm text-muted-foreground">Financiamiento</p>
               </div>
-              <div className="text-center px-4 border-l border-border/50">
-                <p className="text-3xl font-bold text-[hsl(222,47%,25%)]">100%</p>
-                <p className="text-sm text-muted-foreground">Seguro</p>
+              <div className="flex flex-col items-center justify-between px-2 sm:px-4 min-h-[56px] border-l border-border/50">
+                <p className="text-lg sm:text-2xl md:text-3xl font-bold text-[hsl(222,47%,25%)] whitespace-nowrap">100%</p>
+                <p className="text-xs sm:text-sm text-muted-foreground">Seguro</p>
               </div>
-              <div className="text-center px-4 border-l border-border/50">
-                <p className="text-3xl font-bold text-[hsl(222,47%,25%)]">24/7</p>
-                <p className="text-sm text-muted-foreground">Atención</p>
+              <div className="flex flex-col items-center justify-between px-2 sm:px-4 min-h-[56px] border-l border-border/50">
+                <p className="text-lg sm:text-2xl md:text-3xl font-bold text-[hsl(222,47%,25%)] whitespace-nowrap">24/7</p>
+                <p className="text-xs sm:text-sm text-muted-foreground">Atención</p>
               </div>
             </div>
           </div>
