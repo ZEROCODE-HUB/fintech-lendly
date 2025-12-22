@@ -52,18 +52,38 @@ const Auth = () => {
               <p className="text-xl text-white/90">
                 Digitaliza tus operaciones financieras con tecnología de punta
               </p>
-              <div className="pt-8 space-y-4 text-white/80 text-left">
+              <div className="pt-6 space-y-3 text-white/80 text-left">
                 <div className="flex items-center gap-3">
-                  <div className="w-2 h-2 bg-accent rounded-full" />
-                  <span>Gestión completa de préstamos</span>
+                  <div className="w-2 h-2 bg-accent rounded-full flex-shrink-0" />
+                  <span className="text-sm">Gestión completa de préstamos</span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <div className="w-2 h-2 bg-accent rounded-full" />
-                  <span>Pagos y recargas automatizadas</span>
+                  <div className="w-2 h-2 bg-accent rounded-full flex-shrink-0" />
+                  <span className="text-sm">Pagos y recargas automatizadas</span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <div className="w-2 h-2 bg-accent rounded-full" />
-                  <span>Seguridad y confianza garantizada</span>
+                  <div className="w-2 h-2 bg-accent rounded-full flex-shrink-0" />
+                  <span className="text-sm">Seguridad y confianza garantizada</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="w-2 h-2 bg-accent rounded-full flex-shrink-0" />
+                  <span className="text-sm">Recarga tiempo aire</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="w-2 h-2 bg-accent rounded-full flex-shrink-0" />
+                  <span className="text-sm">Paga tus servicios</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="w-2 h-2 bg-accent rounded-full flex-shrink-0" />
+                  <span className="text-sm">Paga y compra más de 400 productos</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="w-2 h-2 bg-accent rounded-full flex-shrink-0" />
+                  <span className="text-sm">Notificaciones inmediatas</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="w-2 h-2 bg-accent rounded-full flex-shrink-0" />
+                  <span className="text-sm">Atención 24/7 con nuestro asistente inteligente</span>
                 </div>
               </div>
             </div>
