@@ -272,7 +272,12 @@ const Auth = () => {
                       Política de Privacidad
                     </a>
                   </div>
-                  <Button className="w-full" size="lg" variant="success">
+                  <Button 
+                    className="w-full" 
+                    size="lg" 
+                    variant="success"
+                    onClick={() => navigate('/usuario-nuevo-marketing')}
+                  >
                     Crear Cuenta
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
