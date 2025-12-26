@@ -36,7 +36,7 @@ const UsuarioNuevoMarketing = () => {
                   {/* Main Title */}
                   <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white leading-tight">
                     Obtén tu membresía{" "}
-                    <span className="text-[hsl(216,80%,55%)] italic">Increscendo Card</span>
+                    <span className="text-[hsl(216,80%,55%)] italic">Increscendo</span>
                   </h1>
 
                   {/* Description */}
