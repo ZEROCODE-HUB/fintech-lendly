@@ -116,7 +116,7 @@ const Memberships = () => {
                   {defaultMemberships.map((membership) => (
                     <Card 
                       key={membership.id} 
-                      className="shadow-soft hover:shadow-elegant transition-all duration-300 hover:-translate-y-2 border border-border"
+                      className="h-full flex flex-col shadow-soft hover:shadow-elegant transition-all duration-300 hover:-translate-y-2 border border-border"
                     >
                       <CardHeader className="text-center pb-3">
                         <div className="mx-auto mb-3 h-16 w-16 rounded-full bg-gradient-hero flex items-center justify-center">
@@ -128,7 +128,7 @@ const Memberships = () => {
                           {membership.targetAudience}
                         </CardDescription>
                       </CardHeader>
-                      <CardContent className="space-y-4">
+                      <CardContent className="flex flex-col flex-grow">
                         {/* Pricing */}
                         <div className="text-center">
                           <span className="text-4xl font-bold text-primary">
@@ -149,8 +149,8 @@ const Memberships = () => {
                           </div>
                         </div>
 
-                        {/* Benefits */}
-                        <ul className="space-y-2">
+                        {/* Benefits - grows to fill space */}
+                        <ul className="space-y-2 flex-grow py-4">
                           {membership.benefits.map((benefit, index) => (
                             <li key={index} className="flex items-center gap-2 text-sm">
                               <Check className="h-4 w-4 text-success" />
@@ -159,9 +159,9 @@ const Memberships = () => {
                           ))}
                         </ul>
 
-                        {/* CTA Button */}
+                        {/* CTA Button - always at bottom */}
                         <Button 
-                          className="w-full mt-4"
+                          className="w-full mt-auto"
                           size="lg"
                           onClick={() => handleAcquireMembership(membership.id)}
                         >
