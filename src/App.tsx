@@ -21,6 +21,7 @@ import ClientManagement from "./pages/admin/ClientManagement";
 import SystemConfig from "./pages/admin/SystemConfig";
 import MembershipManagement from "./pages/admin/MembershipManagement";
 import MyAccount from "./pages/MyAccount";
+import UsuarioNuevoMarketing from "./pages/UsuarioNuevoMarketing";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -50,6 +51,7 @@ const App = () => (
           <Route path="/admin/clients" element={<ClientManagement />} />
           <Route path="/admin/config" element={<SystemConfig />} />
           <Route path="/admin/memberships" element={<MembershipManagement />} />
+          <Route path="/usuario-nuevo-marketing" element={<UsuarioNuevoMarketing />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
