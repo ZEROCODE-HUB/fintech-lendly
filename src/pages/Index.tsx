@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { ArrowRight, Shield, Zap, BarChart3, TrendingUp, Users, Clock, DollarSign, CheckCircle } from "lucide-react";
 import heroImage from "@/assets/hero-landing.jpg";
 import logoHorizontal from "@/assets/logo-horizontal.jpg";
@@ -235,32 +235,38 @@ const Index = () => {
             <div>
               <h4 className="font-semibold mb-4">Plataforma</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
-                <li><a href="#" className="hover:text-primary transition-colors">Préstamos</a></li>
-                <li><a href="#" className="hover:text-primary transition-colors">Pagos</a></li>
-                <li><a href="#" className="hover:text-primary transition-colors">Recargas</a></li>
-                <li><a href="#" className="hover:text-primary transition-colors">Monederos</a></li>
+                <li><a href="#features" className="hover:text-primary transition-colors">Préstamos</a></li>
+                <li><a href="#features" className="hover:text-primary transition-colors">Pagos</a></li>
+                <li><a href="#features" className="hover:text-primary transition-colors">Recargas</a></li>
+                <li><a href="#features" className="hover:text-primary transition-colors">Monederos</a></li>
               </ul>
             </div>
             
             <div>
               <h4 className="font-semibold mb-4">Empresa</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
-                <li><a href="#" className="hover:text-primary transition-colors">Acerca de</a></li>
-                <li><a href="#" className="hover:text-primary transition-colors">Carreras</a></li>
-                <li><a href="#" className="hover:text-primary transition-colors">Blog</a></li>
-                <li><a href="#" className="hover:text-primary transition-colors">Prensa</a></li>
+                <li><Link to="/aviso-legal" className="hover:text-primary transition-colors">Aviso Legal</Link></li>
+                <li><Link to="/politicas-privacidad" className="hover:text-primary transition-colors">Políticas de Privacidad</Link></li>
+                <li><Link to="/privacidad-empleo" className="hover:text-primary transition-colors">Privacidad Empleo</Link></li>
+                <li><Link to="/tips-seguridad" className="hover:text-primary transition-colors">Tips de Seguridad</Link></li>
+                <li><Link to="/bolsa-trabajo" className="hover:text-primary transition-colors">Bolsa de Trabajo</Link></li>
               </ul>
             </div>
             
             <div>
               <h4 className="font-semibold mb-4">Soporte</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
-                <li><a href="#" className="hover:text-primary transition-colors">Centro de Ayuda</a></li>
-                <li><a href="#" className="hover:text-primary transition-colors">Contacto</a></li>
-                <li><a href="#" className="hover:text-primary transition-colors">Términos</a></li>
-                <li><a href="#" className="hover:text-primary transition-colors">Privacidad</a></li>
+                <li><Link to="/centro-ayuda" className="hover:text-primary transition-colors">Centro de Ayuda</Link></li>
+                <li><Link to="/contacto" className="hover:text-primary transition-colors">Contacto</Link></li>
               </ul>
             </div>
+          </div>
+          
+          {/* Warning Message */}
+          <div className="mb-8 p-4 bg-muted/50 rounded-lg border border-border">
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              <strong>Estimado cliente:</strong> Es importante informarles que Increscendo Fintech no solicita pagos anticipados, depósitos previos ni cualquier tipo de comisión antes de otorgar un crédito. Si alguien le solicita dinero a nombre de nuestra empresa, por favor repórtelo inmediatamente a nuestros canales oficiales. Proteja su información personal y financiera. El único sitio oficial de Increscendo Fintech es <a href="https://increscendofintech.com" className="text-primary hover:underline">https://increscendofintech.com</a> y solo contamos con oficinas corporativas en la CDMX, México.
+            </p>
           </div>
           
           <div className="pt-8 border-t border-border text-center text-sm text-muted-foreground">

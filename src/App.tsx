@@ -23,6 +23,13 @@ import MembershipManagement from "./pages/admin/MembershipManagement";
 import MyAccount from "./pages/MyAccount";
 import UsuarioNuevoMarketing from "./pages/UsuarioNuevoMarketing";
 import NotFound from "./pages/NotFound";
+import AvisoLegal from "./pages/AvisoLegal";
+import PoliticasPrivacidad from "./pages/PoliticasPrivacidad";
+import PrivacidadEmpleo from "./pages/PrivacidadEmpleo";
+import TipsSeguridad from "./pages/TipsSeguridad";
+import BolsaTrabajo from "./pages/BolsaTrabajo";
+import CentroAyuda from "./pages/CentroAyuda";
+import Contacto from "./pages/Contacto";
 
 const queryClient = new QueryClient();
 
@@ -52,6 +59,13 @@ const App = () => (
           <Route path="/admin/config" element={<SystemConfig />} />
           <Route path="/admin/memberships" element={<MembershipManagement />} />
           <Route path="/usuario-nuevo-marketing" element={<UsuarioNuevoMarketing />} />
+          <Route path="/aviso-legal" element={<AvisoLegal />} />
+          <Route path="/politicas-privacidad" element={<PoliticasPrivacidad />} />
+          <Route path="/privacidad-empleo" element={<PrivacidadEmpleo />} />
+          <Route path="/tips-seguridad" element={<TipsSeguridad />} />
+          <Route path="/bolsa-trabajo" element={<BolsaTrabajo />} />
+          <Route path="/centro-ayuda" element={<CentroAyuda />} />
+          <Route path="/contacto" element={<Contacto />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
