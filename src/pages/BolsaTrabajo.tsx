@@ -42,11 +42,11 @@ const BolsaTrabajo = () => {
             </p>
             <Button 
               size="lg" 
-              className="w-full sm:w-auto"
+              className="w-full flex-wrap whitespace-normal h-auto py-3"
               onClick={() => window.location.href = 'mailto:empleo@increscendofintech.com'}
             >
-              <Mail className="mr-2 h-5 w-5" />
-              Enviar CV a empleo@increscendofintech.com
+              <Mail className="mr-2 h-5 w-5 flex-shrink-0" />
+              <span className="text-center">Enviar CV a empleo@increscendofintech.com</span>
             </Button>
           </div>
         </div>
