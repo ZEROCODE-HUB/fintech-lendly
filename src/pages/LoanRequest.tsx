@@ -117,7 +117,7 @@ const LoanRequest = () => {
               <CardHeader className="px-4 sm:px-6 py-4 sm:py-6">
                 <CardTitle className="flex items-center gap-2 text-lg sm:text-xl md:text-2xl">
                   <DollarSign className="h-4 w-4 sm:h-5 sm:w-5" />
-                  Calculadora de Préstamo
+                  Simulador de Préstamo
                 </CardTitle>
                 <CardDescription className="text-xs sm:text-sm">
                   Ingresa el monto deseado y visualiza tus pagos mensuales
