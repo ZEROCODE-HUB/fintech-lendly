@@ -1,21 +1,25 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useNavigate, Link } from "react-router-dom";
-import { ArrowRight, Shield, Zap, BarChart3, TrendingUp, Users, Clock, DollarSign, CheckCircle } from "lucide-react";
+import { ArrowRight, Shield, Zap, BarChart3, TrendingUp, Users, Clock, Menu, X } from "lucide-react";
 import heroImage from "@/assets/hero-landing.jpg";
 import logoHorizontal from "@/assets/logo-horizontal.jpg";
 
 const Index = () => {
   const navigate = useNavigate();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen overflow-x-hidden">
       {/* Header/Navbar */}
       <header className="fixed top-0 w-full bg-card/95 backdrop-blur-sm border-b border-border z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center">
-              <img src={logoHorizontal} alt="Increscendo Fintech" className="h-10 sm:h-12 w-auto" />
+          <div className="flex items-center justify-between h-14 sm:h-16">
+            <div className="flex items-center flex-shrink-0">
+              <img src={logoHorizontal} alt="Increscendo Fintech" className="h-8 sm:h-10 md:h-12 w-auto" />
             </div>
+            
+            {/* Desktop Navigation */}
             <nav className="hidden md:flex items-center gap-6">
               <a href="#features" className="text-muted-foreground hover:text-foreground transition-colors">Características</a>
               <a href="#about" className="text-muted-foreground hover:text-foreground transition-colors">Nosotros</a>
@@ -24,45 +28,94 @@ const Index = () => {
                 Acceder
               </Button>
             </nav>
+
+            {/* Mobile Menu Button */}
+            <button
+              className="md:hidden p-2 rounded-lg hover:bg-accent transition-colors"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              aria-label="Toggle menu"
+            >
+              {mobileMenuOpen ? (
+                <X className="h-6 w-6 text-foreground" />
+              ) : (
+                <Menu className="h-6 w-6 text-foreground" />
+              )}
+            </button>
           </div>
         </div>
+
+        {/* Mobile Menu */}
+        {mobileMenuOpen && (
+          <div className="md:hidden bg-card border-t border-border">
+            <nav className="flex flex-col px-4 py-4 space-y-3">
+              <a 
+                href="#features" 
+                className="text-muted-foreground hover:text-foreground transition-colors py-2"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Características
+              </a>
+              <a 
+                href="#about" 
+                className="text-muted-foreground hover:text-foreground transition-colors py-2"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Nosotros
+              </a>
+              <a 
+                href="#contact" 
+                className="text-muted-foreground hover:text-foreground transition-colors py-2"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Contacto
+              </a>
+              <Button 
+                onClick={() => { navigate("/auth"); setMobileMenuOpen(false); }} 
+                variant="default" 
+                className="w-full mt-2"
+              >
+                Acceder
+              </Button>
+            </nav>
+          </div>
+        )}
       </header>
 
       {/* Hero Section */}
-      <section className="relative overflow-hidden pt-24 pb-12">
-        <div className="max-w-7xl mx-auto px-4 grid lg:grid-cols-2 gap-12 items-center">
-          <div className="space-y-6">
-            <h1 className="text-5xl lg:text-6xl font-bold uppercase tracking-wide">
+      <section className="relative overflow-hidden pt-20 sm:pt-24 pb-8 sm:pb-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
+          <div className="space-y-4 sm:space-y-6">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold uppercase tracking-wide">
               Increscendo <span className="text-primary">Fintech</span>
             </h1>
-            <p className="text-xl text-muted-foreground">
+            <p className="text-base sm:text-lg md:text-xl text-muted-foreground">
               Digitaliza tus operaciones de préstamo con tecnología avanzada, inteligencia artificial 
               y análisis de Big Data para potenciar el crecimiento de tu negocio
             </p>
-            <div className="flex flex-col sm:flex-row gap-4">
-              <Button size="lg" onClick={() => navigate("/auth")}>
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+              <Button size="lg" onClick={() => navigate("/auth")} className="w-full sm:w-auto">
                 Comenzar Ahora
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
-              <Button size="lg" variant="outline" onClick={() => window.location.href = '#features'}>
+              <Button size="lg" variant="outline" onClick={() => window.location.href = '#features'} className="w-full sm:w-auto">
                 Conocer Más
               </Button>
             </div>
-            <div className="grid grid-cols-4 gap-0 pt-6">
-              <div className="flex flex-col items-center justify-between px-2 sm:px-4 min-h-[56px]">
-                <p className="text-lg sm:text-2xl md:text-3xl font-bold text-[hsl(222,47%,25%)] whitespace-nowrap">+400</p>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-0 pt-4 sm:pt-6">
+              <div className="flex flex-col items-center justify-center px-2 sm:px-4 min-h-[56px]">
+                <p className="text-xl sm:text-2xl md:text-3xl font-bold text-[hsl(222,47%,25%)]">+400</p>
                 <p className="text-xs sm:text-sm text-muted-foreground">Productos</p>
               </div>
-              <div className="flex flex-col items-center justify-between px-2 sm:px-4 min-h-[56px] border-l border-border/50">
-                <p className="text-lg sm:text-2xl md:text-3xl font-bold text-[hsl(222,47%,25%)] whitespace-nowrap">$5.0 MDP</p>
+              <div className="flex flex-col items-center justify-center px-2 sm:px-4 min-h-[56px] sm:border-l sm:border-border/50">
+                <p className="text-xl sm:text-2xl md:text-3xl font-bold text-[hsl(222,47%,25%)]">$5M</p>
                 <p className="text-xs sm:text-sm text-muted-foreground">Financiamiento</p>
               </div>
-              <div className="flex flex-col items-center justify-between px-2 sm:px-4 min-h-[56px] border-l border-border/50">
-                <p className="text-lg sm:text-2xl md:text-3xl font-bold text-[hsl(222,47%,25%)] whitespace-nowrap">100%</p>
+              <div className="flex flex-col items-center justify-center px-2 sm:px-4 min-h-[56px] sm:border-l sm:border-border/50">
+                <p className="text-xl sm:text-2xl md:text-3xl font-bold text-[hsl(222,47%,25%)]">100%</p>
                 <p className="text-xs sm:text-sm text-muted-foreground">Seguro</p>
               </div>
-              <div className="flex flex-col items-center justify-between px-2 sm:px-4 min-h-[56px] border-l border-border/50">
-                <p className="text-lg sm:text-2xl md:text-3xl font-bold text-[hsl(222,47%,25%)] whitespace-nowrap">24/7</p>
+              <div className="flex flex-col items-center justify-center px-2 sm:px-4 min-h-[56px] sm:border-l sm:border-border/50">
+                <p className="text-xl sm:text-2xl md:text-3xl font-bold text-[hsl(222,47%,25%)]">24/7</p>
                 <p className="text-xs sm:text-sm text-muted-foreground">Atención</p>
               </div>
             </div>
@@ -74,16 +127,16 @@ const Index = () => {
       </section>
 
       {/* Features Section */}
-      <section id="features" className="py-24 px-4 bg-accent/30">
+      <section id="features" className="py-12 sm:py-16 md:py-24 px-4 sm:px-6 bg-accent/30">
         <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold mb-4">¿Por Qué Increscendo?</h2>
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+          <div className="text-center mb-8 sm:mb-12 md:mb-16">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-3 sm:mb-4">¿Por Qué Increscendo?</h2>
+            <p className="text-base sm:text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto px-4">
               Soluciones integrales que simplifican la vida de nuestros clientes
             </p>
           </div>
           
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 md:gap-8">
             <div className="bg-card p-8 rounded-lg shadow-medium hover:shadow-strong transition-all hover:-translate-y-1">
               <div className="h-14 w-14 bg-success/20 rounded-lg flex items-center justify-center mb-6">
                 <Shield className="h-7 w-7 text-success" />
@@ -148,9 +201,9 @@ const Index = () => {
       </section>
 
       {/* About Section */}
-      <section id="about" className="py-24 px-4 bg-background">
+      <section id="about" className="py-12 sm:py-16 md:py-24 px-4 sm:px-6 bg-background">
         <div className="max-w-6xl mx-auto">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
+          <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
             <div className="space-y-6">
               <h2 className="text-4xl font-bold">Tecnología de Vanguardia</h2>
               <p className="text-lg text-muted-foreground text-justified max-w-prose">
@@ -167,8 +220,8 @@ const Index = () => {
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
             </div>
-            <div className="bg-gradient-hero rounded-lg p-12 text-white">
-              <h3 className="text-2xl font-bold mb-6">Servicios Integrados</h3>
+            <div className="bg-gradient-hero rounded-lg p-6 sm:p-8 md:p-12 text-white">
+              <h3 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6">Servicios Integrados</h3>
               <ul className="space-y-4">
                 <li className="flex items-start gap-3">
                   <div className="w-2 h-2 bg-accent rounded-full mt-2" />
@@ -197,10 +250,10 @@ const Index = () => {
       </section>
 
       {/* CTA Section */}
-      <section className="py-24 px-4 bg-primary text-white">
-        <div className="max-w-4xl mx-auto text-center space-y-8">
-          <h2 className="text-4xl md:text-5xl font-bold text-white">¿Listo Para Transformar Tu Negocio?</h2>
-          <p className="text-xl text-white/90 max-w-2xl mx-auto">
+      <section className="py-12 sm:py-16 md:py-24 px-4 sm:px-6 bg-primary text-white">
+        <div className="max-w-4xl mx-auto text-center space-y-4 sm:space-y-6 md:space-y-8">
+          <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white px-2">¿Listo Para Transformar Tu Negocio?</h2>
+          <p className="text-base sm:text-lg md:text-xl text-white/90 max-w-2xl mx-auto px-4">
             Únete a miles de empresas que ya confían en Increscendo Fintech para 
             gestionar sus operaciones financieras con tecnología de clase mundial
           </p>
@@ -208,7 +261,7 @@ const Index = () => {
             size="lg"
             variant="success"
             onClick={() => navigate("/auth")}
-            className="text-lg px-10 py-7 mt-8 shadow-glow"
+            className="text-base sm:text-lg px-6 sm:px-10 py-5 sm:py-7 mt-4 sm:mt-8 shadow-glow w-full sm:w-auto"
           >
             Crear Cuenta Gratis
             <ArrowRight className="ml-2 h-5 w-5" />
@@ -217,17 +270,17 @@ const Index = () => {
       </section>
 
       {/* Footer */}
-      <footer id="contact" className="bg-card border-t border-border py-16 px-4">
+      <footer id="contact" className="bg-card border-t border-border py-10 sm:py-12 md:py-16 px-4 sm:px-6">
         <div className="max-w-7xl mx-auto">
-          <div className="grid md:grid-cols-4 gap-8 mb-12">
-            <div className="space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 bg-gradient-hero rounded-lg flex items-center justify-center">
-                  <span className="text-white font-bold text-xl">I</span>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8 mb-8 sm:mb-12">
+            <div className="space-y-4 col-span-2 md:col-span-1">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <div className="h-8 w-8 sm:h-10 sm:w-10 bg-gradient-hero rounded-lg flex items-center justify-center flex-shrink-0">
+                  <span className="text-white font-bold text-base sm:text-xl">I</span>
                 </div>
-                <h3 className="font-bold text-lg">Increscendo Fintech</h3>
+                <h3 className="font-bold text-sm sm:text-lg">Increscendo Fintech</h3>
               </div>
-              <p className="text-sm text-muted-foreground text-justified">
+              <p className="text-xs sm:text-sm text-muted-foreground text-justified">
                 Tecnología financiera que impulsa el crecimiento de tu negocio
               </p>
             </div>
