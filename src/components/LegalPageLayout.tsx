@@ -49,7 +49,7 @@ const LegalPageLayout = ({ title, children }: LegalPageLayoutProps) => {
             {title}
           </h1>
           
-          <article className="prose prose-lg max-w-none text-foreground/90 space-y-6 leading-relaxed">
+          <article className="prose prose-lg max-w-none text-foreground/90 space-y-6 prose-justified">
             {children}
           </article>
         </div>
@@ -103,7 +103,7 @@ const LegalPageLayout = ({ title, children }: LegalPageLayoutProps) => {
           
           {/* Warning Message */}
           <div className="mb-8 p-4 bg-muted/50 rounded-lg border border-border">
-            <p className="text-xs text-muted-foreground leading-relaxed">
+            <p className="text-xs text-muted-foreground text-justified">
               <strong>Estimado cliente:</strong> Es importante informarles que Increscendo Fintech no solicita pagos anticipados, depósitos previos ni cualquier tipo de comisión antes de otorgar un crédito. Si alguien le solicita dinero a nombre de nuestra empresa, por favor repórtelo inmediatamente a nuestros canales oficiales. Proteja su información personal y financiera. El único sitio oficial de Increscendo Fintech es <a href="https://increscendofintech.com" className="text-primary hover:underline">https://increscendofintech.com</a> y solo contamos con oficinas corporativas en la CDMX, México.
             </p>
           </div>

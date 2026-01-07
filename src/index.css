@@ -176,4 +176,45 @@ All colors MUST be HSL.
     animation: fade-in-up 0.5s ease-out forwards;
     opacity: 0;
   }
+
+  /* Justified text for legal and informational content */
+  .prose-justified {
+    text-align: justify;
+    line-height: 1.65;
+    hyphens: auto;
+    -webkit-hyphens: auto;
+    -ms-hyphens: auto;
+    word-spacing: -0.05em;
+  }
+
+  .prose-justified p,
+  .prose-justified .justified-text {
+    text-align: justify;
+    line-height: 1.65;
+    hyphens: auto;
+    -webkit-hyphens: auto;
+    -ms-hyphens: auto;
+  }
+
+  /* Single paragraph justified */
+  .text-justified {
+    text-align: justify;
+    line-height: 1.6;
+    hyphens: auto;
+    -webkit-hyphens: auto;
+    -ms-hyphens: auto;
+  }
+
+  /* Responsive: left-align on small mobile to avoid visual rivers */
+  @media (max-width: 480px) {
+    .prose-justified,
+    .prose-justified p,
+    .prose-justified .justified-text,
+    .text-justified {
+      text-align: left;
+      hyphens: none;
+      -webkit-hyphens: none;
+      -ms-hyphens: none;
+    }
+  }
 }

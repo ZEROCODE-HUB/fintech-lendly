@@ -7,11 +7,11 @@ const BolsaTrabajo = () => {
     <LegalPageLayout title="Bolsa de Trabajo">
       <div className="grid lg:grid-cols-2 gap-12 items-center">
         <div className="space-y-6">
-          <p className="text-xl text-foreground/90 leading-relaxed">
+          <p className="text-xl text-foreground/90 text-justified">
             Si tu deseo es pertenecer a nuestro grupo selecto de promotores para incrementar tus ingresos, <strong className="text-primary">esta es tu oportunidad</strong>.
           </p>
 
-          <p className="text-foreground/80">
+          <p className="text-foreground/80 text-justified">
             Nuestros promotores constantemente participan en seminarios trimestrales en línea con una descripción de nuestros servicios y nuevos productos disponibles para nuestros clientes.
           </p>
 
@@ -37,7 +37,7 @@ const BolsaTrabajo = () => {
               <Users className="h-6 w-6 text-primary" />
               <h2 className="text-xl font-bold text-primary">¡Queremos que seas parte de nuestro equipo!</h2>
             </div>
-            <p className="text-foreground/80 mb-6">
+            <p className="text-foreground/80 mb-6 text-justified">
               Contamos con una amplia red de promotores en todo el país. Envíanos tu CV y únete a la familia Increscendo Fintech.
             </p>
             <Button 
