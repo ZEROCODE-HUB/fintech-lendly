@@ -90,10 +90,12 @@ const TipsSeguridad = () => {
       <Accordion type="single" collapsible className="w-full space-y-2">
         {fraudTypes.map((fraud) => (
           <AccordionItem key={fraud.id} value={fraud.id} className="border border-border rounded-lg px-4 bg-card">
-            <AccordionTrigger className="text-left font-semibold hover:no-underline py-4">
-              {fraud.title}
+            <AccordionTrigger className="text-left hover:no-underline py-4">
+              <span className="text-base font-semibold tracking-wide text-foreground">
+                {fraud.title}
+              </span>
             </AccordionTrigger>
-            <AccordionContent className="text-muted-foreground pb-4">
+            <AccordionContent className="text-muted-foreground pb-4 text-justified">
               {fraud.content}
             </AccordionContent>
           </AccordionItem>
