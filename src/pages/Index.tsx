@@ -153,12 +153,12 @@ const Index = () => {
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <div className="space-y-6">
               <h2 className="text-4xl font-bold">Tecnología de Vanguardia</h2>
-              <p className="text-lg text-muted-foreground">
+              <p className="text-lg text-muted-foreground text-justified max-w-prose">
                 En Increscendo Fintech combinamos inteligencia artificial, Big Data y las mejores 
                 prácticas de la industria logística internacional para ofrecer soluciones financieras 
                 que verdaderamente transforman negocios.
               </p>
-              <p className="text-lg text-muted-foreground">
+              <p className="text-lg text-muted-foreground text-justified max-w-prose">
                 Nuestra plataforma integra todos los servicios que necesitas: desde pagos y recargas 
                 hasta gestión completa de préstamos con seguimiento en tiempo real.
               </p>
@@ -227,7 +227,7 @@ const Index = () => {
                 </div>
                 <h3 className="font-bold text-lg">Increscendo Fintech</h3>
               </div>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-muted-foreground text-justified">
                 Tecnología financiera que impulsa el crecimiento de tu negocio
               </p>
             </div>
@@ -264,7 +264,7 @@ const Index = () => {
           
           {/* Warning Message */}
           <div className="mb-8 p-4 bg-muted/50 rounded-lg border border-border">
-            <p className="text-xs text-muted-foreground leading-relaxed">
+            <p className="text-xs text-muted-foreground text-justified">
               <strong>Estimado cliente:</strong> Es importante informarles que Increscendo Fintech no solicita pagos anticipados, depósitos previos ni cualquier tipo de comisión antes de otorgar un crédito. Si alguien le solicita dinero a nombre de nuestra empresa, por favor repórtelo inmediatamente a nuestros canales oficiales. Proteja su información personal y financiera. El único sitio oficial de Increscendo Fintech es <a href="https://increscendofintech.com" className="text-primary hover:underline">https://increscendofintech.com</a> y solo contamos con oficinas corporativas en la CDMX, México.
             </p>
           </div>
