@@ -27,6 +27,7 @@ import UsuarioNuevoMarketing from "./pages/UsuarioNuevoMarketing";
 import NotFound from "./pages/NotFound";
 import AvisoLegal from "./pages/AvisoLegal";
 import PoliticasPrivacidad from "./pages/PoliticasPrivacidad";
+import TerminosCondiciones from "./pages/TerminosCondiciones";
 import PrivacidadEmpleo from "./pages/PrivacidadEmpleo";
 import TipsSeguridad from "./pages/TipsSeguridad";
 import BolsaTrabajo from "./pages/BolsaTrabajo";
@@ -65,6 +66,7 @@ const App = () => (
           <Route path="/usuario-nuevo-marketing" element={<UsuarioNuevoMarketing />} />
           <Route path="/aviso-legal" element={<AvisoLegal />} />
           <Route path="/politicas-privacidad" element={<PoliticasPrivacidad />} />
+          <Route path="/terminos-y-condiciones" element={<TerminosCondiciones />} />
           <Route path="/privacidad-empleo" element={<PrivacidadEmpleo />} />
           <Route path="/tips-seguridad" element={<TipsSeguridad />} />
           <Route path="/bolsa-trabajo" element={<BolsaTrabajo />} />
