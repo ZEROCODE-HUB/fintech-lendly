@@ -86,6 +86,7 @@ const LegalPageLayout = ({ title, children }: LegalPageLayoutProps) => {
               <ul className="space-y-2 text-sm text-muted-foreground">
                 <li><Link to="/aviso-legal" className="hover:text-primary transition-colors">Aviso Legal</Link></li>
                 <li><Link to="/politicas-privacidad" className="hover:text-primary transition-colors">Políticas de Privacidad</Link></li>
+                <li><Link to="/terminos-y-condiciones" className="hover:text-primary transition-colors">Términos y Condiciones de Uso</Link></li>
                 <li><Link to="/privacidad-empleo" className="hover:text-primary transition-colors">Privacidad Empleo</Link></li>
                 <li><Link to="/tips-seguridad" className="hover:text-primary transition-colors">Tips de Seguridad</Link></li>
                 <li><Link to="/bolsa-trabajo" className="hover:text-primary transition-colors">Bolsa de Trabajo</Link></li>
