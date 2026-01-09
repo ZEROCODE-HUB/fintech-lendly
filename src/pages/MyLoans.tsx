@@ -1,4 +1,5 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { CreditCard, Eye, Calendar, DollarSign } from "lucide-react";
+import { CreditCard, Eye, Calendar, DollarSign, Loader2, Shield } from "lucide-react";
 import { Chatbot } from "@/components/Chatbot";
 
 interface Installment {
@@ -19,8 +20,10 @@ interface Installment {
 }
 
 const MyLoans = () => {
+  const navigate = useNavigate();
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [selectedLoan, setSelectedLoan] = useState<any>(null);
   const [selectedLoanId, setSelectedLoanId] = useState("PREST-001");
   const [selectedInstallments, setSelectedInstallments] = useState<number[]>([]);
@@ -521,19 +524,48 @@ const MyLoans = () => {
               </div>
             </div>
 
-            <DialogFooter className="p-4 sm:p-6 pt-0">
-              <Button
-                className="w-full bg-primary hover:bg-primary/90 text-white font-semibold py-6 text-base"
-                disabled={selectedInstallments.length === 0}
-                onClick={() => {
-                  setPaymentDialogOpen(false);
-                  // Future: navigate to payment gateway
-                }}
-              >
-                <CreditCard className="h-5 w-5 mr-2" />
-                Proceder al Pago
-              </Button>
-            </DialogFooter>
+            {/* Processing State */}
+            {isProcessing ? (
+              <div className="p-8 sm:p-12 flex flex-col items-center justify-center min-h-[300px]">
+                <div className="relative mb-6">
+                  <div className="w-20 h-20 rounded-full border-4 border-primary/20" />
+                  <div className="absolute inset-0 w-20 h-20 rounded-full border-4 border-primary border-t-transparent animate-spin" />
+                  <Shield className="absolute inset-0 m-auto h-8 w-8 text-primary" />
+                </div>
+                <h3 className="text-xl font-semibold text-foreground mb-2 text-center">
+                  Procesando tu pago de forma segura...
+                </h3>
+                <p className="text-sm text-muted-foreground text-center">
+                  No cierres ni recargues esta ventana
+                </p>
+              </div>
+            ) : (
+              <DialogFooter className="p-4 sm:p-6 pt-0">
+                <Button
+                  className="w-full bg-primary hover:bg-primary/90 text-white font-semibold py-6 text-base"
+                  disabled={selectedInstallments.length === 0}
+                  onClick={() => {
+                    setIsProcessing(true);
+                    // Simulate payment processing
+                    setTimeout(() => {
+                      setIsProcessing(false);
+                      setPaymentDialogOpen(false);
+                      // Simulate success (90% success rate for demo)
+                      const isSuccess = Math.random() > 0.1;
+                      const folio = "INC-" + Math.random().toString(36).substring(2, 10).toUpperCase();
+                      if (isSuccess) {
+                        navigate(`/payment-success?amount=${totalToPay}&folio=${folio}`);
+                      } else {
+                        navigate(`/payment-error?returnTo=/my-loans`);
+                      }
+                    }, 3000);
+                  }}
+                >
+                  <CreditCard className="h-5 w-5 mr-2" />
+                  Proceder al Pago
+                </Button>
+              </DialogFooter>
+            )}
           </DialogContent>
         </Dialog>
       </div>
