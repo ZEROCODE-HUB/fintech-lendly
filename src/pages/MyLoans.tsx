@@ -1,19 +1,30 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Download, Eye, Calendar, DollarSign } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { CreditCard, Eye, Calendar, DollarSign } from "lucide-react";
 import { Chatbot } from "@/components/Chatbot";
+
+interface Installment {
+  number: number;
+  dueDate: string;
+  amount: number;
+  status: 'paid' | 'pending';
+}
 
 const MyLoans = () => {
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
+  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [selectedLoan, setSelectedLoan] = useState<any>(null);
   const [selectedLoanId, setSelectedLoanId] = useState("PREST-001");
+  const [selectedInstallments, setSelectedInstallments] = useState<number[]>([]);
+  const [paymentLoan, setPaymentLoan] = useState<any>(null);
 
   const loans = [
     {
@@ -51,10 +62,85 @@ const MyLoans = () => {
     }
   ];
 
+  // Generate installments for a loan
+  const generateInstallments = (loan: any): Installment[] => {
+    const installments: Installment[] = [];
+    const paidCount = Math.floor((loan.paid / loan.amount) * loan.term);
+    
+    for (let i = 1; i <= loan.term; i++) {
+      const baseDate = new Date(loan.approved);
+      baseDate.setMonth(baseDate.getMonth() + i);
+      
+      installments.push({
+        number: i,
+        dueDate: `${baseDate.getDate().toString().padStart(2, '0')}/${(baseDate.getMonth() + 1).toString().padStart(2, '0')}/${baseDate.getFullYear()}`,
+        amount: Math.round(loan.amount / loan.term * (1 + loan.rate / 100)),
+        status: i <= paidCount ? 'paid' : 'pending'
+      });
+    }
+    return installments;
+  };
+
+  const currentInstallments = useMemo(() => {
+    if (!paymentLoan) return [];
+    return generateInstallments(paymentLoan);
+  }, [paymentLoan]);
+
+  const pendingInstallments = useMemo(() => {
+    return currentInstallments.filter(inst => inst.status === 'pending');
+  }, [currentInstallments]);
+
   const handleViewLoan = (loan: any) => {
     setSelectedLoan(loan);
     setViewDialogOpen(true);
   };
+
+  const handleOpenPayment = (loan: any) => {
+    setPaymentLoan(loan);
+    // Pre-select first pending installment
+    const installments = generateInstallments(loan);
+    const firstPending = installments.find(inst => inst.status === 'pending');
+    if (firstPending) {
+      setSelectedInstallments([firstPending.number]);
+    } else {
+      setSelectedInstallments([]);
+    }
+    setPaymentDialogOpen(true);
+  };
+
+  const handleInstallmentToggle = (installmentNumber: number) => {
+    const firstPendingNumber = pendingInstallments[0]?.number;
+    
+    // First pending installment is mandatory
+    if (installmentNumber === firstPendingNumber) return;
+    
+    setSelectedInstallments(prev => {
+      if (prev.includes(installmentNumber)) {
+        // Uncheck: remove this and all following installments
+        return prev.filter(num => num < installmentNumber);
+      } else {
+        // Check: only allow if previous installment is selected
+        const previousNumber = installmentNumber - 1;
+        if (prev.includes(previousNumber) || previousNumber < firstPendingNumber!) {
+          // Add all installments up to this one
+          const newSelected = [...prev];
+          for (let i = firstPendingNumber!; i <= installmentNumber; i++) {
+            if (!newSelected.includes(i)) {
+              newSelected.push(i);
+            }
+          }
+          return newSelected.sort((a, b) => a - b);
+        }
+        return prev;
+      }
+    });
+  };
+
+  const totalToPay = useMemo(() => {
+    return pendingInstallments
+      .filter(inst => selectedInstallments.includes(inst.number))
+      .reduce((sum, inst) => sum + inst.amount, 0);
+  }, [selectedInstallments, pendingInstallments]);
 
   const getStatusBadge = (status: string) => {
     if (status === 'active') {
@@ -178,10 +264,16 @@ const MyLoans = () => {
                               <Eye className="h-3 w-3 sm:mr-1" />
                               <span className="hidden sm:inline">Ver</span>
                             </Button>
-                            <Button size="sm" variant="outline" className="text-xs whitespace-nowrap">
-                              <Download className="h-3 w-3 sm:mr-1" />
-                              <span className="hidden sm:inline">PDF</span>
-                            </Button>
+                            {loan.status === 'active' && (
+                              <Button 
+                                size="sm" 
+                                className="text-xs whitespace-nowrap bg-primary hover:bg-primary/90"
+                                onClick={() => handleOpenPayment(loan)}
+                              >
+                                <CreditCard className="h-3 w-3 sm:mr-1" />
+                                <span className="hidden sm:inline">Pagar cuotas</span>
+                              </Button>
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>
@@ -335,6 +427,113 @@ const MyLoans = () => {
                 </div>
               </div>
             )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Payment Checkout Dialog */}
+        <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
+          <DialogContent className="max-w-[95vw] sm:max-w-lg md:max-w-xl p-0 overflow-hidden">
+            <div className="bg-gradient-to-r from-primary to-primary/80 p-4 sm:p-6">
+              <DialogHeader className="text-white">
+                <DialogTitle className="text-xl sm:text-2xl font-bold text-white">
+                  Pagar Cuotas
+                </DialogTitle>
+                <DialogDescription className="text-white/80 text-sm">
+                  {paymentLoan?.id} - Selecciona las cuotas a pagar
+                </DialogDescription>
+              </DialogHeader>
+            </div>
+            
+            <div className="p-4 sm:p-6 space-y-4">
+              {/* Total Amount */}
+              <Card className="border-2 border-primary/20 bg-primary/5">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <DollarSign className="h-5 w-5 text-primary" />
+                      <span className="font-medium text-muted-foreground">Monto Total a Pagar</span>
+                    </div>
+                    <span className="text-2xl sm:text-3xl font-bold text-primary">
+                      ${totalToPay.toLocaleString()} MXN
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Installments List */}
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold">Cuotas Pendientes</Label>
+                <div className="max-h-[280px] overflow-y-auto space-y-2 pr-2">
+                  {pendingInstallments.length === 0 ? (
+                    <p className="text-center text-muted-foreground py-8">
+                      No hay cuotas pendientes para este préstamo.
+                    </p>
+                  ) : (
+                    pendingInstallments.map((installment, index) => {
+                      const isFirst = index === 0;
+                      const isSelected = selectedInstallments.includes(installment.number);
+                      const previousSelected = index === 0 || selectedInstallments.includes(pendingInstallments[index - 1]?.number);
+                      const isDisabled = !isFirst && !previousSelected;
+
+                      return (
+                        <div
+                          key={installment.number}
+                          className={`
+                            flex items-center gap-3 p-3 sm:p-4 rounded-lg border transition-all
+                            ${isSelected 
+                              ? 'border-primary bg-primary/5 shadow-sm' 
+                              : 'border-border hover:border-primary/50'
+                            }
+                            ${isDisabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+                          `}
+                          onClick={() => !isDisabled && handleInstallmentToggle(installment.number)}
+                        >
+                          <Checkbox
+                            checked={isSelected}
+                            disabled={isFirst || isDisabled}
+                            onCheckedChange={() => handleInstallmentToggle(installment.number)}
+                            className={isFirst ? 'opacity-70' : ''}
+                          />
+                          <div className="flex-1 grid grid-cols-3 gap-2 text-sm">
+                            <div>
+                              <span className="text-muted-foreground text-xs">Cuota</span>
+                              <p className="font-semibold">#{installment.number}</p>
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground text-xs">Vencimiento</span>
+                              <p className="font-medium">{installment.dueDate}</p>
+                            </div>
+                            <div className="text-right">
+                              <span className="text-muted-foreground text-xs">Monto</span>
+                              <p className="font-bold text-primary">${installment.amount.toLocaleString()}</p>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+                {pendingInstallments.length > 0 && (
+                  <p className="text-xs text-muted-foreground mt-2">
+                    * La primera cuota pendiente es obligatoria. Solo puedes seleccionar cuotas consecutivas.
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <DialogFooter className="p-4 sm:p-6 pt-0">
+              <Button
+                className="w-full bg-primary hover:bg-primary/90 text-white font-semibold py-6 text-base"
+                disabled={selectedInstallments.length === 0}
+                onClick={() => {
+                  setPaymentDialogOpen(false);
+                  // Future: navigate to payment gateway
+                }}
+              >
+                <CreditCard className="h-5 w-5 mr-2" />
+                Proceder al Pago
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
       </div>
