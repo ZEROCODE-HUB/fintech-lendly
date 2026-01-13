@@ -170,19 +170,19 @@ const AdminDashboard = () => {
             {/* KPI Cards Grid */}
             <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
               <Card variant="elevated" className="animate-fade-in-up [animation-delay:0ms] hover:-translate-y-1">
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">
+                <CardHeader className="flex flex-row items-center justify-between pb-2 p-3 sm:p-4 md:p-6">
+                  <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
                     Total Clientes
                   </CardTitle>
-                  <div className="h-9 w-9 rounded-xl bg-primary/10 flex items-center justify-center">
-                    <Users className="h-5 w-5 text-primary" />
+                  <div className="h-7 w-7 sm:h-9 sm:w-9 rounded-xl bg-primary/10 flex items-center justify-center">
+                    <Users className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
                   </div>
                 </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold">{stats.totalClients}</div>
-                  <p className="text-xs text-muted-foreground mt-2">
+                <CardContent className="p-3 sm:p-4 md:p-6 pt-0">
+                  <div className="text-xl sm:text-2xl md:text-3xl font-bold">{stats.totalClients}</div>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 sm:mt-2">
                     <span className="inline-flex items-center text-success font-medium">
-                      <TrendingUp className="h-3 w-3 mr-1" />
+                      <TrendingUp className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-1" />
                       +8%
                     </span>
                     <span className="ml-1">este mes</span>
@@ -191,86 +191,86 @@ const AdminDashboard = () => {
               </Card>
 
               <Card variant="elevated" className="animate-fade-in-up [animation-delay:50ms] hover:-translate-y-1">
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">
+                <CardHeader className="flex flex-row items-center justify-between pb-2 p-3 sm:p-4 md:p-6">
+                  <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
                     Préstamos Activos
                   </CardTitle>
-                  <div className="h-9 w-9 rounded-xl bg-success/10 flex items-center justify-center">
-                    <CheckCircle2 className="h-5 w-5 text-success" />
+                  <div className="h-7 w-7 sm:h-9 sm:w-9 rounded-xl bg-success/10 flex items-center justify-center">
+                    <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 text-success" />
                   </div>
                 </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold">{stats.activeLoans}</div>
-                  <p className="text-xs text-muted-foreground mt-2">
+                <CardContent className="p-3 sm:p-4 md:p-6 pt-0">
+                  <div className="text-xl sm:text-2xl md:text-3xl font-bold">{stats.activeLoans}</div>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 sm:mt-2">
                     Cartera saludable
                   </p>
                 </CardContent>
               </Card>
 
               <Card variant="elevated" className="animate-fade-in-up [animation-delay:100ms] hover:-translate-y-1">
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">
+                <CardHeader className="flex flex-row items-center justify-between pb-2 p-3 sm:p-4 md:p-6">
+                  <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
                     Solicitudes Pendientes
                   </CardTitle>
-                  <div className="h-9 w-9 rounded-xl bg-warning/10 flex items-center justify-center">
-                    <Clock className="h-5 w-5 text-warning" />
+                  <div className="h-7 w-7 sm:h-9 sm:w-9 rounded-xl bg-warning/10 flex items-center justify-center">
+                    <Clock className="h-4 w-4 sm:h-5 sm:w-5 text-warning" />
                   </div>
                 </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold">{stats.pendingRequests}</div>
-                  <p className="text-xs text-muted-foreground mt-2">
+                <CardContent className="p-3 sm:p-4 md:p-6 pt-0">
+                  <div className="text-xl sm:text-2xl md:text-3xl font-bold">{stats.pendingRequests}</div>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 sm:mt-2">
                     Requieren atención
                   </p>
                 </CardContent>
               </Card>
 
               <Card variant="elevated" className="animate-fade-in-up [animation-delay:150ms] hover:-translate-y-1">
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">
+                <CardHeader className="flex flex-row items-center justify-between pb-2 p-3 sm:p-4 md:p-6">
+                  <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
                     Total Desembolsado
                   </CardTitle>
-                  <div className="h-9 w-9 rounded-xl bg-success/10 flex items-center justify-center">
-                    <DollarSign className="h-5 w-5 text-success" />
+                  <div className="h-7 w-7 sm:h-9 sm:w-9 rounded-xl bg-success/10 flex items-center justify-center">
+                    <DollarSign className="h-4 w-4 sm:h-5 sm:w-5 text-success" />
                   </div>
                 </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold">{formatCurrency(stats.totalDisbursed)}</div>
-                  <p className="text-xs text-muted-foreground mt-2">
+                <CardContent className="p-3 sm:p-4 md:p-6 pt-0">
+                  <div className="text-lg sm:text-xl md:text-2xl font-bold">{formatCurrency(stats.totalDisbursed)}</div>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 sm:mt-2">
                     En el último semestre
                   </p>
                 </CardContent>
               </Card>
 
               <Card variant="elevated" className="animate-fade-in-up [animation-delay:200ms] hover:-translate-y-1">
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">
+                <CardHeader className="flex flex-row items-center justify-between pb-2 p-3 sm:p-4 md:p-6">
+                  <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
                     Préstamos Vencidos
                   </CardTitle>
-                  <div className="h-9 w-9 rounded-xl bg-danger/10 flex items-center justify-center">
-                    <AlertTriangle className="h-5 w-5 text-danger" />
+                  <div className="h-7 w-7 sm:h-9 sm:w-9 rounded-xl bg-danger/10 flex items-center justify-center">
+                    <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5 text-danger" />
                   </div>
                 </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold">{stats.overdueLoans}</div>
-                  <p className="text-xs text-muted-foreground mt-2">
+                <CardContent className="p-3 sm:p-4 md:p-6 pt-0">
+                  <div className="text-xl sm:text-2xl md:text-3xl font-bold">{stats.overdueLoans}</div>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 sm:mt-2">
                     Atención requerida
                   </p>
                 </CardContent>
               </Card>
 
               <Card variant="elevated" className="animate-fade-in-up [animation-delay:250ms] hover:-translate-y-1">
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">
+                <CardHeader className="flex flex-row items-center justify-between pb-2 p-3 sm:p-4 md:p-6">
+                  <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
                     Total por Desembolsar
                   </CardTitle>
-                  <div className="h-9 w-9 rounded-xl bg-primary/10 flex items-center justify-center">
-                    <Wallet className="h-5 w-5 text-primary" />
+                  <div className="h-7 w-7 sm:h-9 sm:w-9 rounded-xl bg-primary/10 flex items-center justify-center">
+                    <Wallet className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
                   </div>
                 </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold">{formatCurrency(stats.pendingDisbursement)}</div>
-                  <p className="text-xs text-muted-foreground mt-2">
-                    <FileText className="inline h-3 w-3 mr-1" />
+                <CardContent className="p-3 sm:p-4 md:p-6 pt-0">
+                  <div className="text-lg sm:text-xl md:text-2xl font-bold">{formatCurrency(stats.pendingDisbursement)}</div>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 sm:mt-2">
+                    <FileText className="inline h-2.5 w-2.5 sm:h-3 sm:w-3 mr-1" />
                     Pendiente + Pend. Firma
                   </p>
                 </CardContent>

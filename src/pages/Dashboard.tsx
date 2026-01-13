@@ -35,11 +35,11 @@ const Dashboard = () => {
       <div className="min-h-screen flex w-full">
         <AppSidebar />
         
-        <main className="flex-1">
+        <main className="flex-1 overflow-x-hidden">
           <header className="h-14 sm:h-16 border-b border-border bg-card flex items-center px-3 sm:px-4 md:px-6 gap-2 sm:gap-4 sticky top-0 z-10">
             <SidebarTrigger />
             <div className="flex-1 min-w-0">
-              <h1 className="text-lg sm:text-xl md:text-2xl font-bold truncate">Bienvenido {clientName}</h1>
+              <h1 className="text-base sm:text-lg md:text-xl font-bold truncate">Bienvenido {clientName}</h1>
             </div>
             <Button 
               variant="outline" 
@@ -53,45 +53,45 @@ const Dashboard = () => {
             </Button>
           </header>
 
-          <div className="p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-6">
+          <div className="p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-6">
             {/* Stats Cards */}
             <div className="grid gap-3 sm:gap-4 md:gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
               <Card className="shadow-soft">
-                <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-                  <CardTitle className="text-sm font-medium">Préstamo Activo</CardTitle>
+                <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0 p-3 sm:p-4 md:p-6">
+                  <CardTitle className="text-xs sm:text-sm font-medium">Préstamo Activo</CardTitle>
                   <DollarSign className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">$15,000.00</div>
-                  <p className="text-xs text-muted-foreground">
+                <CardContent className="p-3 sm:p-4 md:p-6 pt-0">
+                  <div className="text-xl sm:text-2xl md:text-3xl font-bold">$15,000.00</div>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground">
                     Saldo actual de tu préstamo
                   </p>
                 </CardContent>
               </Card>
 
               <Card className="shadow-soft">
-                <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-                  <CardTitle className="text-sm font-medium">Próximo Pago</CardTitle>
+                <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0 p-3 sm:p-4 md:p-6">
+                  <CardTitle className="text-xs sm:text-sm font-medium">Próximo Pago</CardTitle>
                   <Clock className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">$1,450.00</div>
-                  <p className="text-xs text-muted-foreground">
+                <CardContent className="p-3 sm:p-4 md:p-6 pt-0">
+                  <div className="text-xl sm:text-2xl md:text-3xl font-bold">$1,450.00</div>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground">
                     Vence el 15 de Diciembre
                   </p>
                 </CardContent>
               </Card>
 
               <Card className="shadow-soft">
-                <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-                  <CardTitle className="text-sm font-medium">Estado</CardTitle>
+                <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0 p-3 sm:p-4 md:p-6">
+                  <CardTitle className="text-xs sm:text-sm font-medium">Estado</CardTitle>
                   <TrendingUp className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
-                <CardContent>
-                  <Badge className={`text-base px-3 py-1 ${getStatusBadgeVariant(loanStatus)}`}>
+                <CardContent className="p-3 sm:p-4 md:p-6 pt-0">
+                  <Badge className={`text-sm sm:text-base px-2 sm:px-3 py-0.5 sm:py-1 ${getStatusBadgeVariant(loanStatus)}`}>
                     {loanStatus}
                   </Badge>
-                  <p className="text-xs text-muted-foreground mt-2">
+                  <p className="text-[10px] sm:text-xs text-muted-foreground mt-2">
                     Estado de tu préstamo
                   </p>
                 </CardContent>
@@ -100,9 +100,9 @@ const Dashboard = () => {
 
             {/* Quick Actions */}
             <Card className="shadow-medium">
-              <CardHeader>
-                <CardTitle>Acciones Rápidas</CardTitle>
-                <CardDescription>Gestiona tus préstamos fácilmente</CardDescription>
+              <CardHeader className="p-3 sm:p-4 md:p-6">
+                <CardTitle className="text-base sm:text-lg">Acciones Rápidas</CardTitle>
+                <CardDescription className="text-xs sm:text-sm">Gestiona tus préstamos fácilmente</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="flex flex-col sm:flex-row gap-3">
@@ -133,26 +133,26 @@ const Dashboard = () => {
 
             {/* Current Loan Status */}
             <Card className="shadow-medium">
-              <CardHeader>
-                <CardTitle>Estado del Préstamo Actual</CardTitle>
-                <CardDescription>Préstamo #LP-2024-001</CardDescription>
+              <CardHeader className="p-3 sm:p-4 md:p-6">
+                <CardTitle className="text-base sm:text-lg">Estado del Préstamo Actual</CardTitle>
+                <CardDescription className="text-xs sm:text-sm">Préstamo #LP-2024-001</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-3 sm:space-y-4 p-3 sm:p-4 md:p-6 pt-0">
                 <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">Monto Original:</span>
-                  <span className="font-semibold">$20,000.00 MXN</span>
+                  <span className="text-xs sm:text-sm text-muted-foreground">Monto Original:</span>
+                  <span className="text-sm sm:text-base font-semibold">$20,000.00 MXN</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">Saldo Restante:</span>
-                  <span className="font-semibold text-primary">$15,000.00 MXN</span>
+                  <span className="text-xs sm:text-sm text-muted-foreground">Saldo Restante:</span>
+                  <span className="text-sm sm:text-base font-semibold text-primary">$15,000.00 MXN</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">Pagos Realizados:</span>
-                  <span className="font-semibold">5 de 12</span>
+                  <span className="text-xs sm:text-sm text-muted-foreground">Pagos Realizados:</span>
+                  <span className="text-sm sm:text-base font-semibold">5 de 12</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">Estado:</span>
-                  <Badge className="bg-success text-success-foreground">Al Corriente</Badge>
+                  <span className="text-xs sm:text-sm text-muted-foreground">Estado:</span>
+                  <Badge className="bg-success text-success-foreground text-xs sm:text-sm">Al Corriente</Badge>
                 </div>
                 <div className="w-full bg-muted rounded-full h-3 mt-4">
                   <div className="bg-success h-3 rounded-full" style={{ width: '42%' }}></div>
