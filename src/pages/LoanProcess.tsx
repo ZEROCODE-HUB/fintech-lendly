@@ -203,19 +203,30 @@ const LoanProcess = () => {
   // Step 1: Confirm Loan (Updated with editable fields)
   const StepConfirm = () => (
     <Card className="shadow-medium">
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle className="flex items-center gap-2 text-xl">
+      <CardHeader className="space-y-3 sm:space-y-0">
+        {/* Mobile-first header layout */}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          {/* Row 1: Back button - full width on mobile */}
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={handleGoToSimulator}
+            className="self-start text-sm font-medium text-muted-foreground hover:text-primary flex items-center gap-2 h-11 px-3 -ml-3 sm:order-2 sm:ml-0"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            <span className="sm:inline">Volver al Simulador</span>
+          </Button>
+          
+          {/* Row 2-3: Title and description */}
+          <div className="space-y-1 sm:order-1">
+            <CardTitle className="flex items-center gap-2 text-xl sm:text-2xl">
               <DollarSign className="h-5 w-5 text-primary" />
               Confirma tu Préstamo
             </CardTitle>
-            <CardDescription>Revisa y ajusta los detalles de tu solicitud</CardDescription>
+            <CardDescription className="text-sm text-muted-foreground">
+              Revisa y ajusta los detalles de tu solicitud
+            </CardDescription>
           </div>
-          <Button variant="outline" size="sm" onClick={handleGoToSimulator}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Volver al Simulador
-          </Button>
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
