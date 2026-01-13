@@ -142,10 +142,12 @@ const ClientManagement = () => {
         <AppSidebar />
         
         <main className="flex-1 overflow-x-hidden">
-          <header className="h-14 sm:h-16 border-b border-border bg-card flex items-center px-4 sm:px-6 gap-2 sm:gap-4 sticky top-0 z-10">
-            <SidebarTrigger />
-            <div className="flex-1 min-w-0">
-              <h1 className="text-lg sm:text-xl md:text-2xl font-bold truncate">Gestión de Clientes</h1>
+          <header className="border-b border-border bg-card sticky top-0 z-10">
+            <div className="flex items-center h-14 sm:h-16 px-4 sm:px-6 gap-3">
+              <SidebarTrigger />
+              <div className="flex-1 min-w-0">
+                <h1 className="text-xl sm:text-2xl font-bold truncate">Gestión de Clientes</h1>
+              </div>
             </div>
           </header>
 

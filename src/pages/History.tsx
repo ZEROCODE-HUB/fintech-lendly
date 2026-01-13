@@ -64,20 +64,22 @@ const History = () => {
         <AppSidebar />
         
         <main className="flex-1 overflow-x-hidden">
-          <header className="h-14 sm:h-16 border-b border-border bg-card flex items-center px-3 sm:px-4 md:px-6 gap-2 sm:gap-4 sticky top-0 z-10">
-            <SidebarTrigger />
-            <div className="flex-1 min-w-0">
-              <h1 className="text-lg sm:text-xl md:text-2xl font-bold truncate">Historial</h1>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" className="hidden sm:flex">
-                <Filter className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
-                <span className="text-xs sm:text-sm">Filtrar</span>
-              </Button>
-              <Button variant="outline" size="sm">
-                <Download className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" />
-                <span className="hidden sm:inline text-xs sm:text-sm">Exportar</span>
-              </Button>
+          <header className="border-b border-border bg-card sticky top-0 z-10">
+            <div className="flex items-center h-14 sm:h-16 px-4 sm:px-6 gap-3">
+              <SidebarTrigger />
+              <div className="flex-1 min-w-0">
+                <h1 className="text-xl sm:text-2xl font-bold truncate">Historial</h1>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" className="hidden sm:flex">
+                  <Filter className="h-4 w-4 mr-2" />
+                  <span className="text-sm">Filtrar</span>
+                </Button>
+                <Button variant="outline" size="sm">
+                  <Download className="h-4 w-4 sm:mr-2" />
+                  <span className="hidden sm:inline text-sm">Exportar</span>
+                </Button>
+              </div>
             </div>
           </header>
 
