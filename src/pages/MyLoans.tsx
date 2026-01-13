@@ -160,7 +160,7 @@ const MyLoans = () => {
       <div className="min-h-screen flex w-full">
         <AppSidebar />
         
-        <main className="flex-1">
+        <main className="flex-1 overflow-x-hidden">
           <header className="h-14 sm:h-16 border-b border-border bg-card flex items-center px-3 sm:px-4 md:px-6 gap-2 sm:gap-4 sticky top-0 z-10">
             <SidebarTrigger />
             <div className="flex-1 min-w-0">
@@ -168,7 +168,7 @@ const MyLoans = () => {
             </div>
           </header>
 
-          <div className="p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-6">
+          <div className="p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-6">
             {/* Summary Cards */}
             <div className="grid gap-3 sm:gap-4 md:gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
               <Card className="shadow-soft">
