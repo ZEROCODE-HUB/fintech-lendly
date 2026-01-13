@@ -296,47 +296,51 @@ const LoanProcess = () => {
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch">
               {defaultMemberships.map((membership) => (
                 <div
                   key={membership.id}
                   onClick={() => setSelectedMembership(membership.id)}
-                  className={`relative cursor-pointer rounded-xl border-2 p-6 transition-all hover:shadow-lg ${
+                  className={`relative cursor-pointer rounded-xl border-2 p-6 transition-all hover:shadow-lg h-full flex flex-col justify-between ${
                     selectedMembership === membership.id
                       ? "border-primary bg-primary/5"
                       : "border-border hover:border-primary/50"
                   }`}
                 >
-                  {selectedMembership === membership.id && (
-                    <div className="absolute top-3 right-3">
-                      <CheckCircle2 className="h-6 w-6 text-primary" />
-                    </div>
-                  )}
-                  <div className="flex items-center gap-3 mb-4">
-                    {membership.id === "premier" ? (
-                      <Star className="h-8 w-8 text-primary" />
-                    ) : (
-                      <Crown className="h-8 w-8 text-yellow-500" />
+                  {/* Top content section */}
+                  <div className="flex-1">
+                    {selectedMembership === membership.id && (
+                      <div className="absolute top-3 right-3">
+                        <CheckCircle2 className="h-6 w-6 text-primary" />
+                      </div>
                     )}
-                    <div>
-                      <h3 className="font-bold text-lg">{membership.title}</h3>
-                      <Badge variant="secondary">{membership.targetAudience}</Badge>
+                    <div className="flex items-center gap-3 mb-4">
+                      {membership.id === "premier" ? (
+                        <Star className="h-8 w-8 text-primary" />
+                      ) : (
+                        <Crown className="h-8 w-8 text-yellow-500" />
+                      )}
+                      <div>
+                        <h3 className="font-bold text-lg">{membership.title}</h3>
+                        <Badge variant="secondary">{membership.targetAudience}</Badge>
+                      </div>
                     </div>
+                    <p className="text-3xl font-bold text-primary mb-2">
+                      ${membership.cost.toLocaleString()} <span className="text-sm font-normal text-muted-foreground">MXN</span>
+                    </p>
+                    <p className="text-sm text-muted-foreground mb-4">Renovación {membership.renewalPeriod}</p>
+                    <ul className="space-y-2 mb-4">
+                      {membership.benefits.map((benefit, i) => (
+                        <li key={i} className="flex items-center gap-2 text-sm">
+                          <CheckCircle2 className="h-4 w-4 text-success" />
+                          {benefit}
+                        </li>
+                      ))}
+                    </ul>
                   </div>
-                  <p className="text-3xl font-bold text-primary mb-2">
-                    ${membership.cost.toLocaleString()} <span className="text-sm font-normal text-muted-foreground">MXN</span>
-                  </p>
-                  <p className="text-sm text-muted-foreground mb-4">Renovación {membership.renewalPeriod}</p>
-                  <ul className="space-y-2 mb-4">
-                    {membership.benefits.map((benefit, i) => (
-                      <li key={i} className="flex items-center gap-2 text-sm">
-                        <CheckCircle2 className="h-4 w-4 text-success" />
-                        {benefit}
-                      </li>
-                    ))}
-                  </ul>
+                  {/* Bottom button section */}
                   <Button
-                    className="w-full"
+                    className="w-full mt-auto"
                     size="sm"
                     onClick={(e) => {
                       e.stopPropagation();
