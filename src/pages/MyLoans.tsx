@@ -170,52 +170,52 @@ const MyLoans = () => {
             </div>
           </header>
 
-          <div className="p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-6">
+          <div className="p-4 sm:p-6 md:px-6 lg:p-8 space-y-4 sm:space-y-6">
             {/* Summary Cards */}
-            <div className="grid gap-3 sm:gap-4 md:gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
-              <Card className="shadow-soft">
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">
-                    Total Préstamos
-                  </CardTitle>
-                  <DollarSign className="h-4 w-4 text-primary" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">$30,000</div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Monto total solicitado
-                  </p>
-                </CardContent>
+            <div className="grid gap-3 sm:gap-4 md:gap-5 lg:gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3">
+              <Card className="shadow-soft md:min-h-[130px] lg:min-h-[150px]">
+                <div className="flex flex-col h-full p-3 sm:p-4 md:p-5 lg:p-6 justify-center">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs sm:text-sm font-medium text-muted-foreground">Total Préstamos</span>
+                    <DollarSign className="h-4 w-4 text-primary" />
+                  </div>
+                  <div className="mt-2 md:mt-3 space-y-1 md:space-y-2">
+                    <div className="text-xl sm:text-2xl md:text-2xl lg:text-3xl font-bold">$30,000</div>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground">
+                      Monto total solicitado
+                    </p>
+                  </div>
+                </div>
               </Card>
 
-              <Card className="shadow-soft">
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">
-                    Monto Pagado
-                  </CardTitle>
-                  <DollarSign className="h-4 w-4 text-success" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">$15,500</div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    51.67% del total
-                  </p>
-                </CardContent>
+              <Card className="shadow-soft md:min-h-[130px] lg:min-h-[150px]">
+                <div className="flex flex-col h-full p-3 sm:p-4 md:p-5 lg:p-6 justify-center">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs sm:text-sm font-medium text-muted-foreground">Monto Pagado</span>
+                    <DollarSign className="h-4 w-4 text-success" />
+                  </div>
+                  <div className="mt-2 md:mt-3 space-y-1 md:space-y-2">
+                    <div className="text-xl sm:text-2xl md:text-2xl lg:text-3xl font-bold">$15,500</div>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground">
+                      51.67% del total
+                    </p>
+                  </div>
+                </div>
               </Card>
 
-              <Card className="shadow-soft">
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">
-                    Saldo Pendiente
-                  </CardTitle>
-                  <DollarSign className="h-4 w-4 text-danger" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">$14,500</div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Por liquidar
-                  </p>
-                </CardContent>
+              <Card className="shadow-soft md:min-h-[130px] lg:min-h-[150px] sm:col-span-2 md:col-span-2 lg:col-span-1">
+                <div className="flex flex-col h-full p-3 sm:p-4 md:p-5 lg:p-6 justify-center">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs sm:text-sm font-medium text-muted-foreground">Saldo Pendiente</span>
+                    <DollarSign className="h-4 w-4 text-danger" />
+                  </div>
+                  <div className="mt-2 md:mt-3 space-y-1 md:space-y-2">
+                    <div className="text-xl sm:text-2xl md:text-2xl lg:text-3xl font-bold">$14,500</div>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground">
+                      Por liquidar
+                    </p>
+                  </div>
+                </div>
               </Card>
             </div>
 

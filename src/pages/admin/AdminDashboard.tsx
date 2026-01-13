@@ -168,9 +168,9 @@ const AdminDashboard = () => {
             </div>
           </header>
 
-          <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+          <div className="p-4 sm:p-6 md:px-6 lg:p-8 space-y-4 sm:space-y-6">
             {/* KPI Cards Grid */}
-            <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-3 sm:gap-4 md:gap-5 lg:gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3">
               <Card variant="elevated" className="animate-fade-in-up [animation-delay:0ms] hover:-translate-y-1">
                 <CardHeader className="flex flex-row items-center justify-between pb-2 p-3 sm:p-4 md:p-6">
                   <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
@@ -280,7 +280,7 @@ const AdminDashboard = () => {
             </div>
 
             {/* Central Charts */}
-            <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-2">
+            <div className="grid gap-4 sm:gap-5 md:gap-6 grid-cols-1 md:grid-cols-1 lg:grid-cols-2">
               {/* Membership Status - Line Chart */}
               <Card variant="elevated" className="animate-fade-in-up [animation-delay:300ms]">
                 <CardHeader className="p-4 sm:p-6">

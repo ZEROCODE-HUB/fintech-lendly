@@ -193,7 +193,7 @@ const LoanManagement = () => {
             </div>
           </header>
 
-          <div className="p-4 sm:p-6">
+          <div className="p-4 sm:p-6 md:px-6 lg:p-8">
             <Tabs defaultValue="pending" className="w-full">
               <div className="overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0 mb-4 sm:mb-6">
                 <TabsList className="inline-flex w-auto min-w-full sm:grid sm:w-full sm:max-w-4xl sm:grid-cols-6">

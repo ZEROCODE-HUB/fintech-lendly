@@ -151,7 +151,7 @@ const ClientManagement = () => {
             </div>
           </header>
 
-          <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+          <div className="p-4 sm:p-6 md:px-6 lg:p-8 space-y-4 sm:space-y-6">
             <Tabs defaultValue="clients" className="w-full">
               <TabsList className="grid w-full max-w-md grid-cols-2">
                 <TabsTrigger value="clients">Clientes</TabsTrigger>
