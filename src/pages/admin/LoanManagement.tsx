@@ -183,24 +183,26 @@ const LoanManagement = () => {
       <div className="min-h-screen flex w-full">
         <AppSidebar />
         
-        <main className="flex-1">
-          <header className="h-16 border-b border-border bg-card flex items-center px-6 gap-4 sticky top-0 z-10">
+        <main className="flex-1 overflow-x-hidden">
+          <header className="h-14 sm:h-16 border-b border-border bg-card flex items-center px-4 sm:px-6 gap-2 sm:gap-4 sticky top-0 z-10">
             <SidebarTrigger />
-            <div className="flex-1">
-              <h1 className="text-2xl font-bold">Gestión de Préstamos</h1>
+            <div className="flex-1 min-w-0">
+              <h1 className="text-lg sm:text-xl md:text-2xl font-bold truncate">Gestión de Préstamos</h1>
             </div>
           </header>
 
-          <div className="p-6">
+          <div className="p-4 sm:p-6">
             <Tabs defaultValue="pending" className="w-full">
-              <TabsList className="grid w-full max-w-4xl grid-cols-6 mb-6">
-                <TabsTrigger value="pending">Pendiente</TabsTrigger>
-                <TabsTrigger value="contract">Firma Contrato</TabsTrigger>
-                <TabsTrigger value="disbursement">Desembolso</TabsTrigger>
-                <TabsTrigger value="active">Activos</TabsTrigger>
-                <TabsTrigger value="overdue">Atrasados</TabsTrigger>
-                <TabsTrigger value="history">Historial</TabsTrigger>
-              </TabsList>
+              <div className="overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0 mb-4 sm:mb-6">
+                <TabsList className="inline-flex w-auto min-w-full sm:grid sm:w-full sm:max-w-4xl sm:grid-cols-6">
+                  <TabsTrigger value="pending" className="text-xs sm:text-sm whitespace-nowrap">Pendiente</TabsTrigger>
+                  <TabsTrigger value="contract" className="text-xs sm:text-sm whitespace-nowrap">Firma</TabsTrigger>
+                  <TabsTrigger value="disbursement" className="text-xs sm:text-sm whitespace-nowrap">Desembolso</TabsTrigger>
+                  <TabsTrigger value="active" className="text-xs sm:text-sm whitespace-nowrap">Activos</TabsTrigger>
+                  <TabsTrigger value="overdue" className="text-xs sm:text-sm whitespace-nowrap">Atrasados</TabsTrigger>
+                  <TabsTrigger value="history" className="text-xs sm:text-sm whitespace-nowrap">Historial</TabsTrigger>
+                </TabsList>
+              </div>
 
               {/* PENDIENTE Tab */}
               <TabsContent value="pending">

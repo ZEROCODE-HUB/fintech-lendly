@@ -165,31 +165,31 @@ const LoanProcess = () => {
 
   // Stepper Component
   const Stepper = () => (
-    <div className="w-full py-4 px-2 sm:px-4 overflow-x-auto">
-      <div className="flex items-center justify-between min-w-[500px] sm:min-w-0">
+    <div className="w-full py-4 px-2 sm:px-4 overflow-hidden">
+      <div className="flex items-center justify-between">
         {STEPS.map((step, index) => (
           <div key={step.id} className="flex items-center flex-1">
             <div className="flex flex-col items-center">
               <div
-                className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center font-bold text-sm sm:text-base transition-all ${
+                className={`w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center font-bold text-xs sm:text-sm md:text-base transition-all ${
                   currentStep >= step.id
                     ? "bg-primary text-primary-foreground"
                     : "bg-muted text-muted-foreground"
                 }`}
               >
                 {currentStep > step.id ? (
-                  <CheckCircle2 className="h-5 w-5 sm:h-6 sm:w-6" />
+                  <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 md:h-6 md:w-6" />
                 ) : (
                   step.id
                 )}
               </div>
-              <span className={`text-xs mt-1 text-center ${currentStep >= step.id ? "text-primary font-medium" : "text-muted-foreground"}`}>
+              <span className={`text-[10px] sm:text-xs mt-1 text-center hidden sm:block ${currentStep >= step.id ? "text-primary font-medium" : "text-muted-foreground"}`}>
                 {step.title}
               </span>
             </div>
             {index < STEPS.length - 1 && (
               <div
-                className={`flex-1 h-1 mx-2 rounded transition-all ${
+                className={`flex-1 h-0.5 sm:h-1 mx-1 sm:mx-2 rounded transition-all hidden sm:block ${
                   currentStep > step.id ? "bg-primary" : "bg-muted"
                 }`}
               />
@@ -300,7 +300,7 @@ const LoanProcess = () => {
       <CardContent className="space-y-6">
         {hasMembership ? (
           <div className="bg-success/10 border border-success/30 rounded-xl p-4 flex items-center gap-3">
-            <CheckCircle2 className="h-6 w-6 text-success" />
+            <CheckCircle2 className="h-6 w-6 text-success flex-shrink-0" />
             <div>
               <p className="font-semibold">Membresía Activa</p>
               <p className="text-sm text-muted-foreground">Ya cuentas con una membresía vigente</p>
@@ -308,7 +308,7 @@ const LoanProcess = () => {
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch">
+            <div className="grid grid-cols-1 gap-4 items-stretch">
               {defaultMemberships.map((membership) => (
                 <div
                   key={membership.id}
@@ -765,7 +765,7 @@ const LoanProcess = () => {
       <div className="min-h-screen flex w-full">
         <AppSidebar />
         
-        <main className="flex-1">
+        <main className="flex-1 overflow-x-hidden">
           <header className="h-14 sm:h-16 border-b border-border bg-card flex items-center px-3 sm:px-4 md:px-6 gap-2 sm:gap-4 sticky top-0 z-10">
             <SidebarTrigger />
             <div className="flex-1 min-w-0">
@@ -773,7 +773,7 @@ const LoanProcess = () => {
             </div>
           </header>
 
-          <div className="p-3 sm:p-4 md:p-6 max-w-4xl mx-auto">
+          <div className="p-4 sm:p-6 md:p-8 max-w-4xl mx-auto">
             {/* Stepper */}
             <Stepper />
 

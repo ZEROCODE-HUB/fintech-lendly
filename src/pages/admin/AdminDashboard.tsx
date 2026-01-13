@@ -158,17 +158,17 @@ const AdminDashboard = () => {
       <div className="min-h-screen flex w-full">
         <AppSidebar />
         
-        <main className="flex-1">
-          <header className="h-16 border-b border-border bg-card flex items-center px-6 gap-4 sticky top-0 z-10">
+        <main className="flex-1 overflow-x-hidden">
+          <header className="h-14 sm:h-16 border-b border-border bg-card flex items-center px-4 sm:px-6 gap-2 sm:gap-4 sticky top-0 z-10">
             <SidebarTrigger />
-            <div className="flex-1">
-              <h1 className="text-2xl font-bold">Dashboard Administrativo</h1>
+            <div className="flex-1 min-w-0">
+              <h1 className="text-lg sm:text-xl md:text-2xl font-bold truncate">Dashboard Administrativo</h1>
             </div>
           </header>
 
-          <div className="p-6 space-y-6">
+          <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
             {/* KPI Cards Grid */}
-            <div className="grid gap-4 grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
               <Card variant="elevated" className="animate-fade-in-up [animation-delay:0ms] hover:-translate-y-1">
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
                   <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -278,17 +278,17 @@ const AdminDashboard = () => {
             </div>
 
             {/* Central Charts */}
-            <div className="grid gap-6 lg:grid-cols-2">
+            <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-2">
               {/* Membership Status - Line Chart */}
               <Card variant="elevated" className="animate-fade-in-up [animation-delay:300ms]">
-                <CardHeader>
-                  <div className="flex items-center justify-between">
+                <CardHeader className="p-4 sm:p-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                     <div>
-                      <CardTitle>Estado de Membresías</CardTitle>
-                      <CardDescription>Usuarios Registrados vs Con Membresía</CardDescription>
+                      <CardTitle className="text-base sm:text-lg">Estado de Membresías</CardTitle>
+                      <CardDescription className="text-xs sm:text-sm">Usuarios Registrados vs Con Membresía</CardDescription>
                     </div>
                     <Select value={membershipDateRange} onValueChange={setMembershipDateRange}>
-                      <SelectTrigger className="w-[140px]">
+                      <SelectTrigger className="w-full sm:w-[140px]">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -299,8 +299,8 @@ const AdminDashboard = () => {
                     </Select>
                   </div>
                 </CardHeader>
-                <CardContent>
-                  <ResponsiveContainer width="100%" height={300}>
+                <CardContent className="p-2 sm:p-6">
+                  <ResponsiveContainer width="100%" height={250} className="sm:h-[300px]">
                     <LineChart data={membershipData[membershipDateRange as keyof typeof membershipData]}>
                       <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                       <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" />
@@ -330,12 +330,12 @@ const AdminDashboard = () => {
 
               {/* Active Loans Status - Donut Chart */}
               <Card variant="elevated" className="animate-fade-in-up [animation-delay:350ms]">
-                <CardHeader>
-                  <CardTitle>Estado de Préstamos Activos</CardTitle>
-                  <CardDescription>Distribución de cartera activa</CardDescription>
+                <CardHeader className="p-4 sm:p-6">
+                  <CardTitle className="text-base sm:text-lg">Estado de Préstamos Activos</CardTitle>
+                  <CardDescription className="text-xs sm:text-sm">Distribución de cartera activa</CardDescription>
                 </CardHeader>
-                <CardContent>
-                  <ResponsiveContainer width="100%" height={300}>
+                <CardContent className="p-2 sm:p-6">
+                  <ResponsiveContainer width="100%" height={250} className="sm:h-[300px]">
                     <PieChart>
                       <Pie
                         data={activeLoanStatusData}
@@ -366,14 +366,14 @@ const AdminDashboard = () => {
 
             {/* Profitability Section */}
             <Card variant="elevated" className="animate-fade-in-up [animation-delay:400ms]">
-              <CardHeader>
-                <div className="flex items-center justify-between">
+              <CardHeader className="p-4 sm:p-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <div>
-                    <CardTitle>Rentabilidad</CardTitle>
-                    <CardDescription>Desembolsos vs Pagos de Usuarios</CardDescription>
+                    <CardTitle className="text-base sm:text-lg">Rentabilidad</CardTitle>
+                    <CardDescription className="text-xs sm:text-sm">Desembolsos vs Pagos de Usuarios</CardDescription>
                   </div>
                   <Select value={profitabilityDateRange} onValueChange={setProfitabilityDateRange}>
-                    <SelectTrigger className="w-[140px]">
+                    <SelectTrigger className="w-full sm:w-[140px]">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -384,8 +384,8 @@ const AdminDashboard = () => {
                   </Select>
                 </div>
               </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={350}>
+              <CardContent className="p-2 sm:p-6">
+                <ResponsiveContainer width="100%" height={280} className="sm:h-[350px]">
                   <LineChart data={profitabilityData[profitabilityDateRange as keyof typeof profitabilityData]}>
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                     <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" />

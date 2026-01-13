@@ -141,15 +141,15 @@ const ClientManagement = () => {
       <div className="min-h-screen flex w-full">
         <AppSidebar />
         
-        <main className="flex-1">
-          <header className="h-16 border-b border-border bg-card flex items-center px-6 gap-4 sticky top-0 z-10">
+        <main className="flex-1 overflow-x-hidden">
+          <header className="h-14 sm:h-16 border-b border-border bg-card flex items-center px-4 sm:px-6 gap-2 sm:gap-4 sticky top-0 z-10">
             <SidebarTrigger />
-            <div className="flex-1">
-              <h1 className="text-2xl font-bold">Gestión de Clientes</h1>
+            <div className="flex-1 min-w-0">
+              <h1 className="text-lg sm:text-xl md:text-2xl font-bold truncate">Gestión de Clientes</h1>
             </div>
           </header>
 
-          <div className="p-6 space-y-6">
+          <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
             <Tabs defaultValue="clients" className="w-full">
               <TabsList className="grid w-full max-w-md grid-cols-2">
                 <TabsTrigger value="clients">Clientes</TabsTrigger>
