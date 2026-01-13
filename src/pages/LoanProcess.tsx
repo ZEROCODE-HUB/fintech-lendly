@@ -258,29 +258,29 @@ const LoanProcess = () => {
         </Button>
 
         {/* Summary Display */}
-        <div className="bg-gradient-to-br from-primary/10 to-accent/30 rounded-xl p-6">
-          <div className="grid grid-cols-2 gap-4">
+        <div className="bg-gradient-to-br from-primary/10 to-accent/30 rounded-xl p-4 sm:p-6">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4">
             <div>
-              <p className="text-sm text-muted-foreground">Monto Solicitado</p>
-              <p className="text-2xl font-bold text-primary">${parseFloat(loanAmount || "0").toLocaleString()} MXN</p>
+              <p className="text-[10px] sm:text-xs text-muted-foreground">Monto Solicitado</p>
+              <p className="text-lg sm:text-xl md:text-2xl font-bold text-primary">${parseFloat(loanAmount || "0").toLocaleString()} MXN</p>
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Plazo</p>
-              <p className="text-2xl font-bold">{loanInstallments} cuotas</p>
+              <p className="text-[10px] sm:text-xs text-muted-foreground">Plazo</p>
+              <p className="text-lg sm:text-xl md:text-2xl font-bold">{loanInstallments} cuotas</p>
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Tasa de Interés</p>
-              <p className="text-xl font-semibold">{INTEREST_RATE * 100}% anual</p>
+              <p className="text-[10px] sm:text-xs text-muted-foreground">Tasa de Interés</p>
+              <p className="text-base sm:text-lg md:text-xl font-semibold">{INTEREST_RATE * 100}% anual</p>
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Cuota Mensual</p>
-              <p className="text-xl font-semibold text-primary">${monthlyPayment.toFixed(2)} MXN</p>
+              <p className="text-[10px] sm:text-xs text-muted-foreground">Cuota Mensual</p>
+              <p className="text-base sm:text-lg md:text-xl font-semibold text-primary">${monthlyPayment.toFixed(2)} MXN</p>
             </div>
           </div>
-          <Separator className="my-4" />
-          <div className="flex justify-between items-center">
-            <p className="text-muted-foreground">Total a Pagar</p>
-            <p className="text-2xl font-bold">${totalToPay.toFixed(2)} MXN</p>
+          <Separator className="my-3 sm:my-4" />
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-1">
+            <p className="text-xs sm:text-sm text-muted-foreground">Total a Pagar</p>
+            <p className="text-lg sm:text-xl md:text-2xl font-bold">${totalToPay.toFixed(2)} MXN</p>
           </div>
         </div>
       </CardContent>
@@ -713,14 +713,14 @@ const LoanProcess = () => {
               El desembolso se realizará en tu cuenta registrada dentro de las próximas <strong>24 horas</strong>.
             </p>
           </div>
-          <div className="grid grid-cols-2 gap-4 text-left">
-            <div className="bg-muted/50 rounded-lg p-4">
-              <p className="text-sm text-muted-foreground">Monto aprobado</p>
-              <p className="text-xl font-bold text-primary">${parseFloat(loanAmount).toLocaleString()} MXN</p>
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 text-left">
+            <div className="bg-muted/50 rounded-lg p-3 sm:p-4">
+              <p className="text-[10px] sm:text-xs text-muted-foreground">Monto aprobado</p>
+              <p className="text-base sm:text-lg md:text-xl font-bold text-primary">${parseFloat(loanAmount).toLocaleString()} MXN</p>
             </div>
-            <div className="bg-muted/50 rounded-lg p-4">
-              <p className="text-sm text-muted-foreground">Primera cuota</p>
-              <p className="text-xl font-bold">${monthlyPayment.toFixed(2)} MXN</p>
+            <div className="bg-muted/50 rounded-lg p-3 sm:p-4">
+              <p className="text-[10px] sm:text-xs text-muted-foreground">Primera cuota</p>
+              <p className="text-base sm:text-lg md:text-xl font-bold">${monthlyPayment.toFixed(2)} MXN</p>
             </div>
           </div>
         </div>
