@@ -83,7 +83,7 @@ const History = () => {
             </div>
           </header>
 
-          <div className="p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-6">
+          <div className="p-4 sm:p-6 md:px-6 lg:p-8 space-y-4 sm:space-y-6">
             {/* Search */}
             <div className="relative max-w-md">
               <Search className="absolute left-3 top-2.5 sm:top-3 h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
