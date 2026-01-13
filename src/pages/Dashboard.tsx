@@ -56,45 +56,51 @@ const Dashboard = () => {
           <div className="p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-6">
             {/* Stats Cards */}
             <div className="grid gap-3 sm:gap-4 md:gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
-              <Card className="shadow-soft md:min-h-[140px] md:flex md:flex-col">
-                <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0 p-3 sm:p-4 md:p-6">
-                  <CardTitle className="text-xs sm:text-sm font-medium">Préstamo Activo</CardTitle>
-                  <DollarSign className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent className="p-3 sm:p-4 md:p-6 pt-0 md:flex md:flex-col md:justify-center md:flex-1">
-                  <div className="text-xl sm:text-2xl md:text-3xl font-bold md:mb-2">$15,000.00</div>
-                  <p className="text-[10px] sm:text-xs text-muted-foreground">
-                    Saldo actual de tu préstamo
-                  </p>
-                </CardContent>
+              <Card className="shadow-soft lg:h-[160px]">
+                <div className="flex flex-col h-full p-3 sm:p-4 lg:p-6 lg:justify-center">
+                  <div className="flex items-center justify-between mb-2 lg:mb-0">
+                    <span className="text-xs sm:text-sm font-medium text-muted-foreground">Préstamo Activo</span>
+                    <DollarSign className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                  <div className="lg:mt-3 space-y-1 lg:space-y-2">
+                    <div className="text-xl sm:text-2xl lg:text-3xl font-bold">$15,000.00</div>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground">
+                      Saldo actual de tu préstamo
+                    </p>
+                  </div>
+                </div>
               </Card>
 
-              <Card className="shadow-soft md:min-h-[140px] md:flex md:flex-col">
-                <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0 p-3 sm:p-4 md:p-6">
-                  <CardTitle className="text-xs sm:text-sm font-medium">Próximo Pago</CardTitle>
-                  <Clock className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent className="p-3 sm:p-4 md:p-6 pt-0 md:flex md:flex-col md:justify-center md:flex-1">
-                  <div className="text-xl sm:text-2xl md:text-3xl font-bold md:mb-2">$1,450.00</div>
-                  <p className="text-[10px] sm:text-xs text-muted-foreground">
-                    Vence el 15 de Diciembre
-                  </p>
-                </CardContent>
+              <Card className="shadow-soft lg:h-[160px]">
+                <div className="flex flex-col h-full p-3 sm:p-4 lg:p-6 lg:justify-center">
+                  <div className="flex items-center justify-between mb-2 lg:mb-0">
+                    <span className="text-xs sm:text-sm font-medium text-muted-foreground">Próximo Pago</span>
+                    <Clock className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                  <div className="lg:mt-3 space-y-1 lg:space-y-2">
+                    <div className="text-xl sm:text-2xl lg:text-3xl font-bold">$1,450.00</div>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground">
+                      Vence el 15 de Diciembre
+                    </p>
+                  </div>
+                </div>
               </Card>
 
-              <Card className="shadow-soft md:min-h-[140px] md:flex md:flex-col">
-                <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0 p-3 sm:p-4 md:p-6">
-                  <CardTitle className="text-xs sm:text-sm font-medium">Estado</CardTitle>
-                  <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent className="p-3 sm:p-4 md:p-6 pt-0 md:flex md:flex-col md:justify-center md:flex-1">
-                  <Badge className={`text-sm sm:text-base px-2 sm:px-3 py-0.5 sm:py-1 ${getStatusBadgeVariant(loanStatus)}`}>
-                    {loanStatus}
-                  </Badge>
-                  <p className="text-[10px] sm:text-xs text-muted-foreground mt-2">
-                    Estado de tu préstamo
-                  </p>
-                </CardContent>
+              <Card className="shadow-soft lg:h-[160px]">
+                <div className="flex flex-col h-full p-3 sm:p-4 lg:p-6 lg:justify-center">
+                  <div className="flex items-center justify-between mb-2 lg:mb-0">
+                    <span className="text-xs sm:text-sm font-medium text-muted-foreground">Estado</span>
+                    <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                  <div className="lg:mt-3 space-y-1 lg:space-y-2">
+                    <Badge className={`text-sm sm:text-base px-2 sm:px-3 py-0.5 sm:py-1 ${getStatusBadgeVariant(loanStatus)}`}>
+                      {loanStatus}
+                    </Badge>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground">
+                      Estado de tu préstamo
+                    </p>
+                  </div>
+                </div>
               </Card>
             </div>
 
