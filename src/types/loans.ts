@@ -15,6 +15,7 @@ export interface PendingLoan extends LoanBase {
   ineFront?: string;
   ineBack?: string;
   curpPdf?: string;
+  isAccountVerified: boolean;
 }
 
 export interface ContractLoan extends LoanBase {

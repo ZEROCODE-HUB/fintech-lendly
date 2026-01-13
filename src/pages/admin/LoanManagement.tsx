@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Eye, CheckCircle, XCircle, Edit, MoreHorizontal, Send, FileText, DollarSign, Bell, TrendingDown, RefreshCw } from "lucide-react";
+import { Eye, CheckCircle, XCircle, CheckCircle2, Edit, MoreHorizontal, Send, FileText, DollarSign, Bell, TrendingDown, RefreshCw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 import { ColumnConfig, PendingLoan, ContractLoan, DisbursementLoan, OverdueLoan } from "@/types/loans";
@@ -28,6 +28,7 @@ const defaultPendingColumns: ColumnConfig[] = [
   { key: 'amount', label: 'Monto', visible: true },
   { key: 'installments', label: 'Cuotas', visible: true },
   { key: 'membership', label: 'Membresía', visible: true },
+  { key: 'accountVerification', label: 'Verificación cuenta', visible: true },
   { key: 'ine', label: 'INE', visible: true },
   { key: 'curp', label: 'CURP', visible: true },
   { key: 'preApproval', label: 'Pre-Aprob.', visible: true },
@@ -230,6 +231,7 @@ const LoanManagement = () => {
                             {isColumnVisible(pendingColumns, 'amount') && <TableHead>Monto</TableHead>}
                             {isColumnVisible(pendingColumns, 'installments') && <TableHead>Cuotas</TableHead>}
                             {isColumnVisible(pendingColumns, 'membership') && <TableHead>Membresía</TableHead>}
+                            {isColumnVisible(pendingColumns, 'accountVerification') && <TableHead>Verificación cuenta</TableHead>}
                             {isColumnVisible(pendingColumns, 'ine') && <TableHead>INE</TableHead>}
                             {isColumnVisible(pendingColumns, 'curp') && <TableHead>CURP</TableHead>}
                             {isColumnVisible(pendingColumns, 'preApproval') && <TableHead>Pre-Aprob.</TableHead>}
@@ -249,6 +251,15 @@ const LoanManagement = () => {
                               {isColumnVisible(pendingColumns, 'amount') && <TableCell className="font-semibold">${loan.amount.toLocaleString()}</TableCell>}
                               {isColumnVisible(pendingColumns, 'installments') && <TableCell>{loan.installments}</TableCell>}
                               {isColumnVisible(pendingColumns, 'membership') && <TableCell>{loan.membership}</TableCell>}
+                              {isColumnVisible(pendingColumns, 'accountVerification') && (
+                                <TableCell>
+                                  {loan.isAccountVerified ? (
+                                    <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+                                  ) : (
+                                    <XCircle className="h-5 w-5 text-red-500" />
+                                  )}
+                                </TableCell>
+                              )}
                               {isColumnVisible(pendingColumns, 'ine') && (
                                 <TableCell>
                                   <Button variant="link" size="sm" className="p-0 h-auto" onClick={() => setIneCurpModal({ open: true, loan, type: 'ine' })}>
