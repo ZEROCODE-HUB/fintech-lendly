@@ -29,6 +29,7 @@ import {
   RefreshCw,
   Building2
 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { defaultMemberships } from "@/data/memberships";
 import { useToast } from "@/hooks/use-toast";
 
@@ -97,6 +98,17 @@ const LoanProcess = () => {
     bank: "",
     clabe: "",
   });
+
+  // Disbursement account state
+  const [useSameAccount, setUseSameAccount] = useState(true);
+  const [disbursementData, setDisbursementData] = useState({
+    bank: "",
+    clabe: "",
+  });
+
+  const handleDisbursementDataChange = (field: string, value: string) => {
+    setDisbursementData(prev => ({ ...prev, [field]: value }));
+  };
 
   const handlePersonalDataChange = (field: string, value: string) => {
     setPersonalData(prev => ({ ...prev, [field]: value }));
@@ -424,16 +436,18 @@ const LoanProcess = () => {
         </CardContent>
       </Card>
 
-      {/* Deposit Section (NEW) */}
+      {/* Bank Account Section */}
       <Card className="shadow-medium">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
             <Building2 className="h-5 w-5 text-primary" />
-            Depósito
+            Cuenta Bancaria
           </CardTitle>
-          <CardDescription>Información bancaria para el desembolso</CardDescription>
+          <CardDescription>
+            Ingresa los datos de tu cuenta principal para domiciliar tus pagos. Por seguridad, realizaremos una validación automática de titularidad con tu banco.
+          </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Banco</Label>
@@ -451,7 +465,7 @@ const LoanProcess = () => {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>CLABE Interbancaria</Label>
+              <Label>Cuenta CLABE</Label>
               <Input
                 type="number"
                 placeholder="18 dígitos"
@@ -465,6 +479,59 @@ const LoanProcess = () => {
               <p className="text-xs text-muted-foreground">Ingresa los 18 dígitos de tu CLABE</p>
             </div>
           </div>
+
+          {/* Same account checkbox */}
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="same-account"
+              checked={useSameAccount}
+              onCheckedChange={(checked) => setUseSameAccount(checked === true)}
+            />
+            <Label htmlFor="same-account" className="text-sm font-normal cursor-pointer">
+              Usar esta misma cuenta para el depósito del préstamo
+            </Label>
+          </div>
+
+          {/* Disbursement account section - shown when checkbox is unchecked */}
+          {!useSameAccount && (
+            <div className="border-t pt-6 space-y-4">
+              <div>
+                <h4 className="font-medium text-base">Cuenta para Desembolso</h4>
+                <p className="text-sm text-muted-foreground">Ingresa los datos de la cuenta donde deseas recibir el depósito de tu préstamo</p>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Banco</Label>
+                  <Select value={disbursementData.bank} onValueChange={(v) => handleDisbursementDataChange("bank", v)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecciona tu banco" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {BANKS.map((bank) => (
+                        <SelectItem key={bank} value={bank}>
+                          {bank}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Cuenta CLABE</Label>
+                  <Input
+                    type="number"
+                    placeholder="18 dígitos"
+                    maxLength={18}
+                    value={disbursementData.clabe}
+                    onChange={(e) => {
+                      const value = e.target.value.slice(0, 18);
+                      handleDisbursementDataChange("clabe", value);
+                    }}
+                  />
+                  <p className="text-xs text-muted-foreground">Ingresa los 18 dígitos de tu CLABE</p>
+                </div>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
