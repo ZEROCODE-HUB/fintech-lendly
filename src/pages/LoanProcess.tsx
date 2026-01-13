@@ -269,29 +269,29 @@ const LoanProcess = () => {
         </Button>
 
         {/* Summary Display */}
-        <div className="bg-gradient-to-br from-primary/10 to-accent/30 rounded-xl p-4 sm:p-6">
-          <div className="grid grid-cols-2 gap-3 sm:gap-4">
+        <div className="bg-gradient-to-br from-primary/10 to-accent/30 rounded-xl p-4 sm:p-5 md:p-6">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 md:gap-5">
             <div>
               <p className="text-[10px] sm:text-xs text-muted-foreground">Monto Solicitado</p>
-              <p className="text-lg sm:text-xl md:text-2xl font-bold text-primary">${parseFloat(loanAmount || "0").toLocaleString()} MXN</p>
+              <p className="text-lg sm:text-xl md:text-xl lg:text-2xl font-bold text-primary">${parseFloat(loanAmount || "0").toLocaleString()} MXN</p>
             </div>
             <div>
               <p className="text-[10px] sm:text-xs text-muted-foreground">Plazo</p>
-              <p className="text-lg sm:text-xl md:text-2xl font-bold">{loanInstallments} cuotas</p>
+              <p className="text-lg sm:text-xl md:text-xl lg:text-2xl font-bold">{loanInstallments} cuotas</p>
             </div>
             <div>
               <p className="text-[10px] sm:text-xs text-muted-foreground">Tasa de Interés</p>
-              <p className="text-base sm:text-lg md:text-xl font-semibold">{INTEREST_RATE * 100}% anual</p>
+              <p className="text-base sm:text-lg md:text-lg lg:text-xl font-semibold">{INTEREST_RATE * 100}% anual</p>
             </div>
             <div>
               <p className="text-[10px] sm:text-xs text-muted-foreground">Cuota Mensual</p>
-              <p className="text-base sm:text-lg md:text-xl font-semibold text-primary">${monthlyPayment.toFixed(2)} MXN</p>
+              <p className="text-base sm:text-lg md:text-lg lg:text-xl font-semibold text-primary">${monthlyPayment.toFixed(2)} MXN</p>
             </div>
           </div>
           <Separator className="my-3 sm:my-4" />
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-1">
             <p className="text-xs sm:text-sm text-muted-foreground">Total a Pagar</p>
-            <p className="text-lg sm:text-xl md:text-2xl font-bold">${totalToPay.toFixed(2)} MXN</p>
+            <p className="text-lg sm:text-xl md:text-xl lg:text-2xl font-bold">${totalToPay.toFixed(2)} MXN</p>
           </div>
         </div>
       </CardContent>
@@ -319,7 +319,7 @@ const LoanProcess = () => {
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-1 gap-4 items-stretch">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch">
               {defaultMemberships.map((membership) => (
                 <div
                   key={membership.id}

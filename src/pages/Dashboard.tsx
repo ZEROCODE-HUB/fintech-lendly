@@ -53,17 +53,17 @@ const Dashboard = () => {
             </Button>
           </header>
 
-          <div className="p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-6">
+          <div className="p-4 sm:p-6 md:px-6 lg:p-8 space-y-4 sm:space-y-6">
             {/* Stats Cards */}
-            <div className="grid gap-3 sm:gap-4 md:gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
-              <Card className="shadow-soft lg:h-[160px]">
-                <div className="flex flex-col h-full p-3 sm:p-4 lg:p-6 lg:justify-center">
-                  <div className="flex items-center justify-between mb-2 lg:mb-0">
+            <div className="grid gap-3 sm:gap-4 md:gap-5 lg:gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3">
+              <Card className="shadow-soft md:min-h-[140px] lg:min-h-[160px]">
+                <div className="flex flex-col h-full p-3 sm:p-4 md:p-5 lg:p-6 justify-center">
+                  <div className="flex items-center justify-between mb-2">
                     <span className="text-xs sm:text-sm font-medium text-muted-foreground">Préstamo Activo</span>
                     <DollarSign className="h-4 w-4 text-muted-foreground" />
                   </div>
-                  <div className="lg:mt-3 space-y-1 lg:space-y-2">
-                    <div className="text-xl sm:text-2xl lg:text-3xl font-bold">$15,000.00</div>
+                  <div className="mt-2 md:mt-3 space-y-1 md:space-y-2">
+                    <div className="text-xl sm:text-2xl md:text-2xl lg:text-3xl font-bold">$15,000.00</div>
                     <p className="text-[10px] sm:text-xs text-muted-foreground">
                       Saldo actual de tu préstamo
                     </p>
@@ -71,14 +71,14 @@ const Dashboard = () => {
                 </div>
               </Card>
 
-              <Card className="shadow-soft lg:h-[160px]">
-                <div className="flex flex-col h-full p-3 sm:p-4 lg:p-6 lg:justify-center">
-                  <div className="flex items-center justify-between mb-2 lg:mb-0">
+              <Card className="shadow-soft md:min-h-[140px] lg:min-h-[160px]">
+                <div className="flex flex-col h-full p-3 sm:p-4 md:p-5 lg:p-6 justify-center">
+                  <div className="flex items-center justify-between mb-2">
                     <span className="text-xs sm:text-sm font-medium text-muted-foreground">Próximo Pago</span>
                     <Clock className="h-4 w-4 text-muted-foreground" />
                   </div>
-                  <div className="lg:mt-3 space-y-1 lg:space-y-2">
-                    <div className="text-xl sm:text-2xl lg:text-3xl font-bold">$1,450.00</div>
+                  <div className="mt-2 md:mt-3 space-y-1 md:space-y-2">
+                    <div className="text-xl sm:text-2xl md:text-2xl lg:text-3xl font-bold">$1,450.00</div>
                     <p className="text-[10px] sm:text-xs text-muted-foreground">
                       Vence el 15 de Diciembre
                     </p>
@@ -86,14 +86,14 @@ const Dashboard = () => {
                 </div>
               </Card>
 
-              <Card className="shadow-soft lg:h-[160px]">
-                <div className="flex flex-col h-full p-3 sm:p-4 lg:p-6 lg:justify-center">
-                  <div className="flex items-center justify-between mb-2 lg:mb-0">
+              <Card className="shadow-soft md:min-h-[140px] lg:min-h-[160px] sm:col-span-2 md:col-span-2 lg:col-span-1">
+                <div className="flex flex-col h-full p-3 sm:p-4 md:p-5 lg:p-6 justify-center">
+                  <div className="flex items-center justify-between mb-2">
                     <span className="text-xs sm:text-sm font-medium text-muted-foreground">Estado</span>
                     <TrendingUp className="h-4 w-4 text-muted-foreground" />
                   </div>
-                  <div className="lg:mt-3 space-y-1 lg:space-y-2">
-                    <Badge className={`text-sm sm:text-base px-2 sm:px-3 py-0.5 sm:py-1 ${getStatusBadgeVariant(loanStatus)}`}>
+                  <div className="mt-2 md:mt-3 space-y-1 md:space-y-2">
+                    <Badge className={`text-sm sm:text-base md:text-base px-2 sm:px-3 py-0.5 sm:py-1 ${getStatusBadgeVariant(loanStatus)}`}>
                       {loanStatus}
                     </Badge>
                     <p className="text-[10px] sm:text-xs text-muted-foreground">
