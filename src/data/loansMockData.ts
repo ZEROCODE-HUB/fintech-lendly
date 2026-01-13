@@ -1,10 +1,10 @@
 import { PendingLoan, ContractLoan, DisbursementLoan, ActiveLoan, OverdueLoan, HistoryLoan } from '@/types/loans';
 
 export const pendingLoans: PendingLoan[] = [
-  { id: "PREST-001", firstName: "María", lastName: "González López", requestDate: "2024-12-10", amount: 15000, installments: 12, membership: "Gold Anual", ineNumber: "GOML850315MDFRRS09", curpNumber: "GOML850315MDFRRS09", preApproval: "En Revisión", ineFront: "/placeholder.svg", ineBack: "/placeholder.svg", curpPdf: "/placeholder.svg" },
-  { id: "PREST-002", firstName: "Carlos", lastName: "Ramírez Pérez", requestDate: "2024-12-09", amount: 25000, installments: 18, membership: "Platinum", ineNumber: "RAPC901220HDFRRS05", curpNumber: "RAPC901220HDFRRS05", preApproval: "En Revisión" },
-  { id: "PREST-003", firstName: "Ana", lastName: "López Torres", requestDate: "2024-12-08", amount: 10000, installments: 6, membership: "Silver", ineNumber: "LOTA880512MDFRRS03", curpNumber: "LOTA880512MDFRRS03", preApproval: "En Revisión" },
-  { id: "PREST-004", firstName: "Roberto", lastName: "Hernández Díaz", requestDate: "2024-12-07", amount: 30000, installments: 24, membership: "Gold Anual", ineNumber: "HEDR750628HDFRRS07", curpNumber: "HEDR750628HDFRRS07", preApproval: "En Revisión" },
+  { id: "PREST-001", firstName: "María", lastName: "González López", requestDate: "2024-12-10", amount: 15000, installments: 12, membership: "Gold Anual", ineNumber: "GOML850315MDFRRS09", curpNumber: "GOML850315MDFRRS09", preApproval: "En Revisión", ineFront: "/placeholder.svg", ineBack: "/placeholder.svg", curpPdf: "/placeholder.svg", isAccountVerified: true },
+  { id: "PREST-002", firstName: "Carlos", lastName: "Ramírez Pérez", requestDate: "2024-12-09", amount: 25000, installments: 18, membership: "Platinum", ineNumber: "RAPC901220HDFRRS05", curpNumber: "RAPC901220HDFRRS05", preApproval: "En Revisión", isAccountVerified: false },
+  { id: "PREST-003", firstName: "Ana", lastName: "López Torres", requestDate: "2024-12-08", amount: 10000, installments: 6, membership: "Silver", ineNumber: "LOTA880512MDFRRS03", curpNumber: "LOTA880512MDFRRS03", preApproval: "En Revisión", isAccountVerified: true },
+  { id: "PREST-004", firstName: "Roberto", lastName: "Hernández Díaz", requestDate: "2024-12-07", amount: 30000, installments: 24, membership: "Gold Anual", ineNumber: "HEDR750628HDFRRS07", curpNumber: "HEDR750628HDFRRS07", preApproval: "En Revisión", isAccountVerified: false },
 ];
 
 export const contractLoans: ContractLoan[] = [
