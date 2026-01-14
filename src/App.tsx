@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
+import RequireAuth from "./components/RequireAuth";
 import ServiceSelection from "./pages/ServiceSelection";
 import LoanRequest from "./pages/LoanRequest";
 import LoanProcess from "./pages/LoanProcess";
@@ -45,19 +46,19 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/auth" element={<Auth />} />
-          <Route path="/service-selection" element={<ServiceSelection />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/loan-request" element={<LoanRequest />} />
-          <Route path="/loan-process" element={<LoanProcess />} />
-          <Route path="/my-loans" element={<MyLoans />} />
-          <Route path="/history" element={<History />} />
-          <Route path="/notifications" element={<Notifications />} />
-          <Route path="/payment-methods" element={<PaymentMethods />} />
-          <Route path="/memberships" element={<Memberships />} />
-          <Route path="/membership-checkout" element={<MembershipCheckout />} />
-          <Route path="/payment-success" element={<PaymentSuccess />} />
-          <Route path="/payment-error" element={<PaymentError />} />
-          <Route path="/mi-cuenta" element={<MyAccount />} />
+          <Route path="/service-selection" element={<RequireAuth><ServiceSelection /></RequireAuth>} />
+          <Route path="/dashboard" element={<RequireAuth><Dashboard /></RequireAuth>} />
+          <Route path="/loan-request" element={<RequireAuth><LoanRequest /></RequireAuth>} />
+          <Route path="/loan-process" element={<RequireAuth><LoanProcess /></RequireAuth>} />
+          <Route path="/my-loans" element={<RequireAuth><MyLoans /></RequireAuth>} />
+          <Route path="/history" element={<RequireAuth><History /></RequireAuth>} />
+          <Route path="/notifications" element={<RequireAuth><Notifications /></RequireAuth>} />
+          <Route path="/payment-methods" element={<RequireAuth><PaymentMethods /></RequireAuth>} />
+          <Route path="/memberships" element={<RequireAuth><Memberships /></RequireAuth>} />
+          <Route path="/membership-checkout" element={<RequireAuth><MembershipCheckout /></RequireAuth>} />
+          <Route path="/payment-success" element={<RequireAuth><PaymentSuccess /></RequireAuth>} />
+          <Route path="/payment-error" element={<RequireAuth><PaymentError /></RequireAuth>} />
+          <Route path="/mi-cuenta" element={<RequireAuth><MyAccount /></RequireAuth>} />
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
           <Route path="/admin/loans" element={<LoanManagement />} />
           <Route path="/admin/clients" element={<ClientManagement />} />
