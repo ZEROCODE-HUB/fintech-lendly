@@ -53,13 +53,20 @@ export function AppSidebar() {
   const [showLoanOnboarding, setShowLoanOnboarding] = useState(false);
 
   const getNavClass = ({ isActive }: { isActive: boolean }) =>
-    isActive 
-      ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold" 
+    isActive
+      ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold"
       : "hover:bg-sidebar-accent/50";
 
-  const handleLogout = () => {
-    authService.logout();
-    navigate("/auth");
+  const handleLogout = async () => {
+    try {
+      // sign out via supabase and clear local storage
+      // import lazily to avoid circular deps
+      const { signOut } = await import('@/lib/session');
+      await signOut();
+    } catch (err) {
+      console.error('Error during logout', err);
+    }
+    navigate('/auth');
   };
 
   const getUserInitial = () => {
@@ -157,7 +164,7 @@ export function AppSidebar() {
                     <SidebarMenuItem key={item.title}>
                       <SidebarMenuButton asChild>
                         {(item as any).isOnboarding ? (
-                          <button 
+                          <button
                             onClick={(e) => handleMenuClick(item, e)}
                             className={`flex items-center gap-2 w-full px-2 py-1.5 rounded-md hover:bg-sidebar-accent/50`}
                           >
@@ -238,10 +245,10 @@ export function AppSidebar() {
         <div className="mt-auto px-4 py-6 border-t border-sidebar-border/30">
           {!isCollapsed && (
             <div className="flex flex-col items-center gap-3">
-              <img 
-                src={logoSidebar} 
-                alt="Increscendo Fintech" 
-                className="h-14 w-auto brightness-0 invert" 
+              <img
+                src={logoSidebar}
+                alt="Increscendo Fintech"
+                className="h-14 w-auto brightness-0 invert"
               />
               <p className="text-xs font-medium text-white/80 tracking-wider uppercase">
                 Fintech
@@ -250,19 +257,19 @@ export function AppSidebar() {
           )}
           {isCollapsed && (
             <div className="flex justify-center">
-              <img 
-                src={logoIcon} 
-                alt="Increscendo" 
-                className="h-8 w-8 rounded-full object-cover brightness-0 invert" 
+              <img
+                src={logoIcon}
+                alt="Increscendo"
+                className="h-8 w-8 rounded-full object-cover brightness-0 invert"
               />
             </div>
           )}
         </div>
       </SidebarContent>
 
-      <LoanOnboardingModal 
-        open={showLoanOnboarding} 
-        onOpenChange={setShowLoanOnboarding} 
+      <LoanOnboardingModal
+        open={showLoanOnboarding}
+        onOpenChange={setShowLoanOnboarding}
       />
     </Sidebar>
   );

@@ -18,13 +18,16 @@ const Index = () => {
             <div className="flex items-center flex-shrink-0">
               <img src={logoHorizontal} alt="Increscendo Fintech" className="h-8 sm:h-10 md:h-12 w-auto" />
             </div>
-            
+
             {/* Desktop Navigation */}
             <nav className="hidden md:flex items-center gap-6">
               <a href="#features" className="text-muted-foreground hover:text-foreground transition-colors">Características</a>
               <a href="#about" className="text-muted-foreground hover:text-foreground transition-colors">Nosotros</a>
               <a href="#contact" className="text-muted-foreground hover:text-foreground transition-colors">Contacto</a>
-              <Button onClick={() => navigate("/auth")} variant="default">
+              <Button onClick={() => {
+                const user = localStorage.getItem('increscendo_user');
+                if (user) navigate('/dashboard'); else navigate('/auth');
+              }} variant="default">
                 Acceder
               </Button>
             </nav>
@@ -48,30 +51,30 @@ const Index = () => {
         {mobileMenuOpen && (
           <div className="md:hidden bg-card border-t border-border">
             <nav className="flex flex-col px-4 py-4 space-y-3">
-              <a 
-                href="#features" 
+              <a
+                href="#features"
                 className="text-muted-foreground hover:text-foreground transition-colors py-2"
                 onClick={() => setMobileMenuOpen(false)}
               >
                 Características
               </a>
-              <a 
-                href="#about" 
+              <a
+                href="#about"
                 className="text-muted-foreground hover:text-foreground transition-colors py-2"
                 onClick={() => setMobileMenuOpen(false)}
               >
                 Nosotros
               </a>
-              <a 
-                href="#contact" 
+              <a
+                href="#contact"
                 className="text-muted-foreground hover:text-foreground transition-colors py-2"
                 onClick={() => setMobileMenuOpen(false)}
               >
                 Contacto
               </a>
-              <Button 
-                onClick={() => { navigate("/auth"); setMobileMenuOpen(false); }} 
-                variant="default" 
+              <Button
+                onClick={() => { navigate("/auth"); setMobileMenuOpen(false); }}
+                variant="default"
                 className="w-full mt-2"
               >
                 Acceder
@@ -89,11 +92,14 @@ const Index = () => {
               Increscendo <span className="text-primary">Fintech</span>
             </h1>
             <p className="text-base sm:text-lg md:text-xl text-muted-foreground">
-              Digitaliza tus operaciones de préstamo con tecnología avanzada, inteligencia artificial 
+              Digitaliza tus operaciones de préstamo con tecnología avanzada, inteligencia artificial
               y análisis de Big Data para potenciar el crecimiento de tu negocio
             </p>
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-              <Button size="lg" onClick={() => navigate("/auth")} className="w-full sm:w-auto">
+              <Button size="lg" onClick={() => {
+                const user = localStorage.getItem('increscendo_user');
+                if (user) navigate('/dashboard'); else navigate('/auth');
+              }} className="w-full sm:w-auto">
                 Comenzar Ahora
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
@@ -135,7 +141,7 @@ const Index = () => {
               Soluciones integrales que simplifican la vida de nuestros clientes
             </p>
           </div>
-          
+
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 md:gap-8">
             <div className="bg-card p-8 rounded-lg shadow-medium hover:shadow-strong transition-all hover:-translate-y-1">
               <div className="h-14 w-14 bg-success/20 rounded-lg flex items-center justify-center mb-6">
@@ -146,7 +152,7 @@ const Index = () => {
                 Protección de datos con encriptación de punta a punta y cumplimiento total de normativas financieras
               </p>
             </div>
-            
+
             <div className="bg-card p-8 rounded-lg shadow-medium hover:shadow-strong transition-all hover:-translate-y-1">
               <div className="h-14 w-14 bg-primary/20 rounded-lg flex items-center justify-center mb-6">
                 <Zap className="h-7 w-7 text-primary" />
@@ -156,7 +162,7 @@ const Index = () => {
                 Proceso automatizado con IA que evalúa y aprueba solicitudes en menos de 24 horas
               </p>
             </div>
-            
+
             <div className="bg-card p-8 rounded-lg shadow-medium hover:shadow-strong transition-all hover:-translate-y-1">
               <div className="h-14 w-14 bg-danger/20 rounded-lg flex items-center justify-center mb-6">
                 <BarChart3 className="h-7 w-7 text-danger" />
@@ -207,15 +213,15 @@ const Index = () => {
             <div className="space-y-6">
               <h2 className="text-4xl font-bold">Tecnología de Vanguardia</h2>
               <p className="text-lg text-muted-foreground text-justified max-w-prose">
-                En Increscendo Fintech combinamos inteligencia artificial, Big Data y las mejores 
-                prácticas de la industria logística internacional para ofrecer soluciones financieras 
+                En Increscendo Fintech combinamos inteligencia artificial, Big Data y las mejores
+                prácticas de la industria logística internacional para ofrecer soluciones financieras
                 que verdaderamente transforman negocios.
               </p>
               <p className="text-lg text-muted-foreground text-justified max-w-prose">
-                Nuestra plataforma integra todos los servicios que necesitas: desde pagos y recargas 
+                Nuestra plataforma integra todos los servicios que necesitas: desde pagos y recargas
                 hasta gestión completa de préstamos con seguimiento en tiempo real.
               </p>
-              <Button size="lg" variant="default" onClick={() => navigate("/auth")}>
+              <Button size="lg" variant="default" onClick={() => { const user = localStorage.getItem('increscendo_user'); if (user) navigate('/dashboard'); else navigate('/auth'); }}>
                 Comienza Tu Prueba Gratuita
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
@@ -254,13 +260,13 @@ const Index = () => {
         <div className="max-w-4xl mx-auto text-center space-y-4 sm:space-y-6 md:space-y-8">
           <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white px-2">¿Listo Para Transformar Tu Negocio?</h2>
           <p className="text-base sm:text-lg md:text-xl text-white/90 max-w-2xl mx-auto px-4">
-            Únete a miles de empresas que ya confían en Increscendo Fintech para 
+            Únete a miles de empresas que ya confían en Increscendo Fintech para
             gestionar sus operaciones financieras con tecnología de clase mundial
           </p>
-          <Button 
+          <Button
             size="lg"
             variant="success"
-            onClick={() => navigate("/auth")}
+            onClick={() => { const user = localStorage.getItem('increscendo_user'); if (user) navigate('/dashboard'); else navigate('/auth'); }}
             className="text-base sm:text-lg px-6 sm:px-10 py-5 sm:py-7 mt-4 sm:mt-8 shadow-glow w-full sm:w-auto"
           >
             Crear Cuenta Gratis
@@ -284,7 +290,7 @@ const Index = () => {
                 Tecnología financiera que impulsa el crecimiento de tu negocio
               </p>
             </div>
-            
+
             <div>
               <h4 className="font-semibold mb-4">Plataforma</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
@@ -294,7 +300,7 @@ const Index = () => {
                 <li><a href="#features" className="hover:text-primary transition-colors">Monederos</a></li>
               </ul>
             </div>
-            
+
             <div>
               <h4 className="font-semibold mb-4">Empresa</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
@@ -306,7 +312,7 @@ const Index = () => {
                 <li><Link to="/bolsa-trabajo" className="hover:text-primary transition-colors">Bolsa de Trabajo</Link></li>
               </ul>
             </div>
-            
+
             <div>
               <h4 className="font-semibold mb-4">Soporte</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
@@ -315,14 +321,14 @@ const Index = () => {
               </ul>
             </div>
           </div>
-          
+
           {/* Warning Message */}
           <div className="mb-8 p-4 bg-muted/50 rounded-lg border border-border">
             <p className="text-xs text-muted-foreground text-justified">
               <strong>Estimado cliente:</strong> Es importante informarles que Increscendo Fintech no solicita pagos anticipados, depósitos previos ni cualquier tipo de comisión antes de otorgar un crédito. Si alguien le solicita dinero a nombre de nuestra empresa, por favor repórtelo inmediatamente a nuestros canales oficiales. Proteja su información personal y financiera. El único sitio oficial de Increscendo Fintech es <a href="https://increscendofintech.com" className="text-primary hover:underline">https://increscendofintech.com</a> y solo contamos con oficinas corporativas en la CDMX, México.
             </p>
           </div>
-          
+
           <div className="pt-8 border-t border-border text-center text-sm text-muted-foreground">
             <p>&copy; 2024 Increscendo Fintech. Todos los derechos reservados.</p>
           </div>
