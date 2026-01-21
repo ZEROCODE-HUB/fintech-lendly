@@ -11,11 +11,12 @@ import { Client } from "@/types/clients";
 import { Download, Upload, User, IdCard, FileText } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 interface AddUserModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onConfirm: (data: Partial<Client>) => void;
+  onConfirm: (data: Partial<Client>) => Promise<void> | void;
 }
 
 export const AddUserModal = ({ open, onOpenChange, onConfirm }: AddUserModalProps) => {
@@ -34,21 +35,37 @@ export const AddUserModal = ({ open, onOpenChange, onConfirm }: AddUserModalProp
   });
 
   const handleSubmit = () => {
-    onConfirm(formData);
-    toast({ title: "Usuario agregado", description: "El usuario ha sido registrado exitosamente." });
-    onOpenChange(false);
-    setFormData({
-      role: "Usuario",
-      firstName: "",
-      lastName: "",
-      email: "",
-      phone: "",
-      address: "",
-      birthDate: "",
-      ine: "",
-      curp: "",
-      membership: "",
-    });
+    // Validaciones básicas
+    if (!formData.email) {
+      toast({ title: "Error", description: "El email es obligatorio", variant: "destructive" });
+      return;
+    }
+    if (!formData.firstName || !formData.lastName) {
+      toast({ title: "Error", description: "Nombre y apellido son obligatorios", variant: "destructive" });
+      return;
+    }
+
+    Promise.resolve(onConfirm(formData))
+      .then(() => {
+        toast({ title: "Usuario agregado", description: "El usuario ha sido registrado exitosamente." });
+        onOpenChange(false);
+        setFormData({
+          role: "Usuario",
+          firstName: "",
+          lastName: "",
+          email: "",
+          phone: "",
+          address: "",
+          birthDate: "",
+          ine: "",
+          curp: "",
+          membership: "",
+        });
+      })
+      .catch((err) => {
+        console.error('[AddUserModal] onConfirm error', err);
+        toast({ title: "Error", description: "No se pudo registrar el usuario", variant: "destructive" });
+      });
   };
 
   return (
