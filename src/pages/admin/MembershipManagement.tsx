@@ -31,12 +31,40 @@ import {
 import { Plus, Edit, Trash2, Users, CreditCard, Percent } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { authService } from "@/utils/auth";
-import { defaultMemberships, Membership } from "@/data/memberships";
+import { supabase } from '@/lib/supabase';
+import { Skeleton } from '@/components/ui/skeleton';
+
+type Plan = {
+  id: string;
+  name: string;
+  slug?: string;
+  description?: string | null;
+  price: number;
+  currency: string;
+  duration_days: number | null;
+  features: any;
+  active: boolean;
+  created_at?: string;
+  updated_at?: string;
+};
+
+type Membership = {
+  id: string;
+  title: string;
+  cost: number;
+  currency: string;
+  targetAudience: string;
+  interestRate: number;
+  renewalPeriod: string;
+  benefits: string[];
+  isActive: boolean;
+};
 
 const MembershipManagement = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [memberships, setMemberships] = useState<Membership[]>(defaultMemberships);
+  const [memberships, setMemberships] = useState<Membership[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingMembership, setEditingMembership] = useState<Membership | null>(null);
   const [formData, setFormData] = useState({
@@ -48,17 +76,49 @@ const MembershipManagement = () => {
     benefits: ''
   });
 
-  // Check if user is admin by role
-  // useEffect(() => {
-  //   if (!authService.isAdmin()) {
-  //     toast({
-  //       title: "Acceso denegado",
-  //       description: "No tienes permisos para acceder a esta página",
-  //       variant: "destructive"
-  //     });
-  //     navigate('/dashboard');
-  //   }
-  // }, [navigate, toast]);
+  useEffect(() => {
+    if (!authService.isAdmin()) {
+      toast({
+        title: "Acceso denegado",
+        description: "No tienes permisos para acceder a esta página",
+        variant: "destructive"
+      });
+      navigate('/dashboard');
+    }
+  }, [navigate, toast]);
+
+  // fetch membership plans from DB
+  const fetchPlans = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.from<Plan>('membership_plans').select('*').order('created_at', { ascending: false });
+      if (error) throw error;
+      const plans = data ?? [];
+      const mapped: Membership[] = plans.map(p => {
+        const features = p.features ?? {};
+        const benefits = Array.isArray(features?.benefits) ? features.benefits : (Array.isArray(p.features) ? p.features : []);
+        return {
+          id: p.id,
+          title: p.name,
+          cost: Number(p.price ?? 0),
+          currency: p.currency ?? 'MXN',
+          targetAudience: features?.targetAudience ?? p.description ?? '',
+          interestRate: Number(features?.interestRate ?? 0),
+          renewalPeriod: p.duration_days ? String(p.duration_days) + 'd' : '30d',
+          benefits,
+          isActive: !!p.active
+        };
+      });
+      setMemberships(mapped);
+    } catch (err) {
+      console.error('[MembershipManagement] fetchPlans error', err);
+      toast({ title: 'Error', description: 'No se pudieron cargar las membresías', variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchPlans(); }, []);
 
   const resetForm = () => {
     setFormData({
@@ -90,7 +150,7 @@ const MembershipManagement = () => {
     setIsCreateOpen(true);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!formData.title || !formData.cost || !formData.targetAudience) {
       toast({
         title: "Error",
@@ -101,56 +161,42 @@ const MembershipManagement = () => {
     }
 
     const benefitsArray = formData.benefits.split(',').map(b => b.trim()).filter(b => b);
-
-    if (editingMembership) {
-      // Update existing membership
-      setMemberships(prev => prev.map(m => 
-        m.id === editingMembership.id 
-          ? {
-              ...m,
-              title: formData.title,
-              cost: parseFloat(formData.cost),
-              targetAudience: formData.targetAudience,
-              interestRate: parseFloat(formData.interestRate),
-              renewalPeriod: formData.renewalPeriod,
-              benefits: benefitsArray
-            }
-          : m
-      ));
-      toast({
-        title: "Membresía actualizada",
-        description: `${formData.title} ha sido actualizada correctamente`
-      });
-    } else {
-      // Create new membership
-      const newMembership: Membership = {
-        id: `membership-${Date.now()}`,
-        title: formData.title,
-        cost: parseFloat(formData.cost),
-        currency: 'MXN',
-        targetAudience: formData.targetAudience,
-        interestRate: parseFloat(formData.interestRate),
-        renewalPeriod: formData.renewalPeriod,
-        benefits: benefitsArray,
-        isActive: true
-      };
-      setMemberships(prev => [...prev, newMembership]);
-      toast({
-        title: "Membresía creada",
-        description: `${formData.title} ha sido creada correctamente`
-      });
+    try {
+      if (editingMembership) {
+        // update plan in DB
+        const duration_days = formData.renewalPeriod.toLowerCase().includes('anual') ? 365 : 30;
+        const features = { benefits: benefitsArray, interestRate: Number(formData.interestRate), targetAudience: formData.targetAudience };
+        const { error } = await supabase.from('membership_plans').update({ name: formData.title, price: Number(formData.cost), currency: 'MXN', duration_days, features }).eq('id', editingMembership.id);
+        if (error) throw error;
+        toast({ title: 'Membresía actualizada', description: `${formData.title} actualizada` });
+      } else {
+        // create new plan
+        const slug = formData.title.toLowerCase().replace(/\s+/g, '-');
+        const duration_days = formData.renewalPeriod.toLowerCase().includes('anual') ? 365 : 30;
+        const features = { benefits: benefitsArray, interestRate: Number(formData.interestRate), targetAudience: formData.targetAudience };
+        const { data, error } = await supabase.from('membership_plans').insert([{ name: formData.title, slug, description: formData.targetAudience, price: Number(formData.cost), currency: 'MXN', duration_days, features }]).select().single();
+        if (error) throw error;
+        toast({ title: 'Membresía creada', description: `${formData.title} creada` });
+      }
+      await fetchPlans();
+      setIsCreateOpen(false);
+      resetForm();
+    } catch (err) {
+      console.error('[MembershipManagement] submit error', err);
+      toast({ title: 'Error', description: 'Operación falló', variant: 'destructive' });
     }
-
-    setIsCreateOpen(false);
-    resetForm();
   };
 
-  const handleDelete = (membershipId: string) => {
-    setMemberships(prev => prev.filter(m => m.id !== membershipId));
-    toast({
-      title: "Membresía eliminada",
-      description: "La membresía ha sido eliminada correctamente"
-    });
+  const handleDelete = async (membershipId: string) => {
+    try {
+      const { error } = await supabase.from('membership_plans').delete().eq('id', membershipId);
+      if (error) throw error;
+      toast({ title: 'Membresía eliminada', description: 'El plan fue eliminado' });
+      await fetchPlans();
+    } catch (err) {
+      console.error('[MembershipManagement] delete error', err);
+      toast({ title: 'Error', description: 'No se pudo eliminar', variant: 'destructive' });
+    }
   };
 
   return (
@@ -262,91 +308,131 @@ const MembershipManagement = () => {
 
             {/* Memberships Grid */}
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {memberships.map((membership) => (
-                <Card key={membership.id} className="shadow-soft hover:shadow-medium transition-all duration-300">
-                  <CardHeader className="pb-3">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <CardTitle className="text-xl">{membership.title}</CardTitle>
-                        <CardDescription className="flex items-center gap-1 mt-1">
-                          <Users className="h-3 w-3" />
-                          {membership.targetAudience}
-                        </CardDescription>
+              {loading ? (
+                // show 6 shimmer cards
+                Array.from({ length: 6 }).map((_, i) => (
+                  <Card key={`skeleton-${i}`} className="shadow-soft transition-all duration-300">
+                    <CardHeader className="pb-3">
+                      <div className="flex items-start justify-between">
+                        <div className="w-2/3">
+                          <Skeleton className="h-6 w-40" />
+                          <div className="mt-2"><Skeleton className="h-4 w-28" /></div>
+                        </div>
+                        <div>
+                          <Skeleton className="h-6 w-16" />
+                        </div>
                       </div>
-                      <Badge variant="default" className="bg-success text-success-foreground">
-                        Activo
-                      </Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    {/* Pricing */}
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-3xl font-bold text-primary">
-                        ${membership.cost.toLocaleString()}
-                      </span>
-                      <span className="text-muted-foreground">MXN / {membership.renewalPeriod}</span>
-                    </div>
-
-                    {/* Features */}
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Percent className="h-4 w-4" />
-                        <span>Tasa: {membership.interestRate}%</span>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="flex items-baseline gap-1">
+                        <Skeleton className="h-8 w-24" />
+                        <Skeleton className="h-4 w-20" />
                       </div>
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <CreditCard className="h-4 w-4" />
-                        <span>Renovación: {membership.renewalPeriod}</span>
+                      <div className="space-y-2">
+                        <Skeleton className="h-4 w-32" />
+                        <Skeleton className="h-4 w-32" />
                       </div>
-                    </div>
+                      <div className="border-t pt-3">
+                        <Skeleton className="h-4 w-full" />
+                        <div className="mt-2 space-y-2">
+                          <Skeleton className="h-3 w-3/4" />
+                          <Skeleton className="h-3 w-1/2" />
+                        </div>
+                      </div>
+                      <div className="flex gap-2 pt-3 border-t">
+                        <Skeleton className="h-10 w-full" />
+                        <Skeleton className="h-10 w-12" />
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))
+              ) : (
+                memberships.map((membership) => (
+                  <Card key={membership.id} className="shadow-soft hover:shadow-medium transition-all duration-300">
+                    <CardHeader className="pb-3">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <CardTitle className="text-xl">{membership.title}</CardTitle>
+                          <CardDescription className="flex items-center gap-1 mt-1">
+                            <Users className="h-3 w-3" />
+                            {membership.targetAudience}
+                          </CardDescription>
+                        </div>
+                        <Badge variant="default" className="bg-success text-success-foreground">
+                          Activo
+                        </Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      {/* Pricing */}
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-3xl font-bold text-primary">
+                          ${membership.cost.toLocaleString()}
+                        </span>
+                        <span className="text-muted-foreground">MXN / {membership.renewalPeriod}</span>
+                      </div>
 
-                    {/* Benefits */}
-                    <div className="border-t pt-3">
-                      <p className="text-sm font-medium mb-2">Beneficios:</p>
-                      <ul className="space-y-1">
-                        {membership.benefits.map((benefit, index) => (
-                          <li key={index} className="text-sm text-muted-foreground flex items-center gap-2">
-                            <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-                            {benefit}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
+                      {/* Features */}
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <Percent className="h-4 w-4" />
+                          <span>Tasa: {membership.interestRate}%</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <CreditCard className="h-4 w-4" />
+                          <span>Renovación: {membership.renewalPeriod}</span>
+                        </div>
+                      </div>
 
-                    {/* Actions */}
-                    <div className="flex gap-2 pt-3 border-t">
-                      <Button 
-                        variant="outline" 
-                        className="flex-1"
-                        onClick={() => handleEditOpen(membership)}
-                      >
-                        <Edit className="h-4 w-4 mr-2" />
-                        Editar
-                      </Button>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="destructive" size="icon">
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>¿Eliminar membresía?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Esta acción no se puede deshacer. Se eliminará permanentemente "{membership.title}".
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => handleDelete(membership.id)}>
-                              Eliminar
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                      {/* Benefits */}
+                      <div className="border-t pt-3">
+                        <p className="text-sm font-medium mb-2">Beneficios:</p>
+                        <ul className="space-y-1">
+                          {membership.benefits.map((benefit, index) => (
+                            <li key={index} className="text-sm text-muted-foreground flex items-center gap-2">
+                              <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                              {benefit}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex gap-2 pt-3 border-t">
+                        <Button 
+                          variant="outline" 
+                          className="flex-1"
+                          onClick={() => handleEditOpen(membership)}
+                        >
+                          <Edit className="h-4 w-4 mr-2" />
+                          Editar
+                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="destructive" size="icon">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>¿Eliminar membresía?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Esta acción no se puede deshacer. Se eliminará permanentemente "{membership.title}".
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => handleDelete(membership.id)}>
+                                Eliminar
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))
+              )}
             </div>
 
             {memberships.length === 0 && (

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { Chatbot } from "@/components/Chatbot";
@@ -12,9 +12,28 @@ import { LoanOnboardingModal } from "@/components/LoanOnboardingModal";
 const Dashboard = () => {
   const navigate = useNavigate();
   const [showLoanOnboarding, setShowLoanOnboarding] = useState(false);
+  const [clientName, setClientName] = useState<string>("Usuario");
   
-  // Datos dinámicos (en una implementación real vendrían de la API/estado)
-  const clientName = "Hector";
+  // Cargar nombre del usuario logueado desde el perfil local
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('increscendo_user');
+      if (stored) {
+        const u = JSON.parse(stored);
+        if (u?.name) {
+          setClientName(u.name);
+          return;
+        }
+        if (u?.email) {
+          setClientName(u.email);
+          return;
+        }
+      }
+    } catch (e) {
+      console.warn('[Dashboard] failed to parse increscendo_user', e);
+    }
+    setClientName('Usuario');
+  }, []);
   const loanStatus = "Al día"; // Opciones: "Al día", "Cuota Pendiente", "Atrasado"
 
   const getStatusBadgeVariant = (status: string) => {

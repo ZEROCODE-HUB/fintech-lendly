@@ -11,7 +11,11 @@ const ServiceSelection = () => {
   };
 
   const handlePrestamosClick = () => {
-    navigate('/dashboard');
+    const userStr = localStorage.getItem('increscendo_user');
+    const testRole = localStorage.getItem('testUserRole');
+    if (!userStr && !testRole) { navigate('/auth'); return; }
+    const user = userStr ? JSON.parse(userStr) : { role: testRole };
+    if (user.role === 'admin') navigate('/admin/dashboard'); else navigate('/dashboard');
   };
 
   return (

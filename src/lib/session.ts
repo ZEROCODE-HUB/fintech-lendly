@@ -6,9 +6,37 @@ export const initAuthListener = () => {
     console.log('[session] auth state change', { event, session });
     try {
       if (event === 'SIGNED_IN') {
-        console.log('[session] SIGNED_IN — redirecting if on /auth', window.location.pathname);
+        console.log('[session] SIGNED_IN — checking role and redirecting if on /auth', window.location.pathname);
         if (window.location.pathname === '/auth') {
-          try { window.location.replace('/usuario-nuevo-marketing'); } catch { window.location.href = '/usuario-nuevo-marketing'; }
+          try {
+            // fetch role from public.users (supabase row linked to auth.users)
+            const userId = session?.user?.id;
+            if (userId) {
+              supabase
+                .from('users')
+                .select('role')
+                .eq('id', userId)
+                .limit(1)
+                .maybeSingle()
+                .then(({ data, error }) => {
+                  if (error) throw error;
+                  const role = data?.role ?? 'client';
+                  console.log('[session] fetched user role from public.users', { userId, role, raw: data });
+                  const dest = role === 'admin' ? '/admin/dashboard' : '/dashboard';
+                  console.log('[session] redirect destination based on role', { role, dest });
+                  try { window.location.replace(dest); } catch { window.location.href = dest; }
+                })
+                .catch((err) => {
+                  console.warn('[session] failed to fetch user role, falling back to /dashboard', err);
+                  try { window.location.replace('/dashboard'); } catch { window.location.href = '/dashboard'; }
+                });
+            } else {
+              try { window.location.replace('/dashboard'); } catch { window.location.href = '/dashboard'; }
+            }
+          } catch (err) {
+            console.warn('[session] redirect error', err);
+            try { window.location.replace('/dashboard'); } catch { window.location.href = '/dashboard'; }
+          }
         }
       }
     } catch (err) {

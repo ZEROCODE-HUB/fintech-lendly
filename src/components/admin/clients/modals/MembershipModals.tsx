@@ -13,14 +13,16 @@ import { useToast } from "@/hooks/use-toast";
 interface AddMembershipModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onConfirm: (data: { clientId: string; membershipType: string; activationDate: string }) => void;
+  onConfirm: (data: { clientId: string; membershipPlanId: string; activationDate: string }) => void;
+  clients: { id: string; firstName: string; lastName: string }[];
+  plans: { id: string; name: string }[];
 }
 
-export const AddMembershipModal = ({ open, onOpenChange, onConfirm }: AddMembershipModalProps) => {
+export const AddMembershipModal = ({ open, onOpenChange, onConfirm, clients, plans }: AddMembershipModalProps) => {
   const { toast } = useToast();
   const [formData, setFormData] = useState({
     clientId: "",
-    membershipType: "",
+    membershipPlanId: "",
     activationDate: new Date().toISOString().split("T")[0],
   });
 
@@ -30,7 +32,7 @@ export const AddMembershipModal = ({ open, onOpenChange, onConfirm }: AddMembers
     onOpenChange(false);
     setFormData({
       clientId: "",
-      membershipType: "",
+      membershipPlanId: "",
       activationDate: new Date().toISOString().split("T")[0],
     });
   };
@@ -48,21 +50,24 @@ export const AddMembershipModal = ({ open, onOpenChange, onConfirm }: AddMembers
             <Select value={formData.clientId} onValueChange={(v) => setFormData({ ...formData, clientId: v })}>
               <SelectTrigger><SelectValue placeholder="Seleccionar cliente" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="CLI-001">María González Hernández</SelectItem>
-                <SelectItem value="CLI-002">Carlos Ramírez López</SelectItem>
-                <SelectItem value="CLI-003">Ana López Martínez</SelectItem>
-                <SelectItem value="CLI-004">Juan Pérez Sánchez</SelectItem>
+                {clients.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.firstName} {c.lastName}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
           <div>
             <Label>Tipo de Membresía</Label>
-            <Select value={formData.membershipType} onValueChange={(v) => setFormData({ ...formData, membershipType: v })}>
+            <Select value={formData.membershipPlanId} onValueChange={(v) => setFormData({ ...formData, membershipPlanId: v })}>
               <SelectTrigger><SelectValue placeholder="Seleccionar tipo" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="Básico">Básico</SelectItem>
-                <SelectItem value="Premium">Premium</SelectItem>
-                <SelectItem value="Premier">Premier</SelectItem>
+                {plans.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>
+                    {p.name}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>

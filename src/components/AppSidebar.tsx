@@ -50,6 +50,8 @@ export function AppSidebar() {
   const currentUser = authService.getCurrentUser();
   const isAdmin = currentUser?.role === 'admin';
   const isAdminRoute = location.pathname.startsWith('/admin/');
+  const showAdminMenu = isAdmin && (isAdminRoute || location.pathname === '/mi-cuenta');
+  const showClientMenu = !showAdminMenu;
   const [showLoanOnboarding, setShowLoanOnboarding] = useState(false);
 
   const getNavClass = ({ isActive }: { isActive: boolean }) =>
@@ -153,8 +155,8 @@ export function AppSidebar() {
           )}
         </div>
 
-        {/* Client Menu - Only visible when NOT on admin routes */}
-        {!isAdminRoute && (
+        {/* Client Menu - visible en rutas cliente o cuando no aplique menú admin */}
+        {showClientMenu && (
           <>
             <SidebarGroup>
               <SidebarGroupLabel>Menú Principal</SidebarGroupLabel>
@@ -202,8 +204,8 @@ export function AppSidebar() {
           </>
         )}
 
-        {/* Admin Section - Only visible on admin routes */}
-        {isAdminRoute && (
+        {/* Admin Section - visible para admins en rutas /admin y en /mi-cuenta */}
+        {showAdminMenu && (
           <>
             <SidebarGroup>
               <SidebarGroupLabel>Menú Principal</SidebarGroupLabel>
