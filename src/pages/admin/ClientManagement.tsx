@@ -834,25 +834,88 @@ const ClientManagement = () => {
         <AddUserModal 
           open={addUserOpen} 
           onOpenChange={setAddUserOpen} 
-          onConfirm={(data) => {
-            const newClient: Client = {
-              id: `CLI-${String(clients.length + 1).padStart(3, "0")}`,
-              role: data.role || "Usuario",
-              firstName: data.firstName || "",
-              lastName: data.lastName || "",
-              email: data.email || "",
-              phone: data.phone || "",
-              address: data.address || "",
-              birthDate: data.birthDate || "",
-              registrationDate: new Date().toISOString().split("T")[0],
-              ine: data.ine || "",
-              curp: data.curp || "",
-              membership: data.membership || "",
-              membershipStatus: "Activa",
-              totalLoans: 0,
-              activeLoans: 0,
-            };
-            setClients([...clients, newClient]);
+          onConfirm={async (data) => {
+            try {
+              // 1) Crear usuario en auth.users mediante signUp usando un cliente alterno
+              const tempPassword = Math.random().toString(36).slice(-10) + "A1!";
+              const metadata: any = {
+                first_name: data.firstName || '',
+                last_name: data.lastName || '',
+                phone: data.phone || '',
+                address: data.address || '',
+                birth_date: data.birthDate || null,
+                curp: data.curp || '',
+                ine_key: data.ine || '',
+              };
+
+              const { data: signUpData, error: signUpError } = await supabase
+                .auth
+                .signUp(
+                  { email: data.email as string, password: tempPassword },
+                  { data: metadata }
+                );
+
+              if (signUpError || !signUpData?.user) {
+                console.error('[ClientManagement] signUp error', signUpError);
+                throw signUpError || new Error('No se pudo crear el usuario de autenticación');
+              }
+
+              const userId = signUpData.user.id;
+
+              // 2) Asegurar que la fila en public.users tenga todos los campos deseados y rol correcto
+              const payload: any = {
+                email: data.email,
+                first_name: data.firstName,
+                last_name: data.lastName,
+                phone: data.phone,
+                address: data.address,
+                birth_date: data.birthDate || null,
+                curp: data.curp,
+                ine_key: data.ine,
+                role: data.role === 'Admin' ? 'admin' : 'client',
+              };
+
+              const { data: profileRow, error: profileError } = await supabase
+                .from('users')
+                .upsert({ id: userId, ...payload }, { onConflict: 'id' })
+                .select('id, role, email, first_name, last_name, phone, address, birth_date, curp, ine_key, created_at')
+                .maybeSingle();
+
+              if (profileError) {
+                console.error('[ClientManagement] profile upsert error', profileError);
+                throw profileError;
+              }
+
+              const row = (profileRow as any) || {};
+
+              // 3) Mapear a Client y añadirlo a la lista local (si no viene created_at, usamos la fecha actual)
+              const newClient: Client = {
+                id: (row.id as string) || userId,
+                role: (row.role === 'admin' ? 'Admin' : 'Usuario') || (payload.role === 'admin' ? 'Admin' : 'Usuario'),
+                firstName: row.first_name ?? (data.firstName || ''),
+                lastName: row.last_name ?? (data.lastName || ''),
+                email: row.email ?? (data.email || ''),
+                phone: row.phone ?? (data.phone || ''),
+                address: row.address ?? (data.address || ''),
+                birthDate: row.birth_date ?? (data.birthDate || ''),
+                registrationDate: (row.created_at || new Date().toISOString()).slice(0, 10),
+                ine: row.ine_key ?? (data.ine || ''),
+                curp: row.curp ?? (data.curp || ''),
+                photoUrl: undefined,
+                ineFrontUrl: undefined,
+                ineBackUrl: undefined,
+                curpUrl: undefined,
+                membership: '',
+                membershipStatus: 'Sin membresía',
+                totalLoans: 0,
+                activeLoans: 0,
+              };
+
+              setClients((prev) => [newClient, ...prev]);
+            } catch (err) {
+              console.error('[ClientManagement] Error creating client from admin', err);
+              throw err;
+            }
           }} 
         />
         <ModifyClientModal 
