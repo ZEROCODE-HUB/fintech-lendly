@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
@@ -22,18 +22,89 @@ import {
   mockActiveMembership, 
   mockPaymentHistory,
   UserMembership,
-  PaymentHistory 
+  PaymentHistory,
+  Membership,
 } from "@/data/memberships";
+import { supabase } from "@/lib/supabase";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const Memberships = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [memberships, setMemberships] = useState<Membership[]>([]);
+  const [loadingMemberships, setLoadingMemberships] = useState<boolean>(true);
   
   // Toggle this to simulate having/not having an active membership
   // Set to mockActiveMembership to test Scenario B, or null for Scenario A
   const [userMembership, setUserMembership] = useState<UserMembership | null>(null);
   const [autoRenewal, setAutoRenewal] = useState(userMembership?.autoRenewal ?? true);
   const [paymentHistory] = useState<PaymentHistory[]>(mockPaymentHistory);
+
+  // Cargar membresías reales desde la base de datos (tabla membership_plans)
+  useEffect(() => {
+    const fetchMemberships = async () => {
+      setLoadingMemberships(true);
+      try {
+        const { data, error } = await supabase
+          .from<any>("membership_plans")
+          .select("*")
+          .eq("active", true)
+          .order("price", { ascending: true });
+
+        if (error) throw error;
+
+        const plans = data ?? [];
+        const mapped: Membership[] = plans.map((p: any) => {
+          const features = p.features ?? {};
+          const benefits = Array.isArray(features?.benefits)
+            ? features.benefits
+            : Array.isArray(p.features)
+            ? p.features
+            : [];
+
+          // Mapear duración a un texto amigable
+          let renewalPeriod = "Anual";
+          if (typeof p.duration_days === "number") {
+            if (p.duration_days >= 365) renewalPeriod = "Anual";
+            else if (p.duration_days >= 30) renewalPeriod = "Mensual";
+            else renewalPeriod = `${p.duration_days} días`;
+          }
+
+          return {
+            id: p.id,
+            title: p.name,
+            cost: Number(p.price ?? 0),
+            currency: p.currency ?? "MXN",
+            targetAudience: features?.targetAudience ?? p.description ?? "",
+            interestRate: Number(features?.interestRate ?? 0),
+            renewalPeriod,
+            benefits,
+            isActive: !!p.active,
+          } as Membership;
+        });
+
+        // Si no hay planes en BD, usar los mocks por defecto como fallback
+        if (!mapped.length) {
+          setMemberships(defaultMemberships);
+        } else {
+          setMemberships(mapped);
+        }
+      } catch (err) {
+        console.error("[Memberships] fetchMemberships error", err);
+        toast({
+          title: "Error",
+          description: "No se pudieron cargar las membresías",
+          variant: "destructive",
+        });
+        // Fallback a los datos mock si falla la carga
+        setMemberships(defaultMemberships);
+      } finally {
+        setLoadingMemberships(false);
+      }
+    };
+
+    fetchMemberships();
+  }, [toast]);
 
   const handleAcquireMembership = (membershipId: string) => {
     navigate("/membership-checkout", {
@@ -113,7 +184,36 @@ const Memberships = () => {
 
                 {/* Membership Cards */}
                 <div className="grid gap-6 md:grid-cols-2 max-w-4xl mx-auto">
-                  {defaultMemberships.map((membership) => (
+                  {loadingMemberships && (
+                    <>
+                      {[1, 2].map((i) => (
+                        <Card key={i} className="h-full flex flex-col shadow-soft border border-border">
+                          <CardHeader className="text-center pb-3">
+                            <div className="mx-auto mb-3 h-16 w-16 rounded-full bg-muted flex items-center justify-center">
+                              <Skeleton className="h-8 w-8 rounded-full" />
+                            </div>
+                            <Skeleton className="h-5 w-40 mx-auto mb-2" />
+                            <Skeleton className="h-4 w-32 mx-auto" />
+                          </CardHeader>
+                          <CardContent className="flex flex-col flex-grow space-y-3">
+                            <Skeleton className="h-8 w-32 mx-auto" />
+                            <div className="space-y-2 py-4 border-y">
+                              <Skeleton className="h-4 w-40" />
+                              <Skeleton className="h-4 w-36" />
+                            </div>
+                            <div className="space-y-2 flex-grow py-4">
+                              {[1, 2, 3].map((j) => (
+                                <Skeleton key={j} className="h-4 w-full" />
+                              ))}
+                            </div>
+                            <Skeleton className="h-10 w-full" />
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </>
+                  )}
+
+                  {!loadingMemberships && memberships.map((membership) => (
                     <Card 
                       key={membership.id} 
                       className="h-full flex flex-col shadow-soft hover:shadow-elegant transition-all duration-300 hover:-translate-y-2 border border-border"

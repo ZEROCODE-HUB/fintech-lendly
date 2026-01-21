@@ -46,24 +46,24 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/auth" element={<Auth />} />
-          <Route path="/service-selection" element={<RequireAuth><ServiceSelection /></RequireAuth>} />
-          <Route path="/dashboard" element={<RequireAuth><Dashboard /></RequireAuth>} />
-          <Route path="/loan-request" element={<RequireAuth><LoanRequest /></RequireAuth>} />
-          <Route path="/loan-process" element={<RequireAuth><LoanProcess /></RequireAuth>} />
-          <Route path="/my-loans" element={<RequireAuth><MyLoans /></RequireAuth>} />
-          <Route path="/history" element={<RequireAuth><History /></RequireAuth>} />
-          <Route path="/notifications" element={<RequireAuth><Notifications /></RequireAuth>} />
-          <Route path="/payment-methods" element={<RequireAuth><PaymentMethods /></RequireAuth>} />
-          <Route path="/memberships" element={<RequireAuth><Memberships /></RequireAuth>} />
-          <Route path="/membership-checkout" element={<RequireAuth><MembershipCheckout /></RequireAuth>} />
-          <Route path="/payment-success" element={<RequireAuth><PaymentSuccess /></RequireAuth>} />
-          <Route path="/payment-error" element={<RequireAuth><PaymentError /></RequireAuth>} />
-          <Route path="/mi-cuenta" element={<RequireAuth><MyAccount /></RequireAuth>} />
-          <Route path="/admin/dashboard" element={<AdminDashboard />} />
-          <Route path="/admin/loans" element={<LoanManagement />} />
-          <Route path="/admin/clients" element={<ClientManagement />} />
-          <Route path="/admin/config" element={<SystemConfig />} />
-          <Route path="/admin/memberships" element={<MembershipManagement />} />
+          <Route path="/service-selection" element={<RequireAuth allowedRoles={["client"]}><ServiceSelection /></RequireAuth>} />
+          <Route path="/dashboard" element={<RequireAuth allowedRoles={["client"]}><Dashboard /></RequireAuth>} />
+          <Route path="/loan-request" element={<RequireAuth allowedRoles={["client"]}><LoanRequest /></RequireAuth>} />
+          <Route path="/loan-process" element={<RequireAuth allowedRoles={["client"]}><LoanProcess /></RequireAuth>} />
+          <Route path="/my-loans" element={<RequireAuth allowedRoles={["client"]}><MyLoans /></RequireAuth>} />
+          <Route path="/history" element={<RequireAuth allowedRoles={["client"]}><History /></RequireAuth>} />
+          <Route path="/notifications" element={<RequireAuth allowedRoles={["client"]}><Notifications /></RequireAuth>} />
+          <Route path="/payment-methods" element={<RequireAuth allowedRoles={["client"]}><PaymentMethods /></RequireAuth>} />
+          <Route path="/memberships" element={<RequireAuth allowedRoles={["client"]}><Memberships /></RequireAuth>} />
+          <Route path="/membership-checkout" element={<RequireAuth allowedRoles={["client"]}><MembershipCheckout /></RequireAuth>} />
+          <Route path="/payment-success" element={<RequireAuth allowedRoles={["client"]}><PaymentSuccess /></RequireAuth>} />
+          <Route path="/payment-error" element={<RequireAuth allowedRoles={["client"]}><PaymentError /></RequireAuth>} />
+          <Route path="/mi-cuenta" element={<RequireAuth allowedRoles={["client", "admin"]}><MyAccount /></RequireAuth>} />
+          <Route path="/admin/dashboard" element={<RequireAuth allowedRoles={["admin"]}><AdminDashboard /></RequireAuth>} />
+          <Route path="/admin/loans" element={<RequireAuth allowedRoles={["admin"]}><LoanManagement /></RequireAuth>} />
+          <Route path="/admin/clients" element={<RequireAuth allowedRoles={["admin"]}><ClientManagement /></RequireAuth>} />
+          <Route path="/admin/config" element={<RequireAuth allowedRoles={["admin"]}><SystemConfig /></RequireAuth>} />
+          <Route path="/admin/memberships" element={<RequireAuth allowedRoles={["admin"]}><MembershipManagement /></RequireAuth>} />
           <Route path="/usuario-nuevo-marketing" element={<UsuarioNuevoMarketing />} />
           <Route path="/aviso-legal" element={<AvisoLegal />} />
           <Route path="/politicas-privacidad" element={<PoliticasPrivacidad />} />

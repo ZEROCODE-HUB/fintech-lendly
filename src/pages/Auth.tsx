@@ -8,11 +8,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import loginHero from "@/assets/login-hero.jpg";
 import logoIcon from "@/assets/logo-icon.jpeg";
-import { ArrowRight, Lock, Mail, Phone } from "lucide-react";
+import { ArrowRight, Lock, Mail, Phone, MailCheck } from "lucide-react";
 
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
 import PHONE_COUNTRY_CODES from '@/lib/phoneCodes';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 const Auth = () => {
   const [activeTab, setActiveTab] = useState("login");
@@ -24,6 +25,8 @@ const Auth = () => {
   const [regPhone, setRegPhone] = useState("");
   const [regPhoneCode, setRegPhoneCode] = useState("+52");
   const [regPassword, setRegPassword] = useState("");
+  const [showVerifyModal, setShowVerifyModal] = useState(false);
+  const [verifyEmail, setVerifyEmail] = useState("");
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -43,13 +46,46 @@ const Auth = () => {
         return;
       }
 
+      // Validar que el correo esté verificado
+      const signedUser = data.user ?? data.session?.user ?? null;
+      const emailConfirmedAt = (signedUser as any)?.email_confirmed_at ?? (signedUser as any)?.confirmed_at ?? null;
+      if (!emailConfirmedAt) {
+        console.warn('[Auth] login blocked: email not confirmed', { userId: signedUser?.id, email: signedUser?.email });
+        await supabase.auth.signOut();
+        try {
+          localStorage.removeItem('increscendo_user');
+          localStorage.removeItem('increscendo_session');
+        } catch (lsErr) {
+          console.warn('[Auth] failed to clear local storage after unverified login', lsErr);
+        }
+        // Mostrar el mismo modal de verificación que usamos después de registrarse
+        setVerifyEmail(email || (signedUser as any)?.email || '');
+        setShowVerifyModal(true);
+        setActiveTab('login');
+        return;
+      }
+
       // login succeeded — persist minimal local profile so UI recognizes auth
       try {
         const user = data.user ?? data.session?.user ?? null;
         if (user) {
-          const profile = { id: user.id, email: user.email ?? null, name: (user.user_metadata?.full_name || user.user_metadata?.name || user.email || 'Usuario'), role: 'client', avatar: null };
-          localStorage.setItem('increscendo_user', JSON.stringify(profile));
-          console.log('[Auth] stored local profile after login', profile);
+          // attempt to fetch role from public.users
+            try {
+            const { data: profileRow, error: profileErr } = await supabase.from('users').select('role, first_name, last_name, avatar_url').eq('id', user.id).limit(1).maybeSingle();
+            console.log('[Auth] users table lookup result for login', { userId: user.id, profileRow, profileErr });
+            const role = (profileRow as any)?.role ?? 'client';
+            console.log('[Auth] resolved role for user after login', { userId: user.id, role });
+            const name = (profileRow as any)?.first_name || (profileRow as any)?.last_name ? `${(profileRow as any)?.first_name || ''} ${(profileRow as any)?.last_name || ''}`.trim() : (user.user_metadata?.full_name || user.user_metadata?.name || user.email || 'Usuario');
+            const avatar = (profileRow as any)?.avatar_url ?? null;
+            const profile = { id: user.id, email: user.email ?? null, name, role, avatar };
+            localStorage.setItem('increscendo_user', JSON.stringify(profile));
+            console.log('[Auth] stored local profile after login', profile);
+          } catch (fetchRoleErr) {
+            console.warn('[Auth] failed to fetch role from users table, falling back to client', fetchRoleErr);
+            const profile = { id: user.id, email: user.email ?? null, name: (user.user_metadata?.full_name || user.user_metadata?.name || user.email || 'Usuario'), role: 'client', avatar: null };
+            localStorage.setItem('increscendo_user', JSON.stringify(profile));
+            console.log('[Auth] stored fallback profile with role=client', profile);
+          }
         }
         // persist supabase session object for later checks
         try {
@@ -65,7 +101,14 @@ const Auth = () => {
         console.warn('[Auth] failed to store local profile after login', e);
       }
       toast({ title: "Bienvenido", description: "Has iniciado sesión correctamente" });
-      navigate('/dashboard');
+      // navigate according to stored role
+      try {
+        const stored = localStorage.getItem('increscendo_user');
+        const u = stored ? JSON.parse(stored) : null;
+        if (u?.role === 'admin') navigate('/admin/dashboard'); else navigate('/dashboard');
+      } catch (nErr) {
+        navigate('/dashboard');
+      }
     } catch (err) {
       console.error('[Auth] Unexpected error during login', err);
       toast({ title: 'Error', description: 'Error inesperado al iniciar sesión', variant: 'destructive' });
@@ -274,24 +317,18 @@ const Auth = () => {
                       const session = data.session ?? null;
                       console.log('[Auth] signUp userId, session', { userId, session });
 
-                      // persist session returned by signUp (may be null if email confirmation required)
+                      // No queremos mantener sesión local al registrarse si el correo aún no está verificado.
+                      // Por seguridad, limpiamos cualquier sesión y perfil locales creados por error.
                       try {
-                        if (data.session) {
-                          localStorage.setItem('increscendo_session', JSON.stringify(data.session));
-                          console.log('[Auth] stored local session after signUp', { hasSession: true });
-                        }
-                      } catch (se) {
-                        console.warn('[Auth] failed to persist session after signUp', se);
+                        await supabase.auth.signOut();
+                      } catch (signOutErr) {
+                        console.warn('[Auth] failed to signOut after signUp (cleanup)', signOutErr);
                       }
-                      // If signUp returned a session, also store a minimal local profile so UI recognizes logged-in state
                       try {
-                        if (data.session && data.user) {
-                          const signupProfile = { id: data.user.id, email: data.user.email ?? regEmail, name: `${firstName} ${lastName}`, role: 'client', avatar: null };
-                          localStorage.setItem('increscendo_user', JSON.stringify(signupProfile));
-                          console.log('[Auth] stored local profile after signUp (session present)', signupProfile);
-                        }
-                      } catch (spErr) {
-                        console.warn('[Auth] failed to store local profile after signUp', spErr);
+                        localStorage.removeItem('increscendo_session');
+                        localStorage.removeItem('increscendo_user');
+                      } catch (lsErr) {
+                        console.warn('[Auth] failed to clear local storage after signUp', lsErr);
                       }
 
                       if (error) {
@@ -306,32 +343,8 @@ const Auth = () => {
                         }
                       }
 
-                      // Post-signup: ensure profile row exists in public.users. Try sign-in to obtain session if needed,
-                      // then upsert profile from the signup form. If client upsert fails, try local service_role fallback.
-                      let finalUserId = userId;
-                      let finalSession = session;
-                      if (!finalSession && regEmail && regPassword) {
-                        try {
-                          console.log('[Auth] no session after signUp — attempting immediate signIn');
-                          const { data: siData, error: siErr } = await supabase.auth.signInWithPassword({ email: regEmail, password: regPassword });
-                          console.log('[Auth] signInWithPassword after signUp', { siData, siErr });
-                          if (!siErr) {
-                            finalSession = siData.session ?? null;
-                            finalUserId = siData.user?.id ?? finalUserId;
-                            // persist session from immediate signIn
-                            try {
-                              if (siData.session) {
-                                localStorage.setItem('increscendo_session', JSON.stringify(siData.session));
-                                console.log('[Auth] stored local session after immediate signIn', { hasSession: true });
-                              }
-                            } catch (se2) {
-                              console.warn('[Auth] failed to persist session after immediate signIn', se2);
-                            }
-                          }
-                        } catch (siCatch) {
-                          console.warn('[Auth] signIn attempt after signup threw', siCatch);
-                        }
-                      }
+                      // Post-signup: ensure profile row exists in public.users usando el id devuelto por signUp
+                      const finalUserId = userId;
 
                       if (finalUserId) {
                         const profilePayload: any = {
@@ -378,41 +391,20 @@ const Auth = () => {
                         console.log('[Auth] completed insert attempt for profile (no local populate)');
                       }
 
-                      // If session present, go to dashboard. If not, attempt immediate sign-in.
-                      if (session) {
-                        console.log('[Auth] session present after signup — skipping local populate');
-                        console.log('[Auth] navigating to /dashboard (session present)');
-                        navigate('/dashboard');
-                      } else {
-                        // try to sign in immediately (may fail if email confirmation required)
-                        try {
-                          const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({ email: regEmail, password: regPassword });
-                          console.log('[Auth] post-signup signIn attempt', { signInData, signInError });
-                          if (!signInError) {
-                            console.log('[Auth] signIn after signup successful — navigating to /dashboard');
-                            try {
-                              if (signInData.session) {
-                                localStorage.setItem('increscendo_session', JSON.stringify(signInData.session));
-                                console.log('[Auth] stored local session after post-signup signIn', { hasSession: true });
-                              }
-                            } catch (se3) {
-                              console.warn('[Auth] failed to persist session after post-signup signIn', se3);
-                            }
-                            // signIn succeeded
-                            navigate('/dashboard');
-                            return;
-                          } else {
-                            console.warn('[Auth] post-signup signIn returned error', signInError);
-                          }
-                        } catch (siErr) {
-                          console.warn('[Auth] signIn after signup failed', siErr);
-                        }
-
-                        // fallback
-                        toast({ title: 'Cuenta creada', description: 'Revisa tu correo para confirmar (si aplica).' });
-                        console.log('[Auth] navigating to /usuario-nuevo-marketing (fallback)');
-                        navigate('/usuario-nuevo-marketing');
-                      }
+                      // Mostrar modal de verificación de correo (no iniciar sesión automáticamente)
+                      toast({
+                        title: 'Cuenta creada',
+                        description: 'Te enviamos un correo para confirmar y activar tu cuenta.',
+                      });
+                      setVerifyEmail(regEmail);
+                      setShowVerifyModal(true);
+                      setActiveTab('login');
+                      setEmail(regEmail);
+                      // opcional: limpiar campos de registro
+                      setFirstName('');
+                      setLastName('');
+                      setRegPhone('');
+                      setRegPassword('');
                     } catch (err) {
                       console.error('[Auth] Unexpected error during signup', err);
                       toast({ title: 'Error', description: 'Error inesperado al registrarte', variant: 'destructive' });
@@ -471,6 +463,60 @@ const Auth = () => {
             </TabsContent>
           </Tabs>
         </div>
+
+        {/* Modal de verificación de correo después de registro */}
+        <Dialog open={showVerifyModal} onOpenChange={setShowVerifyModal}>
+          <DialogContent className="sm:max-w-[480px]">
+            <DialogHeader>
+              <div className="flex items-center gap-3 mb-2">
+                <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                  <MailCheck className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <DialogTitle>Verifica tu correo electrónico</DialogTitle>
+                  <DialogDescription>
+                    Para activar tu cuenta necesitamos que confirmes tu dirección de correo.
+                  </DialogDescription>
+                </div>
+              </div>
+            </DialogHeader>
+            <div className="space-y-3 text-sm text-muted-foreground">
+              {verifyEmail && (
+                <p>
+                  Te enviamos un mensaje a <span className="font-medium text-foreground">{verifyEmail}</span> con un
+                  enlace de activación.
+                </p>
+              )}
+              <ul className="list-disc list-inside space-y-1">
+                <li>Abre tu bandeja de entrada y busca el correo de confirmación.</li>
+                <li>Haz clic en el botón o enlace para activar tu cuenta.</li>
+                <li>Luego vuelve aquí e inicia sesión con tu correo y contraseña.</li>
+              </ul>
+              <p className="text-xs text-muted-foreground">
+                Si no lo encuentras, revisa tu carpeta de spam o correo no deseado. Si el enlace expira, puedes solicitar uno
+                nuevo desde la opción de recuperar contraseña.
+              </p>
+            </div>
+            <DialogFooter className="mt-4 flex gap-2 justify-end">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowVerifyModal(false);
+                }}
+              >
+                Cerrar
+              </Button>
+              <Button
+                onClick={() => {
+                  setActiveTab('login');
+                  setShowVerifyModal(false);
+                }}
+              >
+                Ir a iniciar sesión
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

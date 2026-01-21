@@ -4,10 +4,73 @@ import { useNavigate, Link } from "react-router-dom";
 import { ArrowRight, Shield, Zap, BarChart3, TrendingUp, Users, Clock, Menu, X } from "lucide-react";
 import heroImage from "@/assets/hero-landing.jpg";
 import logoHorizontal from "@/assets/logo-horizontal.jpg";
+import { supabase } from "@/lib/supabase";
 
 const Index = () => {
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const handleAccess = async () => {
+    try {
+      // Primero intentamos usar la sesión real de Supabase para obtener el rol actualizado
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) {
+        console.warn('[Index] getSession error', sessionError);
+      }
+
+      const session = sessionData?.session ?? null;
+      const user = session?.user ?? null;
+
+      if (user) {
+        try {
+          const { data: profileRow, error: profileErr } = await supabase
+            .from('users')
+            .select('role, first_name, last_name, avatar_url')
+            .eq('id', user.id)
+            .limit(1)
+            .maybeSingle();
+
+          if (profileErr) {
+            console.warn('[Index] users lookup error', profileErr);
+          }
+
+          const role = (profileRow as any)?.role ?? 'client';
+          const name = (profileRow as any)?.first_name || (profileRow as any)?.last_name
+            ? `${(profileRow as any)?.first_name || ''} ${(profileRow as any)?.last_name || ''}`.trim()
+            : (user.user_metadata?.full_name || user.user_metadata?.name || user.email || 'Usuario');
+          const avatar = (profileRow as any)?.avatar_url ?? null;
+
+          try {
+            const profile = { id: user.id, email: user.email ?? null, name, role, avatar };
+            localStorage.setItem('increscendo_user', JSON.stringify(profile));
+          } catch (storeErr) {
+            console.warn('[Index] failed to store refreshed profile', storeErr);
+          }
+
+          if (role === 'admin') {
+            navigate('/admin/dashboard');
+          } else {
+            navigate('/dashboard');
+          }
+          return;
+        } catch (profileCatch) {
+          console.warn('[Index] exception during users lookup', profileCatch);
+        }
+      }
+    } catch (err) {
+      console.warn('[Index] handleAccess getSession failed', err);
+    }
+
+    // Fallback: comportamiento anterior usando localStorage/testUserRole
+    const userStr = localStorage.getItem('increscendo_user');
+    const testRole = localStorage.getItem('testUserRole');
+    if (!userStr && !testRole) {
+      navigate('/auth');
+      return;
+    }
+    const userLocal = userStr ? JSON.parse(userStr) : { role: testRole };
+    if (userLocal.role === 'admin') navigate('/admin/dashboard'); else navigate('/dashboard');
+  };
 
   return (
     <div className="min-h-screen overflow-x-hidden">
@@ -24,10 +87,7 @@ const Index = () => {
               <a href="#features" className="text-muted-foreground hover:text-foreground transition-colors">Características</a>
               <a href="#about" className="text-muted-foreground hover:text-foreground transition-colors">Nosotros</a>
               <a href="#contact" className="text-muted-foreground hover:text-foreground transition-colors">Contacto</a>
-              <Button onClick={() => {
-                const user = localStorage.getItem('increscendo_user');
-                if (user) navigate('/dashboard'); else navigate('/auth');
-              }} variant="default">
+              <Button onClick={handleAccess} variant="default">
                 Acceder
               </Button>
             </nav>
@@ -96,10 +156,7 @@ const Index = () => {
               y análisis de Big Data para potenciar el crecimiento de tu negocio
             </p>
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-              <Button size="lg" onClick={() => {
-                const user = localStorage.getItem('increscendo_user');
-                if (user) navigate('/dashboard'); else navigate('/auth');
-              }} className="w-full sm:w-auto">
+              <Button size="lg" onClick={handleAccess} className="w-full sm:w-auto">
                 Comenzar Ahora
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
@@ -221,7 +278,7 @@ const Index = () => {
                 Nuestra plataforma integra todos los servicios que necesitas: desde pagos y recargas
                 hasta gestión completa de préstamos con seguimiento en tiempo real.
               </p>
-              <Button size="lg" variant="default" onClick={() => { const user = localStorage.getItem('increscendo_user'); if (user) navigate('/dashboard'); else navigate('/auth'); }}>
+              <Button size="lg" variant="default" onClick={handleAccess}>
                 Comienza Tu Prueba Gratuita
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
@@ -263,10 +320,10 @@ const Index = () => {
             Únete a miles de empresas que ya confían en Increscendo Fintech para
             gestionar sus operaciones financieras con tecnología de clase mundial
           </p>
-          <Button
+            <Button
             size="lg"
             variant="success"
-            onClick={() => { const user = localStorage.getItem('increscendo_user'); if (user) navigate('/dashboard'); else navigate('/auth'); }}
+            onClick={() => { const userStr = localStorage.getItem('increscendo_user'); const testRole = localStorage.getItem('testUserRole'); if (!userStr && !testRole) { navigate('/auth'); return; } const user = userStr ? JSON.parse(userStr) : { role: testRole }; if (user.role === 'admin') navigate('/admin/dashboard'); else navigate('/dashboard'); }}
             className="text-base sm:text-lg px-6 sm:px-10 py-5 sm:py-7 mt-4 sm:mt-8 shadow-glow w-full sm:w-auto"
           >
             Crear Cuenta Gratis

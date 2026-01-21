@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Client } from "@/types/clients";
 import { Download, Upload, User, IdCard, FileText } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/lib/supabase";
 
 interface AddUserModalProps {
   open: boolean;
@@ -126,9 +127,10 @@ interface ModifyClientModalProps {
   onOpenChange: (open: boolean) => void;
   client: Client | null;
   onConfirm: (data: Client) => void;
+  plans?: { id: string; name: string }[];
 }
 
-export const ModifyClientModal = ({ open, onOpenChange, client, onConfirm }: ModifyClientModalProps) => {
+export const ModifyClientModal = ({ open, onOpenChange, client, onConfirm, plans }: ModifyClientModalProps) => {
   const { toast } = useToast();
   const [formData, setFormData] = useState<Partial<Client>>(client || {});
 
@@ -194,12 +196,27 @@ export const ModifyClientModal = ({ open, onOpenChange, client, onConfirm }: Mod
           </div>
           <div>
             <Label>Membresía</Label>
-            <Select defaultValue={client.membership} onValueChange={(v) => setFormData({ ...formData, membership: v })}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+            <Select
+              defaultValue={client.membership}
+              onValueChange={(v) => setFormData({ ...formData, membership: v })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Seleccionar" />
+              </SelectTrigger>
               <SelectContent>
-                <SelectItem value="Básico">Básico</SelectItem>
-                <SelectItem value="Premium">Premium</SelectItem>
-                <SelectItem value="Premier">Premier</SelectItem>
+                {plans && plans.length > 0 ? (
+                  plans.map((p) => (
+                    <SelectItem key={p.id} value={p.name}>
+                      {p.name}
+                    </SelectItem>
+                  ))
+                ) : (
+                  <>
+                    <SelectItem value="Básico">Básico</SelectItem>
+                    <SelectItem value="Premium">Premium</SelectItem>
+                    <SelectItem value="Premier">Premier</SelectItem>
+                  </>
+                )}
               </SelectContent>
             </Select>
           </div>
@@ -287,9 +304,118 @@ interface ViewDocumentsModalProps {
 
 export const ViewDocumentsModal = ({ open, onOpenChange, client }: ViewDocumentsModalProps) => {
   const { toast } = useToast();
+  const [ineFrontUrl, setIneFrontUrl] = useState<string | null>(null);
+  const [ineBackUrl, setIneBackUrl] = useState<string | null>(null);
+  const [curpUrl, setCurpUrl] = useState<string | null>(null);
+  const [uploading, setUploading] = useState<{ ineFront: boolean; ineBack: boolean; curp: boolean }>(
+    { ineFront: false, ineBack: false, curp: false },
+  );
 
-  const handleReplace = (docType: string) => {
-    toast({ title: "Archivo reemplazado", description: `El ${docType} ha sido actualizado.` });
+  const ineFrontInputRef = useRef<HTMLInputElement | null>(null);
+  const ineBackInputRef = useRef<HTMLInputElement | null>(null);
+  const curpInputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    const loadDocumentUrls = async () => {
+      if (!client?.id) {
+        setIneFrontUrl(null);
+        setIneBackUrl(null);
+        setCurpUrl(null);
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from("users")
+          .select("ine_front_url, ine_back_url, curp_url")
+          .eq("id", client.id)
+          .single();
+
+        if (error) {
+          console.warn("[ViewDocumentsModal] error loading document urls", error);
+          // fallback to values already presentes en client, si existen
+          setIneFrontUrl((client as any).ineFrontUrl ?? null);
+          setIneBackUrl((client as any).ineBackUrl ?? null);
+          setCurpUrl((client as any).curpUrl ?? null);
+          return;
+        }
+
+        setIneFrontUrl((data as any)?.ine_front_url ?? (client as any).ineFrontUrl ?? null);
+        setIneBackUrl((data as any)?.ine_back_url ?? (client as any).ineBackUrl ?? null);
+        setCurpUrl((data as any)?.curp_url ?? (client as any).curpUrl ?? null);
+      } catch (err) {
+        console.error("[ViewDocumentsModal] exception loading document urls", err);
+        setIneFrontUrl((client as any).ineFrontUrl ?? null);
+        setIneBackUrl((client as any).ineBackUrl ?? null);
+        setCurpUrl((client as any).curpUrl ?? null);
+      }
+    };
+
+    if (open) {
+      loadDocumentUrls();
+    }
+  }, [client, open]);
+
+  const handleUpload = async (type: "ineFront" | "ineBack" | "curp", file: File) => {
+    if (!client?.id) {
+      toast({
+        title: "Error",
+        description: "No se pudo identificar al usuario.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const userId = client.id;
+
+    try {
+      setUploading((prev) => ({ ...prev, [type]: true }));
+
+      const ext = file.name.split(".").pop() || (type === "curp" ? "pdf" : "jpg");
+      const objectName = `${type}-${Date.now()}.${ext}`;
+      const path = `${userId}/${objectName}`;
+
+      const { error: uploadError } = await supabase.storage.from("documents").upload(path, file, {
+        upsert: true,
+      });
+      if (uploadError) throw uploadError;
+
+      const { data: publicData } = supabase.storage.from("documents").getPublicUrl(path);
+      const publicUrl = publicData.publicUrl;
+
+      const column =
+        type === "ineFront" ? "ine_front_url" : type === "ineBack" ? "ine_back_url" : "curp_url";
+
+      const { error: updateError } = await supabase
+        .from("users")
+        .update({ [column]: publicUrl })
+        .eq("id", userId);
+      if (updateError) throw updateError;
+
+      if (type === "ineFront") setIneFrontUrl(publicUrl);
+      if (type === "ineBack") setIneBackUrl(publicUrl);
+      if (type === "curp") setCurpUrl(publicUrl);
+
+      toast({ title: "Documento actualizado", description: "El archivo se ha subido correctamente." });
+    } catch (err) {
+      console.error("[ViewDocumentsModal] upload error", err);
+      toast({
+        title: "Error al subir",
+        description: "No se pudo subir el documento. Intenta nuevamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setUploading((prev) => ({ ...prev, [type]: false }));
+    }
+  };
+
+  const handleDownload = (type: "ineFront" | "ineBack" | "curp") => {
+    const url = type === "ineFront" ? ineFrontUrl : type === "ineBack" ? ineBackUrl : curpUrl;
+    if (!url) {
+      toast({ title: "Sin archivo", description: "Aún no se ha cargado este documento." });
+      return;
+    }
+    window.open(url, "_blank", "noopener,noreferrer");
   };
 
   return (
@@ -314,16 +440,51 @@ export const ViewDocumentsModal = ({ open, onOpenChange, client }: ViewDocuments
               </CardHeader>
               <CardContent>
                 <div className="bg-accent rounded-lg p-8 text-center mb-4">
-                  <IdCard className="h-16 w-16 mx-auto mb-2 text-muted-foreground" />
-                  <p className="text-sm text-muted-foreground">(Imagen frontal del INE)</p>
+                  {ineFrontUrl ? (
+                    <img
+                      src={ineFrontUrl}
+                      alt="INE frente"
+                      className="max-h-48 rounded-md shadow-md object-contain bg-background mx-auto"
+                    />
+                  ) : (
+                    <>
+                      <IdCard className="h-16 w-16 mx-auto mb-2 text-muted-foreground" />
+                      <p className="text-sm text-muted-foreground">(Imagen frontal del INE)</p>
+                    </>
+                  )}
                 </div>
                 <div className="flex gap-2">
-                  <Button variant="outline" size="sm" className="flex-1">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => handleDownload("ineFront")}
+                  >
                     <Download className="h-4 w-4 mr-2" /> Descargar
                   </Button>
-                  <Button variant="outline" size="sm" className="flex-1" onClick={() => handleReplace("INE Frontal")}>
-                    <Upload className="h-4 w-4 mr-2" /> Reemplazar
-                  </Button>
+                  <div className="flex-1">
+                    <input
+                      ref={ineFrontInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleUpload("ineFront", file);
+                      }}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                      onClick={() => ineFrontInputRef.current?.click()}
+                      disabled={uploading.ineFront}
+                    >
+                      <Upload className="h-4 w-4 mr-2" />
+                      {uploading.ineFront ? "Subiendo..." : "Reemplazar"}
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -335,16 +496,51 @@ export const ViewDocumentsModal = ({ open, onOpenChange, client }: ViewDocuments
               </CardHeader>
               <CardContent>
                 <div className="bg-accent rounded-lg p-8 text-center mb-4">
-                  <IdCard className="h-16 w-16 mx-auto mb-2 text-muted-foreground" />
-                  <p className="text-sm text-muted-foreground">(Imagen trasera del INE)</p>
+                  {ineBackUrl ? (
+                    <img
+                      src={ineBackUrl}
+                      alt="INE reverso"
+                      className="max-h-48 rounded-md shadow-md object-contain bg-background mx-auto"
+                    />
+                  ) : (
+                    <>
+                      <IdCard className="h-16 w-16 mx-auto mb-2 text-muted-foreground" />
+                      <p className="text-sm text-muted-foreground">(Imagen trasera del INE)</p>
+                    </>
+                  )}
                 </div>
                 <div className="flex gap-2">
-                  <Button variant="outline" size="sm" className="flex-1">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => handleDownload("ineBack")}
+                  >
                     <Download className="h-4 w-4 mr-2" /> Descargar
                   </Button>
-                  <Button variant="outline" size="sm" className="flex-1" onClick={() => handleReplace("INE Reverso")}>
-                    <Upload className="h-4 w-4 mr-2" /> Reemplazar
-                  </Button>
+                  <div className="flex-1">
+                    <input
+                      ref={ineBackInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleUpload("ineBack", file);
+                      }}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                      onClick={() => ineBackInputRef.current?.click()}
+                      disabled={uploading.ineBack}
+                    >
+                      <Upload className="h-4 w-4 mr-2" />
+                      {uploading.ineBack ? "Subiendo..." : "Reemplazar"}
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -362,14 +558,48 @@ export const ViewDocumentsModal = ({ open, onOpenChange, client }: ViewDocuments
                   <FileText className="h-16 w-16 mx-auto mb-2 text-muted-foreground" />
                   <p className="text-sm text-muted-foreground">(PDF del CURP)</p>
                   <p className="text-xs text-muted-foreground mt-1">CURP: {client?.curp}</p>
+                  {curpUrl ? (
+                    <p className="mt-2 inline-flex items-center rounded-full bg-emerald-600/15 px-3 py-1 text-xs font-medium text-emerald-700">
+                      PDF cargado
+                    </p>
+                  ) : (
+                    <p className="mt-2 inline-flex items-center rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
+                      Sin archivo
+                    </p>
+                  )}
                 </div>
                 <div className="flex gap-2">
-                  <Button variant="outline" size="sm" className="flex-1">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => handleDownload("curp")}
+                  >
                     <Download className="h-4 w-4 mr-2" /> Descargar PDF
                   </Button>
-                  <Button variant="outline" size="sm" className="flex-1" onClick={() => handleReplace("CURP")}>
-                    <Upload className="h-4 w-4 mr-2" /> Reemplazar
-                  </Button>
+                  <div className="flex-1">
+                    <input
+                      ref={curpInputRef}
+                      type="file"
+                      accept="application/pdf"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleUpload("curp", file);
+                      }}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                      onClick={() => curpInputRef.current?.click()}
+                      disabled={uploading.curp}
+                    >
+                      <Upload className="h-4 w-4 mr-2" />
+                      {uploading.curp ? "Subiendo..." : "Reemplazar"}
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>
