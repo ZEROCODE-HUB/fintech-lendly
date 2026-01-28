@@ -139,7 +139,12 @@ const CarouselContent = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HT
       <div ref={carouselRef} className="overflow-hidden">
         <div
           ref={ref}
-          className={cn("flex", orientation === "horizontal" ? "-ml-4" : "-mt-4 flex-col", className)}
+          // small gap and slight outer padding so slides have breathing room
+          className={cn(
+            "flex gap-3 px-2",
+            orientation === "horizontal" ? "" : "flex-col",
+            className,
+          )}
           {...props}
         />
       </div>
@@ -157,7 +162,13 @@ const CarouselItem = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLD
         ref={ref}
         role="group"
         aria-roledescription="slide"
-        className={cn("min-w-0 shrink-0 grow-0 basis-full", orientation === "horizontal" ? "pl-4" : "pt-4", className)}
+        className={cn(
+          // default: full width on small screens, 1/3 width on md+ to show 3 slides neatly
+          // small horizontal padding so slides are slightly separated
+          "min-w-0 shrink-0 grow-0 basis-full md:basis-1/3 px-1",
+          orientation === "horizontal" ? "" : "pt-4",
+          className,
+        )}
         {...props}
       />
     );

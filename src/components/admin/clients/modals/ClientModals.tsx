@@ -26,6 +26,7 @@ export const AddUserModal = ({ open, onOpenChange, onConfirm }: AddUserModalProp
     firstName: "",
     lastName: "",
     email: "",
+    password: "",
     phone: "",
     address: "",
     birthDate: "",
@@ -54,6 +55,7 @@ export const AddUserModal = ({ open, onOpenChange, onConfirm }: AddUserModalProp
           firstName: "",
           lastName: "",
           email: "",
+              password: "",
           phone: "",
           address: "",
           birthDate: "",
@@ -97,6 +99,10 @@ export const AddUserModal = ({ open, onOpenChange, onConfirm }: AddUserModalProp
           <div>
             <Label>Email</Label>
             <Input type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} />
+          </div>
+          <div>
+            <Label>Contraseña</Label>
+            <Input type="password" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} />
           </div>
           <div>
             <Label>Teléfono</Label>

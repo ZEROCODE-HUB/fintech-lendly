@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DollarSign, CheckCircle2, AlertTriangle, ArrowRight, Calendar } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
 const INTEREST_RATE = 0.42; // 42% tasa anual
 const MIN_INSTALLMENTS = 3;
@@ -23,6 +24,8 @@ const LoanRequest = () => {
   const [estimatedPayment, setEstimatedPayment] = useState(0);
   const [simulationDialogOpen, setSimulationDialogOpen] = useState(false);
   const [paymentSchedule, setPaymentSchedule] = useState<any[]>([]);
+  const [userMembership, setUserMembership] = useState<any | null>(null);
+  const [membershipTitle, setMembershipTitle] = useState<string | null>(null);
 
   const handleStartLoanProcess = () => {
     navigate("/loan-process", {
@@ -86,6 +89,53 @@ const LoanRequest = () => {
 
   const totalToPay = estimatedPayment * parseInt(installments);
 
+  const formatDate = (dateString: string) => {
+    try {
+      return new Date(dateString).toLocaleDateString('es-MX', {
+        year: 'numeric', month: 'long', day: 'numeric'
+      });
+    } catch (e) {
+      return dateString;
+    }
+  };
+
+  useEffect(() => {
+    const loadUserMembership = async () => {
+      try {
+        const { authService } = await import('@/utils/auth');
+        const user = authService.getCurrentUser();
+        if (!user?.id) return;
+
+        const { data: umRow, error } = await supabase
+          .from('user_memberships')
+          .select('id, membership_plan_id, status, started_at, expires_at')
+          .eq('user_id', user.id)
+          .eq('status', 'active')
+          .order('expires_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (error) throw error;
+        if (!umRow) return;
+
+        setUserMembership(umRow);
+
+        // Fetch plan title
+        const { data: plan } = await supabase
+          .from('membership_plans')
+          .select('name')
+          .eq('id', umRow.membership_plan_id)
+          .maybeSingle();
+
+        if (plan?.name) setMembershipTitle(plan.name);
+      } catch (err) {
+        // ignore unauthenticated/demo
+      }
+    };
+
+    loadUserMembership();
+  }, []);
+
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full">
@@ -100,17 +150,22 @@ const LoanRequest = () => {
           </header>
 
           <div className="p-3 sm:p-4 md:p-6 max-w-4xl mx-auto space-y-4 sm:space-y-6">
-            {/* Membership Status Alert */}
-            <Card className="border-success bg-accent">
-              <CardContent className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 py-3 sm:py-4">
-                <CheckCircle2 className="h-6 w-6 sm:h-8 sm:w-8 text-success flex-shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-base sm:text-lg">Membresía Premium Activa</p>
-                  <p className="text-xs sm:text-sm text-muted-foreground">Tienes acceso a tasas preferenciales y montos más altos</p>
-                </div>
-                <Badge className="bg-success text-success-foreground text-xs sm:text-sm shrink-0">Verificado</Badge>
-              </CardContent>
-            </Card>
+            {/* Membership Status Alert (shows only if user has an active membership) */}
+            {userMembership && (
+              <Card className="border-success bg-accent">
+                <CardContent className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 py-3 sm:py-4">
+                  <CheckCircle2 className="h-6 w-6 sm:h-8 sm:w-8 text-success flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-base sm:text-lg">{membershipTitle ?? 'Membresía Activa'}</p>
+                    <p className="text-xs sm:text-sm text-muted-foreground">Tienes acceso a tasas preferenciales y montos más altos</p>
+                    {userMembership.expires_at && (
+                      <p className="text-xs sm:text-sm text-success mt-1">Expira {formatDate(userMembership.expires_at)}</p>
+                    )}
+                  </div>
+                  <Badge className="bg-success text-success-foreground text-xs sm:text-sm shrink-0">Verificado</Badge>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Loan Calculator */}
             <Card className="shadow-medium">

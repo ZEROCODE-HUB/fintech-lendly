@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Home, CreditCard, DollarSign, History, Users, Bell, LayoutDashboard, Cog, Wallet, User, Crown, LogOut } from "lucide-react";
+import { Home, CreditCard, DollarSign, History, Users, Bell, LayoutDashboard, Cog, Wallet, User, Crown, LogOut, Tag } from "lucide-react";
 import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import { authService } from "@/utils/auth";
 import logoIcon from "@/assets/logo-icon.jpeg";
@@ -39,6 +39,7 @@ const adminItems = [
   { title: "Gestión Préstamos", url: "/admin/loans", icon: CreditCard },
   { title: "Gestión Clientes", url: "/admin/clients", icon: Users },
   { title: "Gestión Membresías", url: "/admin/memberships", icon: Crown },
+  { title: "Gestión Cupones", url: "/admin/coupons", icon: Tag },
   { title: "Configuración", url: "/admin/config", icon: Cog },
 ];
 

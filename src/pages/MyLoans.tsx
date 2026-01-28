@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { supabase } from '@/lib/supabase';
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,45 +26,11 @@ const MyLoans = () => {
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [selectedLoan, setSelectedLoan] = useState<any>(null);
-  const [selectedLoanId, setSelectedLoanId] = useState("PREST-001");
+  const [selectedLoanId, setSelectedLoanId] = useState<string | null>(null);
   const [selectedInstallments, setSelectedInstallments] = useState<number[]>([]);
   const [paymentLoan, setPaymentLoan] = useState<any>(null);
-
-  const loans = [
-    {
-      id: "PREST-001",
-      amount: 10000,
-      approved: "2024-10-01",
-      rate: 12.5,
-      term: 12,
-      status: "active",
-      paid: 6000,
-      remaining: 4000,
-      nextPayment: "2024-11-15"
-    },
-    {
-      id: "PREST-002",
-      amount: 15000,
-      approved: "2024-09-15",
-      rate: 11.8,
-      term: 18,
-      status: "active",
-      paid: 4500,
-      remaining: 10500,
-      nextPayment: "2024-11-20"
-    },
-    {
-      id: "PREST-003",
-      amount: 5000,
-      approved: "2024-06-01",
-      rate: 13.2,
-      term: 6,
-      status: "paid",
-      paid: 5000,
-      remaining: 0,
-      nextPayment: "-"
-    }
-  ];
+  const [loansData, setLoansData] = useState<any[]>([]);
+  const [isLoadingLoans, setIsLoadingLoans] = useState(false);
 
   // Generate installments for a loan
   const generateInstallments = (loan: any): Installment[] => {
@@ -110,6 +77,59 @@ const MyLoans = () => {
     }
     setPaymentDialogOpen(true);
   };
+
+  const loadLoans = async () => {
+    try {
+      setIsLoadingLoans(true);
+      // try to get user id from local session first
+      let sessionStr = null;
+      try { sessionStr = localStorage.getItem('increscendo_session'); } catch { }
+      let userId: string | null = null;
+      if (sessionStr) {
+        try { userId = JSON.parse(sessionStr)?.user?.id ?? null; } catch (e) { }
+      }
+      if (!userId) {
+        try { const { data } = await supabase.auth.getUser(); userId = data?.user?.id ?? null; } catch (e) { console.warn('supabase.getUser failed', e); }
+      }
+      if (!userId) return setLoansData([]);
+
+      const { data, error } = await supabase.from('loans').select('*').eq('user_id', userId).order('created_at', { ascending: false });
+      if (error) throw error;
+      if (!data) return setLoansData([]);
+
+      const mapped = (data as any[]).map((l) => {
+        const amount = Number(l.amount ?? 0);
+        const paid = Number(l.metadata?.paid_amount ?? 0);
+        const remaining = Math.max(0, amount - paid);
+        return {
+          id: l.id,
+          amount,
+          approved: l.approved_at ? new Date(l.approved_at).toISOString().slice(0,10) : (l.applied_at ? new Date(l.applied_at).toISOString().slice(0,10) : ''),
+          rate: Number(l.interest_rate ?? l.metadata?.interest_rate ?? 0),
+          term: l.installments ?? 12,
+          status: l.status ?? 'pending',
+          paid,
+          remaining,
+          nextPayment: l.metadata?.next_payment_date ? new Date(l.metadata.next_payment_date).toISOString().slice(0,10) : '-',
+          raw: l,
+        };
+      });
+
+      setLoansData(mapped);
+      if (mapped.length) setSelectedLoanId(prev => prev ?? String(mapped[0].id));
+    } catch (err) {
+      console.error('Error loading user loans', err);
+    } finally {
+      setIsLoadingLoans(false);
+    }
+  };
+
+  useEffect(() => {
+    loadLoans();
+    const onReload = () => { loadLoans(); };
+    window.addEventListener('reloadLoans', onReload);
+    return () => { window.removeEventListener('reloadLoans', onReload); };
+  }, []);
 
   const handleInstallmentToggle = (installmentNumber: number) => {
     const firstPendingNumber = pendingInstallments[0]?.number;
@@ -244,7 +264,7 @@ const MyLoans = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {loans.map((loan) => (
+                    {(isLoadingLoans ? [] : loansData).map((loan) => (
                       <TableRow key={loan.id}>
                         <TableCell className="font-medium text-xs sm:text-sm whitespace-nowrap">{loan.id}</TableCell>
                         <TableCell className="text-xs sm:text-sm whitespace-nowrap">${loan.amount.toLocaleString()}</TableCell>
@@ -269,6 +289,19 @@ const MyLoans = () => {
                               <Eye className="h-3 w-3 sm:mr-1" />
                               <span className="hidden sm:inline">Ver</span>
                             </Button>
+                            {(loan.status === 'pending' || loan.status === 'under_review' || loan.status === 'approved') && (
+                              <Button
+                                size="sm"
+                                className="text-xs whitespace-nowrap"
+                                onClick={() => {
+                                  try { localStorage.setItem('resume_loan_id', String(loan.id)); } catch { }
+                                  const step = (loan.status === 'approved') ? 5 : 4;
+                                  navigate('/loan-process', { state: { resumeLoanId: loan.id, resumeStep: step } });
+                                }}
+                              >
+                                Continuar
+                              </Button>
+                            )}
                             {loan.status === 'active' && (
                               <Button 
                                 size="sm" 
@@ -282,7 +315,7 @@ const MyLoans = () => {
                           </div>
                         </TableCell>
                       </TableRow>
-                    ))}
+                      ))}
                   </TableBody>
                 </Table>
                 </div>
@@ -303,11 +336,11 @@ const MyLoans = () => {
                       value={selectedLoanId}
                       onChange={(e) => setSelectedLoanId(e.target.value)}
                     >
-                      {loans.map((loan) => (
-                        <option key={loan.id} value={loan.id}>
-                          {loan.id} - ${loan.amount.toLocaleString()}
-                        </option>
-                      ))}
+                      {loansData.map((loan) => (
+                          <option key={loan.id} value={loan.id}>
+                            {loan.id} - ${loan.amount.toLocaleString()}
+                          </option>
+                        ))}
                     </select>
                     <Button variant="outline" size="sm" className="text-xs sm:text-sm">
                       <Calendar className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
