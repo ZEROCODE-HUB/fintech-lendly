@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
@@ -22,6 +22,7 @@ import {
   Upload,
   Camera,
   FileText,
+  Trash2,
   Loader2,
   PartyPopper,
   Crown,
@@ -32,6 +33,8 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { defaultMemberships } from "@/data/memberships";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/lib/supabase";
+import { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext } from "@/components/ui/carousel";
 
 const STEPS = [
   { id: 1, title: "Confirma", icon: DollarSign },
@@ -66,21 +69,87 @@ const LoanProcess = () => {
   const [isApproved, setIsApproved] = useState(false);
   const [hasMembership, setHasMembership] = useState(false);
   const [selectedMembership, setSelectedMembership] = useState<string | null>(null);
+  const [userMembership, setUserMembership] = useState<any | null>(null);
+  const [currentLoan, setCurrentLoan] = useState<any | null>(null);
+  const pollIntervalRef = useRef<number | null>(null);
+  const [membershipPlans, setMembershipPlans] = useState<any[]>([]);
+  const [loadingMemberships, setLoadingMemberships] = useState<boolean>(true);
 
-  // Get loan data from navigation state or use defaults
-  const initialLoanData = location.state || {
-    amount: 10000,
-    installments: 12,
-    monthlyPayment: 952.38,
-    interestRate: 42,
-    totalToPay: 11428.56,
+  // Get loan data from navigation state or use defaults (guard against partial state)
+  const navState: any = (location && (location.state as any)) || {};
+  const initialLoanData = {
+    amount: navState.amount ?? 10000,
+    installments: navState.installments ?? 12,
+    monthlyPayment: navState.monthlyPayment ?? 952.38,
+    interestRate: navState.interestRate ?? 42,
+    totalToPay: navState.totalToPay ?? 11428.56,
   };
 
+  // If navigation included resumeLoanId, fetch loan and prefill for resume
+  useEffect(() => {
+    const resume = async () => {
+      try {
+        const s: any = location.state || {};
+        const resumeLoanId: string | undefined = s.resumeLoanId ?? (localStorage.getItem('resume_loan_id') || undefined);
+        const resumeStep: number = s.resumeStep ?? 4;
+        if (!resumeLoanId) return;
+
+        const { data: loanRow, error } = await supabase.from('loans').select('*').eq('id', resumeLoanId).maybeSingle();
+        if (error) throw error;
+        if (!loanRow) return;
+
+        // Prefill editable fields
+        setLoanAmount(String(loanRow.amount ?? initialLoanData.amount));
+        setLoanInstallments(String(loanRow.installments ?? initialLoanData.installments));
+        setMonthlyPayment(Number(loanRow.monthly_payment ?? initialLoanData.monthlyPayment));
+        setTotalToPay(Number(loanRow.total_to_pay ?? initialLoanData.totalToPay));
+
+        // Prefill metadata KYC and accounts if available
+        const md = loanRow.metadata ?? {};
+        if (md.personalData) setPersonalData(prev => ({ ...prev, ...(md.personalData || {}) }));
+        if (md.depositData) setDepositData(prev => ({ ...prev, ...(md.depositData || {}) }));
+        if (md.disbursementData) setDisbursementData(prev => ({ ...prev, ...(md.disbursementData || {}) }));
+
+        setCurrentLoan(loanRow);
+        setCurrentStep(resumeStep);
+
+        // If still pending, show analyzing loader; if approved, set flag for signature pending
+        if (loanRow.status === 'pending' || loanRow.status === 'under_review') {
+          setIsAnalyzing(true);
+          // start polling for status changes
+          if (pollIntervalRef.current == null) {
+            const id = window.setInterval(async () => {
+              try {
+                const { data: refreshed } = await supabase.from('loans').select('status').eq('id', resumeLoanId).maybeSingle();
+                if (refreshed?.status && refreshed.status !== loanRow.status) {
+                  setIsAnalyzing(false);
+                  if (refreshed.status === 'approved') {
+                    setIsApproved(true);
+                    setCurrentStep(4);
+                  }
+                  // stop polling if approved or otherwise
+                  if (pollIntervalRef.current) { clearInterval(pollIntervalRef.current); pollIntervalRef.current = null; }
+                }
+              } catch (e) { console.warn('poll error', e); }
+            }, 10000);
+            pollIntervalRef.current = id;
+          }
+        }
+      } catch (e) {
+        console.error('resume load error', e);
+      }
+    };
+    resume();
+    return () => {
+      if (pollIntervalRef.current) { clearInterval(pollIntervalRef.current); pollIntervalRef.current = null; }
+    };
+  }, [location.state]);
+
   // Editable loan data state for Step 1
-  const [loanAmount, setLoanAmount] = useState(initialLoanData.amount.toString());
-  const [loanInstallments, setLoanInstallments] = useState(initialLoanData.installments.toString());
-  const [monthlyPayment, setMonthlyPayment] = useState(initialLoanData.monthlyPayment);
-  const [totalToPay, setTotalToPay] = useState(initialLoanData.totalToPay);
+  const [loanAmount, setLoanAmount] = useState(String(initialLoanData.amount ?? 10000));
+  const [loanInstallments, setLoanInstallments] = useState(String(initialLoanData.installments ?? 12));
+  const [monthlyPayment, setMonthlyPayment] = useState(Number(initialLoanData.monthlyPayment ?? 952.38));
+  const [totalToPay, setTotalToPay] = useState(Number(initialLoanData.totalToPay ?? 11428.56));
 
   // Personal data state for KYC
   const [personalData, setPersonalData] = useState({
@@ -92,6 +161,21 @@ const LoanProcess = () => {
     ineKey: "",
     curp: "",
   });
+
+  // Local files (keep only client-side until user decides to upload)
+  const [ineFrontFile, setIneFrontFile] = useState<File | null>(null);
+  const [ineBackFile, setIneBackFile] = useState<File | null>(null);
+  const [curpFile, setCurpFile] = useState<File | null>(null);
+  const [ineFrontPreview, setIneFrontPreview] = useState<string | null>(null);
+  const [ineBackPreview, setIneBackPreview] = useState<string | null>(null);
+  const [curpPreview, setCurpPreview] = useState<string | null>(null);
+
+  // Camera capture state
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const [cameraTarget, setCameraTarget] = useState<'ineFront' | 'ineBack' | 'curp' | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [mediaStream, setMediaStream] = useState<MediaStream | null>(null);
 
   // Deposit data for Step 3
   const [depositData, setDepositData] = useState({
@@ -118,6 +202,133 @@ const LoanProcess = () => {
     setDepositData(prev => ({ ...prev, [field]: value }));
   };
 
+  const createLoanRecord = async () => {
+    try {
+      const { authService } = await import('@/utils/auth');
+      const user = authService.getCurrentUser();
+      if (!user?.id) {
+        toast({ title: 'Error', description: 'Usuario no autenticado.' });
+        return;
+      }
+
+      const membershipName = (() => {
+        if (userMembership) return userMembership;
+        if (selectedMembership) return selectedMembership;
+        return membershipPlans[0]?.name ?? null;
+      })();
+
+      const payload = {
+        user_id: user.id,
+        amount: Number(loanAmount) || 0,
+        installments: Number(loanInstallments) || 12,
+        monthly_payment: Number(monthlyPayment) || 0,
+        interest_rate: INTEREST_RATE,
+        total_to_pay: Number(totalToPay) || 0,
+        status: 'pending',
+        metadata: {
+          personalData,
+          depositData,
+          disbursementData,
+          membership: membershipName,
+        },
+      };
+
+      const { data, error } = await supabase.from('loans').insert([payload]).select().maybeSingle();
+      if (error || !data) {
+        console.error('create loan error', error);
+        toast({ title: 'Error', description: 'No se pudo crear la solicitud.' });
+        return null;
+      }
+      // clear resume marker if present
+      try { localStorage.removeItem('resume_loan_id'); } catch {}
+      setCurrentLoan(data);
+      toast({ title: 'Solicitud creada', description: 'Tu solicitud quedó registrada y está en estado pendiente.' });
+      return data;
+    } catch (err) {
+      console.error(err);
+      toast({ title: 'Error', description: 'Ocurrió un error al crear la solicitud.' });
+      return null;
+    }
+  };
+
+  const handleFileSelect = (target: 'ineFront' | 'ineBack' | 'curp', file: File) => {
+    const url = URL.createObjectURL(file);
+    if (target === 'ineFront') {
+      setIneFrontFile(file);
+      setIneFrontPreview(url);
+    } else if (target === 'ineBack') {
+      setIneBackFile(file);
+      setIneBackPreview(url);
+    } else if (target === 'curp') {
+      setCurpFile(file);
+      setCurpPreview(url);
+    }
+  };
+
+  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>, target: 'ineFront' | 'ineBack' | 'curp') => {
+    const file = e.target.files?.[0];
+    if (file) handleFileSelect(target, file);
+    e.currentTarget.value = '';
+  };
+
+  const stopCamera = () => {
+    if (mediaStream) {
+      mediaStream.getTracks().forEach(t => t.stop());
+      setMediaStream(null);
+    }
+  };
+
+  const openCamera = async (target: 'ineFront' | 'ineBack' | 'curp') => {
+    setCameraTarget(target);
+    setIsCameraOpen(true);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+      setMediaStream(stream);
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+      }
+    } catch (err) {
+      setIsCameraOpen(false);
+      stopCamera();
+      toast({ title: 'Error', description: 'No se pudo acceder a la cámara.' });
+    }
+  };
+
+  const takePhoto = () => {
+    if (!videoRef.current || !canvasRef.current || !cameraTarget) return;
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    canvas.width = video.videoWidth || 1280;
+    canvas.height = video.videoHeight || 720;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    canvas.toBlob((blob) => {
+      if (!blob) return;
+      const file = new File([blob], `${cameraTarget}_${Date.now()}.jpg`, { type: blob.type });
+      handleFileSelect(cameraTarget, file);
+      stopCamera();
+      setIsCameraOpen(false);
+    }, 'image/jpeg', 0.9);
+  };
+
+  const removeFile = (target: 'ineFront' | 'ineBack' | 'curp') => {
+    if (target === 'ineFront') {
+      if (ineFrontPreview) URL.revokeObjectURL(ineFrontPreview);
+      setIneFrontFile(null);
+      setIneFrontPreview(null);
+    } else if (target === 'ineBack') {
+      if (ineBackPreview) URL.revokeObjectURL(ineBackPreview);
+      setIneBackFile(null);
+      setIneBackPreview(null);
+    } else if (target === 'curp') {
+      if (curpPreview) URL.revokeObjectURL(curpPreview);
+      setCurpFile(null);
+      setCurpPreview(null);
+    }
+  };
+
   // Calculate payment based on amount and installments
   const calculatePayment = () => {
     const principal = parseFloat(loanAmount) || 0;
@@ -135,16 +346,81 @@ const LoanProcess = () => {
     }
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (currentStep === 4 && !isApproved) {
+      // When user clicks "Iniciar" on step 4, create loan if needed and start polling
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+        pollIntervalRef.current = null;
+      }
+
+      let loan = currentLoan;
+      if (!loan) {
+        loan = await createLoanRecord();
+        if (!loan) return; // creation failed
+      }
+
       setIsAnalyzing(true);
-      setTimeout(() => {
-        setIsAnalyzing(false);
-        setIsApproved(true);
-      }, 3000);
+
+      const checkStatus = async () => {
+        try {
+          const { data, error } = await supabase.from('loans').select('status').eq('id', loan.id).maybeSingle();
+          if (error) {
+            console.error('poll error', error);
+            return;
+          }
+          const status = data?.status;
+          if (status === 'approved' || status === 'active') {
+            setIsAnalyzing(false);
+            setIsApproved(true);
+            // refresh current loan with latest status
+            const { data: full, error: fullErr } = await supabase.from('loans').select('*').eq('id', loan.id).maybeSingle();
+            if (!fullErr && full) setCurrentLoan(full);
+            if (pollIntervalRef.current) {
+              clearInterval(pollIntervalRef.current);
+              pollIntervalRef.current = null;
+            }
+          }
+        } catch (e) {
+          console.error('status check error', e);
+        }
+      };
+
+      // run initial check immediately
+      await checkStatus();
+
+      // start polling every 10s
+      if (!isApproved && !pollIntervalRef.current) {
+        pollIntervalRef.current = window.setInterval(checkStatus, 10000) as unknown as number;
+      }
+
       return;
     }
+
     if (currentStep < 6) {
+      // If moving from Contract step, mark as signed in DB
+      if (currentStep === 5) {
+        // try to determine loan id from currentLoan or resume marker
+        const loanId = currentLoan?.id ?? (() => { try { return localStorage.getItem('resume_loan_id') || null; } catch { return null; } })();
+        if (loanId) {
+          try {
+            const { error } = await supabase.from('loans').update({ status: 'signed', signed_at: new Date().toISOString() }).eq('id', loanId);
+            if (error) throw error;
+            // update local state if currentLoan matches
+            if (currentLoan && currentLoan.id === loanId) {
+              setCurrentLoan(prev => prev ? ({ ...prev, status: 'signed', signed_at: new Date().toISOString() }) : prev);
+            }
+            // notify other views to reload
+            try { window.dispatchEvent(new Event('reloadLoans')); } catch {}
+            toast({ title: 'Firma registrada', description: 'La solicitud ha sido marcada como firmada.' });
+          } catch (e) {
+            console.error('Error marking loan signed', e);
+            toast({ title: 'Error', description: 'No se pudo registrar la firma.' });
+          }
+        } else {
+          toast({ title: 'Error', description: 'No se encontró la solicitud para marcar como firmada.' });
+        }
+      }
       setCurrentStep(prev => prev + 1);
     }
   };
@@ -162,6 +438,122 @@ const LoanProcess = () => {
   const handleGoToSimulator = () => {
     navigate("/loan-request");
   };
+
+  useEffect(() => {
+    const loadMembershipsAndUser = async () => {
+      try {
+        setLoadingMemberships(true);
+
+        // fetch plans and map to UI-friendly shape (same as Memberships.tsx)
+        const { data: plans } = await supabase
+          .from('membership_plans')
+          .select('*')
+          .eq('active', true)
+          .order('price', { ascending: true });
+
+        if (plans) {
+          const mapped = (plans as any[]).map((p: any) => {
+            const features = p.features ?? {};
+            const benefits = Array.isArray(features?.benefits)
+              ? features.benefits
+              : Array.isArray(p.features)
+              ? p.features
+              : [];
+
+            let renewalPeriod = 'Anual';
+            if (typeof p.duration_days === 'number') {
+              if (p.duration_days >= 365) renewalPeriod = 'Anual';
+              else if (p.duration_days >= 30) renewalPeriod = 'Mensual';
+              else renewalPeriod = `${p.duration_days} días`;
+            }
+
+            return {
+              id: p.id,
+              title: p.name ?? p.title,
+              name: p.name ?? p.title,
+              cost: Number(p.price ?? p.cost ?? 0),
+              currency: p.currency ?? 'MXN',
+              targetAudience: features?.targetAudience ?? p.description ?? '',
+              interestRate: Number(features?.interestRate ?? 0),
+              renewalPeriod,
+              benefits,
+              isActive: !!p.active,
+            };
+          });
+          setMembershipPlans(mapped as any[]);
+        }
+
+        // fetch user membership
+        const { authService } = await import('@/utils/auth');
+        const user = authService.getCurrentUser();
+        if (!user?.id) return;
+
+        const { data: umRow } = await supabase
+          .from('user_memberships')
+          .select('id, membership_plan_id, status, started_at, expires_at')
+          .eq('user_id', user.id)
+          .eq('status', 'active')
+          .order('expires_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (umRow) {
+          setUserMembership(umRow);
+          setHasMembership(true);
+        }
+      } catch (err) {
+        // ignore
+      } finally {
+        setLoadingMemberships(false);
+      }
+    };
+
+    loadMembershipsAndUser();
+  }, []);
+
+  // cleanup polling interval on unmount
+  useEffect(() => {
+    return () => {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+        pollIntervalRef.current = null;
+      }
+    };
+  }, []);
+
+  // Load current user's profile and prefill personal data for Step 3
+  useEffect(() => {
+    const loadUserProfile = async () => {
+      try {
+        const { authService } = await import('@/utils/auth');
+        const user = authService.getCurrentUser();
+        if (!user?.id) return;
+
+        const { data, error } = await supabase
+          .from('users')
+          .select('first_name, last_name, address, birth_date, phone, ine_key, curp, phone_country_code')
+          .eq('id', user.id)
+          .maybeSingle();
+
+        if (error) throw error;
+        if (!data) return;
+
+        setPersonalData({
+          firstName: data.first_name ?? '',
+          lastName: data.last_name ?? '',
+          address: data.address ?? '',
+          birthDate: data.birth_date ? new Date(data.birth_date).toISOString().slice(0,10) : '',
+          phone: data.phone ?? '',
+          ineKey: data.ine_key ?? '',
+          curp: data.curp ?? '',
+        });
+      } catch (err) {
+        // ignore errors (unauthenticated/demo)
+      }
+    };
+
+    loadUserProfile();
+  }, []);
 
   // Stepper Component
   const Stepper = () => (
@@ -309,81 +701,82 @@ const LoanProcess = () => {
         <CardDescription>Selecciona una membresía para continuar con tu préstamo</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        {hasMembership ? (
+        {userMembership || hasMembership ? (
           <div className="bg-success/10 border border-success/30 rounded-xl p-4 flex items-center gap-3">
             <CheckCircle2 className="h-6 w-6 text-success flex-shrink-0" />
             <div>
               <p className="font-semibold">Membresía Activa</p>
               <p className="text-sm text-muted-foreground">Ya cuentas con una membresía vigente</p>
+              {userMembership?.expires_at && (
+                <p className="text-sm text-success mt-1">Expira {new Date(userMembership.expires_at).toLocaleDateString('es-MX')}</p>
+              )}
+            </div>
+            <div className="ml-auto">
+              <Button onClick={() => setCurrentStep(3)}>Continuar</Button>
             </div>
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch">
-              {defaultMemberships.map((membership) => (
-                <div
-                  key={membership.id}
-                  onClick={() => setSelectedMembership(membership.id)}
-                  className={`relative cursor-pointer rounded-xl border-2 p-6 transition-all hover:shadow-lg h-full flex flex-col justify-between ${
-                    selectedMembership === membership.id
-                      ? "border-primary bg-primary/5"
-                      : "border-border hover:border-primary/50"
-                  }`}
-                >
-                  {/* Top content section */}
-                  <div className="flex-1">
-                    {selectedMembership === membership.id && (
-                      <div className="absolute top-3 right-3">
-                        <CheckCircle2 className="h-6 w-6 text-primary" />
-                      </div>
-                    )}
-                    <div className="flex items-center gap-3 mb-4">
-                      {membership.id === "premier" ? (
-                        <Star className="h-8 w-8 text-primary" />
-                      ) : (
-                        <Crown className="h-8 w-8 text-yellow-500" />
-                      )}
-                      <div>
-                        <h3 className="font-bold text-lg">{membership.title}</h3>
-                        <Badge variant="secondary">{membership.targetAudience}</Badge>
-                      </div>
-                    </div>
-                    <p className="text-3xl font-bold text-primary mb-2">
-                      ${membership.cost.toLocaleString()} <span className="text-sm font-normal text-muted-foreground">MXN</span>
-                    </p>
-                    <p className="text-sm text-muted-foreground mb-4">Renovación {membership.renewalPeriod}</p>
-                    <ul className="space-y-2 mb-4">
-                      {membership.benefits.map((benefit, i) => (
-                        <li key={i} className="flex items-center gap-2 text-sm">
-                          <CheckCircle2 className="h-4 w-4 text-success" />
-                          {benefit}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                  {/* Bottom button section */}
-                  <Button
-                    className="w-full mt-auto"
-                    size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      navigate("/membership-checkout", {
-                        state: { membershipId: membership.id, returnTo: "/loan-process" }
-                      });
-                    }}
-                  >
-                    Adquirir Membresía
-                  </Button>
-                </div>
-              ))}
+            <div className="w-full">
+              <Carousel>
+                <CarouselPrevious />
+                <CarouselContent className="py-4">
+                  {(loadingMemberships ? defaultMemberships : membershipPlans.length ? membershipPlans : defaultMemberships).map((membership: any) => (
+                    <CarouselItem key={membership.id}>
+                      <Card className={`h-full flex flex-col transition-all duration-300 hover:-translate-y-2 ${selectedMembership && selectedMembership === membership.id ? 'border-success bg-success/10 shadow-elegant' : 'shadow-soft border border-border hover:shadow-elegant'}`}>
+                        <CardHeader className="text-center pb-3">
+                          <div className="mx-auto mb-3 h-16 w-16 rounded-full bg-gradient-hero flex items-center justify-center">
+                            <Crown className="h-8 w-8 text-white" />
+                          </div>
+                          <CardTitle className="text-2xl">{membership.name ?? membership.title}</CardTitle>
+                          <CardDescription className="flex items-center justify-center gap-1">
+                            <Badge variant="secondary">{membership.targetAudience}</Badge>
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent className="flex flex-col flex-grow">
+                          <div className="text-center">
+                            <span className="text-4xl font-bold text-primary">${(membership.cost ?? membership.price ?? 0).toLocaleString()}</span>
+                            <span className="text-muted-foreground"> MXN / {membership.renewalPeriod}</span>
+                          </div>
+
+                          <div className="space-y-2 py-4 border-y">
+                            <div className="flex items-center gap-2 text-sm">
+                              <span className="font-medium">Tasa preferencial:</span>
+                              <span>{membership.interestRate ?? 0}%</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-sm">
+                              <span className="font-medium">Renovación:</span>
+                              <span>{membership.renewalPeriod}</span>
+                            </div>
+                          </div>
+
+                          <ul className="space-y-2 flex-grow py-4">
+                            {(membership.benefits ?? []).map((benefit: any, index: number) => (
+                              <li key={index} className="flex items-center gap-2 text-sm">
+                                <CheckCircle2 className="h-4 w-4 text-success" />
+                                {typeof benefit === 'string' ? benefit : benefit.label || JSON.stringify(benefit)}
+                              </li>
+                            ))}
+                          </ul>
+
+                          {selectedMembership && selectedMembership === membership.id ? (
+                            <Button className="w-full mt-auto bg-success text-white" size="lg" disabled>
+                              Membresía seleccionada
+                            </Button>
+                          ) : (
+                            <Button className="w-full mt-auto" size="lg" onClick={(e) => { e.stopPropagation(); navigate('/membership-checkout', { state: { membership, returnTo: '/loan-process' } }); }}>
+                              Adquirir Membresía
+                            </Button>
+                          )}
+                        </CardContent>
+                      </Card>
+                    </CarouselItem>
+                  ))}
+                </CarouselContent>
+                <CarouselNext />
+              </Carousel>
             </div>
-            <Button
-              variant="link"
-              className="text-muted-foreground"
-              onClick={() => setHasMembership(true)}
-            >
-              Ya tengo una membresía →
-            </Button>
+            {/* 'Ya tengo una membresía' button removed per design */}
           </>
         )}
       </CardContent>
@@ -565,31 +958,55 @@ const LoanProcess = () => {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="border-2 border-dashed border-border rounded-xl p-6 flex flex-col items-center justify-center gap-3 bg-muted/30 hover:bg-muted/50 transition-colors">
-              <CreditCard className="h-8 w-8 text-muted-foreground" />
+              {ineFrontPreview ? (
+                <img src={ineFrontPreview} alt="INE Frente" className="max-h-40 object-contain rounded" />
+              ) : (
+                <CreditCard className="h-8 w-8 text-muted-foreground" />
+              )}
               <p className="text-sm text-muted-foreground text-center">INE Frente</p>
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" className="gap-1">
-                  <Upload className="h-4 w-4" />
-                  Subir
+                <input id="ine-front-input" accept="image/*" type="file" className="hidden" onChange={(e) => handleFileInput(e, 'ineFront')} />
+                <label htmlFor="ine-front-input">
+                  <Button asChild variant="outline" size="sm" className="gap-1">
+                    <span>
+                      <Upload className="h-4 w-4" /> Subir
+                    </span>
+                  </Button>
+                </label>
+                <Button variant="outline" size="sm" className="gap-1" onClick={() => openCamera('ineFront')}>
+                  <Camera className="h-4 w-4" /> Cámara
                 </Button>
-                <Button variant="outline" size="sm" className="gap-1">
-                  <Camera className="h-4 w-4" />
-                  Cámara
-                </Button>
+                {ineFrontPreview && (
+                  <Button variant="destructive" size="sm" className="gap-1" onClick={() => removeFile('ineFront')}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                )}
               </div>
             </div>
             <div className="border-2 border-dashed border-border rounded-xl p-6 flex flex-col items-center justify-center gap-3 bg-muted/30 hover:bg-muted/50 transition-colors">
-              <CreditCard className="h-8 w-8 text-muted-foreground" />
+              {ineBackPreview ? (
+                <img src={ineBackPreview} alt="INE Reverso" className="max-h-40 object-contain rounded" />
+              ) : (
+                <CreditCard className="h-8 w-8 text-muted-foreground" />
+              )}
               <p className="text-sm text-muted-foreground text-center">INE Reverso</p>
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" className="gap-1">
-                  <Upload className="h-4 w-4" />
-                  Subir
+                <input id="ine-back-input" accept="image/*" type="file" className="hidden" onChange={(e) => handleFileInput(e, 'ineBack')} />
+                <label htmlFor="ine-back-input">
+                  <Button asChild variant="outline" size="sm" className="gap-1">
+                    <span>
+                      <Upload className="h-4 w-4" /> Subir
+                    </span>
+                  </Button>
+                </label>
+                <Button variant="outline" size="sm" className="gap-1" onClick={() => openCamera('ineBack')}>
+                  <Camera className="h-4 w-4" /> Cámara
                 </Button>
-                <Button variant="outline" size="sm" className="gap-1">
-                  <Camera className="h-4 w-4" />
-                  Cámara
-                </Button>
+                {ineBackPreview && (
+                  <Button variant="destructive" size="sm" className="gap-1" onClick={() => removeFile('ineBack')}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                )}
               </div>
             </div>
           </div>
@@ -615,13 +1032,31 @@ const LoanProcess = () => {
             />
           </div>
           <div className="border-2 border-dashed border-border rounded-xl p-6 flex flex-col items-center justify-center gap-3 bg-muted/30 hover:bg-muted/50 transition-colors">
-            <FileText className="h-8 w-8 text-muted-foreground" />
-            <p className="text-sm text-muted-foreground text-center">Adjuntar CURP (PDF)</p>
-            <Button variant="outline" size="sm" className="gap-2">
-              <Upload className="h-4 w-4" />
-              Subir PDF
-            </Button>
-            <p className="text-xs text-muted-foreground">Solo formato PDF</p>
+            {curpPreview ? (
+              <img src={curpPreview} alt="CURP" className="max-h-40 object-contain rounded" />
+            ) : (
+              <FileText className="h-8 w-8 text-muted-foreground" />
+            )}
+            <p className="text-sm text-muted-foreground text-center">Adjuntar CURP (PDF o imagen)</p>
+            <div className="flex gap-2">
+              <input id="curp-input" accept="application/pdf,image/*" type="file" className="hidden" onChange={(e) => handleFileInput(e, 'curp')} />
+              <label htmlFor="curp-input">
+                <Button asChild variant="outline" size="sm" className="gap-2">
+                  <span>
+                    <Upload className="h-4 w-4" /> Subir
+                  </span>
+                </Button>
+              </label>
+              <Button variant="outline" size="sm" className="gap-2" onClick={() => openCamera('curp')}>
+                <Camera className="h-4 w-4" /> Cámara
+              </Button>
+                {curpPreview && (
+                  <Button variant="destructive" size="sm" className="gap-2" onClick={() => removeFile('curp')}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                )}
+            </div>
+            <p className="text-xs text-muted-foreground">Puedes subir PDF o tomar una foto</p>
           </div>
         </CardContent>
       </Card>
@@ -662,7 +1097,7 @@ const LoanProcess = () => {
         ) : (
           <div className="text-center space-y-4">
             <FileCheck className="h-16 w-16 text-primary mx-auto" />
-            <p className="text-lg">Haz clic en "Siguiente" para iniciar el análisis</p>
+            <p className="text-lg">Haz clic en "Siguiente" para iniciar</p>
           </div>
         )}
       </CardContent>
@@ -742,24 +1177,24 @@ const LoanProcess = () => {
   const renderStepContent = () => {
     switch (currentStep) {
       case 1:
-        return <StepConfirm />;
+        return StepConfirm();
       case 2:
-        return <StepMembership />;
+        return StepMembership();
       case 3:
-        return <StepValidation />;
+        return StepValidation();
       case 4:
-        return <StepApproval />;
+        return StepApproval();
       case 5:
-        return <StepContract />;
+        return StepContract();
       case 6:
-        return <StepDisbursement />;
+        return StepDisbursement();
       default:
         return null;
     }
   };
 
   const getNextButtonText = () => {
-    if (currentStep === 4 && !isApproved) return "Iniciar Análisis";
+    if (currentStep === 4 && !isApproved) return "Iniciar";
     if (currentStep === 5) return "Ya he firmado el contrato";
     if (currentStep === 6) return "Ir al Dashboard";
     return "Siguiente";
@@ -792,6 +1227,24 @@ const LoanProcess = () => {
             <div className="mt-6">
               {renderStepContent()}
             </div>
+
+            {/* Camera modal for capture (local only) */}
+            {isCameraOpen && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+                <div className="bg-card p-4 rounded-lg w-full max-w-2xl">
+                  <div className="relative">
+                    <video ref={videoRef} className="w-full rounded" playsInline />
+                    <canvas ref={canvasRef} className="hidden" />
+                  </div>
+                  <div className="flex justify-between mt-3">
+                    <Button variant="ghost" onClick={() => { stopCamera(); setIsCameraOpen(false); }}>Cancelar</Button>
+                    <div className="flex gap-2">
+                      <Button onClick={takePhoto}>Tomar foto</Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Navigation Buttons */}
             <div className="flex justify-between mt-6 gap-4">

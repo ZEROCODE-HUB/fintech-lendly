@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,7 +12,7 @@ import { Eye, CheckCircle, XCircle, CheckCircle2, Edit, MoreHorizontal, Send, Fi
 import { useToast } from "@/hooks/use-toast";
 
 import { ColumnConfig, PendingLoan, ContractLoan, DisbursementLoan, OverdueLoan } from "@/types/loans";
-import { pendingLoans, contractLoans, disbursementLoans, activeLoans, overdueLoans, historyLoans } from "@/data/loansMockData";
+import { supabase } from "@/lib/supabase";
 import { LoanTableFilters } from "@/components/admin/loans/LoanTableFilters";
 import { INECURPModal } from "@/components/admin/loans/modals/INECURPModal";
 import { ModifyLoanModal } from "@/components/admin/loans/modals/ModifyLoanModal";
@@ -110,6 +110,74 @@ const defaultHistoryColumns: ColumnConfig[] = [
 const LoanManagement = () => {
   const { toast } = useToast();
 
+  // Real data from Supabase
+  const [pendingLoansData, setPendingLoansData] = useState<any[]>([]);
+  const [contractLoansData, setContractLoansData] = useState<any[]>([]);
+  const [disbursementLoansData, setDisbursementLoansData] = useState<any[]>([]);
+  const [activeLoansData, setActiveLoansData] = useState<any[]>([]);
+  const [overdueLoansData, setOverdueLoansData] = useState<any[]>([]);
+  const [historyLoansData, setHistoryLoansData] = useState<any[]>([]);
+
+  // Load loans from Supabase and categorize by status
+  const loadLoans = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('loans')
+        .select('*, users(first_name,last_name,ine_key,curp,phone), loan_signatures(*), loan_disbursements(*)')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      if (!data) return;
+
+      const mapped = (data as any[]).map((l) => {
+        const user = l.users ?? {};
+        const latestSignature = Array.isArray(l.loan_signatures) && l.loan_signatures.length ? l.loan_signatures[0] : null;
+        const latestDisbursement = Array.isArray(l.loan_disbursements) && l.loan_disbursements.length ? l.loan_disbursements[0] : null;
+
+        const rawMembership = l.metadata?.membership;
+        const membershipVal = typeof rawMembership === 'string'
+          ? rawMembership
+          : (rawMembership && typeof rawMembership === 'object'
+            ? (rawMembership.name ?? rawMembership.title ?? String(rawMembership.membership_plan_id ?? ''))
+            : '');
+
+        return {
+          id: l.id,
+          user_id: l.user_id,
+          firstName: user.first_name ?? '',
+          lastName: user.last_name ?? '',
+          requestDate: l.applied_at ? new Date(l.applied_at).toISOString().slice(0,10) : (l.created_at ? new Date(l.created_at).toISOString().slice(0,10) : ''),
+          amount: l.amount,
+          installments: l.installments,
+          membership: membershipVal,
+          ineNumber: user.ine_key ?? l.metadata?.ine_key ?? '',
+          curpNumber: user.curp ?? l.metadata?.curp ?? '',
+          preApproval: l.metadata?.pre_approval ?? (l.status === 'pending' ? 'En Revisión' : 'Aprobado'),
+          isAccountVerified: l.metadata?.account_verified === true,
+          signatureStatus: latestSignature ? 'Firmado' : (l.status === 'signed' ? 'Firmado' : 'Espera'),
+          contractStatus: l.status,
+          disbursementStatus: latestDisbursement ? 'Desembolsado' : (l.status === 'disbursed' ? 'Desembolsado' : 'Pendiente'),
+          bank: latestDisbursement?.destination_account?.bank ?? l.metadata?.bank ?? '',
+          accountNumber: latestDisbursement?.destination_account?.clabe ?? l.metadata?.clabe ?? '',
+          raw: l,
+        };
+      });
+
+      setPendingLoansData(mapped.filter(m => m.raw.status === 'pending' || m.raw.status === 'under_review'));
+      setContractLoansData(mapped.filter(m => m.raw.status === 'approved' || m.raw.status === 'signed'));
+      setDisbursementLoansData(mapped.filter(m => m.raw.status === 'signed' || m.raw.status === 'disbursed'));
+      setActiveLoansData(mapped.filter(m => m.raw.status === 'active'));
+      setOverdueLoansData(mapped.filter(m => m.raw.status === 'active' && (m.raw.metadata?.overdue === true)));
+      setHistoryLoansData(mapped.filter(m => m.raw.status === 'closed' || m.raw.status === 'cancelled'));
+    } catch (err) {
+      console.error('Error loading loans', err);
+      toast({ title: 'Error', description: 'No se pudieron cargar las solicitudes desde Supabase.' });
+    }
+  };
+
+  // load once
+  useEffect(() => { loadLoans(); }, []);
+
   // Filter states for each tab
   const [pendingSearch, setPendingSearch] = useState('');
   const [pendingSort, setPendingSort] = useState('date-desc');
@@ -153,6 +221,44 @@ const LoanManagement = () => {
 
   const exportToExcel = () => {
     toast({ title: "Exportando...", description: "El archivo Excel se descargará en breve." });
+  };
+
+  const handleApproveLoan = async () => {
+    const loan = approveDialog.loan;
+    if (!loan) return;
+    try {
+      const { error } = await supabase
+        .from('loans')
+        .update({ status: 'approved', approved_at: new Date().toISOString() })
+        .eq('id', loan.id);
+
+      if (error) throw error;
+      toast({ title: 'Aprobado', description: `La solicitud ${loan.id} pasó a estado Aprobado (firma pendiente).` });
+      setApproveDialog({ open: false, loan: null });
+      await loadLoans();
+    } catch (err) {
+      console.error('Error aprobando solicitud', err);
+      toast({ title: 'Error', description: 'No se pudo aprobar la solicitud.' });
+    }
+  };
+
+  const handleRejectLoan = async () => {
+    const loan = rejectDialog.loan;
+    if (!loan) return;
+    try {
+      const { error } = await supabase
+        .from('loans')
+        .update({ status: 'cancelled', cancelled_at: new Date().toISOString() })
+        .eq('id', loan.id);
+
+      if (error) throw error;
+      toast({ title: 'Rechazado', description: `La solicitud ${loan.id} ha sido rechazada.`, variant: 'destructive' });
+      setRejectDialog({ open: false, loan: null });
+      await loadLoans();
+    } catch (err) {
+      console.error('Error rechazando solicitud', err);
+      toast({ title: 'Error', description: 'No se pudo rechazar la solicitud.' });
+    }
   };
 
   const getSignatureStatusBadge = (status: string) => {
@@ -243,7 +349,7 @@ const LoanManagement = () => {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {pendingLoans.filter(l => 
+                          {pendingLoansData.filter(l => 
                             l.firstName.toLowerCase().includes(pendingSearch.toLowerCase()) ||
                             l.lastName.toLowerCase().includes(pendingSearch.toLowerCase())
                           ).map((loan) => (
@@ -345,7 +451,7 @@ const LoanManagement = () => {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {contractLoans.filter(l => 
+                          {contractLoansData.filter(l => 
                             l.firstName.toLowerCase().includes(contractSearch.toLowerCase()) ||
                             l.lastName.toLowerCase().includes(contractSearch.toLowerCase())
                           ).map((loan) => (
@@ -428,7 +534,7 @@ const LoanManagement = () => {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {disbursementLoans.filter(l => 
+                          {disbursementLoansData.filter(l => 
                             l.firstName.toLowerCase().includes(disbursementSearch.toLowerCase()) ||
                             l.lastName.toLowerCase().includes(disbursementSearch.toLowerCase())
                           ).map((loan) => (
@@ -509,7 +615,7 @@ const LoanManagement = () => {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {activeLoans.filter(l => 
+                          {activeLoansData.filter(l => 
                             l.firstName.toLowerCase().includes(activeSearch.toLowerCase()) ||
                             l.lastName.toLowerCase().includes(activeSearch.toLowerCase())
                           ).map((loan) => (
@@ -569,7 +675,7 @@ const LoanManagement = () => {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {overdueLoans.filter(l => 
+                          {overdueLoansData.filter(l => 
                             l.firstName.toLowerCase().includes(overdueSearch.toLowerCase()) ||
                             l.lastName.toLowerCase().includes(overdueSearch.toLowerCase())
                           ).map((loan) => (
@@ -653,7 +759,7 @@ const LoanManagement = () => {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {historyLoans.filter(l => 
+                          {historyLoansData.filter(l => 
                             l.firstName.toLowerCase().includes(historySearch.toLowerCase()) ||
                             l.lastName.toLowerCase().includes(historySearch.toLowerCase())
                           ).map((loan) => (
@@ -707,7 +813,7 @@ const LoanManagement = () => {
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Cancelar</AlertDialogCancel>
-              <AlertDialogAction onClick={() => toast({ title: "Aprobado", description: "La solicitud ha sido aprobada." })}>
+              <AlertDialogAction onClick={() => handleApproveLoan()}>
                 Aprobar
               </AlertDialogAction>
             </AlertDialogFooter>
@@ -724,7 +830,7 @@ const LoanManagement = () => {
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Cancelar</AlertDialogCancel>
-              <AlertDialogAction className="bg-danger hover:bg-danger/90" onClick={() => toast({ title: "Rechazado", description: "La solicitud ha sido rechazada.", variant: "destructive" })}>
+              <AlertDialogAction className="bg-danger hover:bg-danger/90" onClick={() => handleRejectLoan()}>
                 Rechazar
               </AlertDialogAction>
             </AlertDialogFooter>

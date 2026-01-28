@@ -28,9 +28,12 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { defaultMemberships } from "@/data/memberships";
+import { supabase } from "@/lib/supabase";
+import { authService } from "@/utils/auth";
 
 interface LocationState {
-  membershipId: string;
+  membershipId?: string;
+  membership?: any;
   returnTo?: string;
 }
 
@@ -39,53 +42,78 @@ const MembershipCheckout = () => {
   const location = useLocation();
   const { toast } = useToast();
   
-  const state = location.state as LocationState | null;
-  const membershipId = state?.membershipId || "premier";
+  const state = (location.state || {}) as LocationState;
+  const membershipId = state?.membershipId;
   const returnTo = state?.returnTo || "/memberships";
-  
-  const membership = defaultMemberships.find(m => m.id === membershipId) || defaultMemberships[0];
+
+  // Prefer membership object passed via navigation state, otherwise fall back to lookup by id
+  const membership = (state?.membership as any)
+    || (membershipId ? defaultMemberships.find((m) => m.id === membershipId) : null)
+    || defaultMemberships[0];
   
   const [couponCode, setCouponCode] = useState("");
-  const [couponApplied, setCouponApplied] = useState(false);
-  const [discount, setDiscount] = useState(0);
+  const [appliedCoupon, setAppliedCoupon] = useState<any | null>(null);
+  const [discountPercent, setDiscountPercent] = useState<number | null>(null);
+  const [discountFixedAmount, setDiscountFixedAmount] = useState<number>(0);
   const [requestInvoice, setRequestInvoice] = useState(false);
   const [rfc, setRfc] = useState("");
   const [fiscalAddress, setFiscalAddress] = useState("");
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [termsModalOpen, setTermsModalOpen] = useState(false);
 
-  const originalPrice = membership.cost;
-  const discountAmount = couponApplied ? (originalPrice * discount / 100) : 0;
-  const finalTotal = originalPrice - discountAmount;
+  const originalPrice = Number(membership?.cost ?? membership?.price ?? 0) || 0;
+  // compute discount preview (either percent or fixed amount)
+  const discountAmount = appliedCoupon ? (discountPercent ? Math.round((originalPrice * discountPercent) / 100) : discountFixedAmount) : 0;
+  const finalTotal = Math.max(0, originalPrice - discountAmount);
 
-  const handleApplyCoupon = () => {
-    if (couponCode.toLowerCase() === "descuento10") {
-      setDiscount(10);
-      setCouponApplied(true);
-      toast({
-        title: "¡Cupón aplicado!",
-        description: "Se aplicó un descuento del 10%",
-      });
-    } else if (couponCode.toLowerCase() === "descuento20") {
-      setDiscount(20);
-      setCouponApplied(true);
-      toast({
-        title: "¡Cupón aplicado!",
-        description: "Se aplicó un descuento del 20%",
-      });
-    } else {
-      toast({
-        title: "Cupón inválido",
-        description: "El código ingresado no es válido",
-        variant: "destructive",
-      });
+  const handleApplyCoupon = async () => {
+    const code = couponCode?.toUpperCase().trim();
+    if (!code) return;
+    try {
+      const { data: coupon, error } = await supabase
+        .from('coupons')
+        .select('*')
+        .eq('code', code)
+        .maybeSingle();
+      if (error) throw error;
+      if (!coupon) {
+        return toast({ title: 'Cupón inválido', description: 'El código ingresado no es válido', variant: 'destructive' });
+      }
+
+      // Basic validations (do NOT consume/redce usage here)
+      if (!coupon.active) return toast({ title: 'Cupón inactivo', description: 'Este cupón no está activo', variant: 'destructive' });
+      const now = new Date();
+      if (coupon.starts_at && new Date(coupon.starts_at) > now) return toast({ title: 'No disponible aún', description: 'El cupón aún no está activo', variant: 'destructive' });
+      if (coupon.ends_at && new Date(coupon.ends_at) < now) return toast({ title: 'Expirado', description: 'El cupón ya expiró', variant: 'destructive' });
+      if (coupon.max_redemptions !== null && coupon.redeemed_count !== null && coupon.redeemed_count >= coupon.max_redemptions) {
+        return toast({ title: 'Cupon agotado', description: 'El cupón alcanzó su límite de usos', variant: 'destructive' });
+      }
+
+      // Set applied coupon locally (do not update DB yet)
+      setAppliedCoupon(coupon);
+      if (coupon.discount_percent !== null && coupon.discount_percent !== undefined) {
+        setDiscountPercent(Number(coupon.discount_percent));
+        setDiscountFixedAmount(0);
+      } else if (coupon.discount_amount !== null && coupon.discount_amount !== undefined) {
+        setDiscountPercent(null);
+        setDiscountFixedAmount(Number(coupon.discount_amount));
+      } else {
+        setDiscountPercent(null);
+        setDiscountFixedAmount(0);
+      }
+
+      toast({ title: '¡Cupón aplicado!', description: coupon.discount_percent ? `-${coupon.discount_percent}%` : `-$${coupon.discount_amount}` });
+    } catch (err) {
+      console.error('[MembershipCheckout] apply coupon', err);
+      toast({ title: 'Error', description: 'Error al validar el cupón', variant: 'destructive' });
     }
   };
 
   const handleRemoveCoupon = () => {
     setCouponCode("");
-    setCouponApplied(false);
-    setDiscount(0);
+    setAppliedCoupon(null);
+    setDiscountPercent(null);
+    setDiscountFixedAmount(0);
   };
 
   const handleProceedToPayment = () => {
@@ -107,23 +135,137 @@ const MembershipCheckout = () => {
       return;
     }
 
-    toast({
-      title: "Procesando pago...",
-      description: "Serás redirigido al procesador de pagos",
-    });
+    // create invoice row (pending) with metadata pointing to membership plan
+    (async () => {
+      try {
+        const currentUser = authService.getCurrentUser();
+        if (!currentUser?.id) throw new Error('Usuario no autenticado');
 
-    setTimeout(() => {
-      toast({
-        title: "¡Membresía adquirida!",
-        description: `Has adquirido ${membership.title} exitosamente`,
-      });
-      
-      if (returnTo === "/loan-process") {
-        navigate("/loan-process", { state: { membershipAcquired: true } });
-      } else {
-        navigate("/memberships");
+        const invoicePayload: any = {
+          user_id: currentUser.id,
+          coupon_id: appliedCoupon?.id ?? null,
+          amount: originalPrice,
+          discount_amount: discountAmount,
+          currency: 'MXN',
+          status: 'pending',
+          metadata: { membership_plan_id: membership.id },
+        };
+        if (requestInvoice) {
+          invoicePayload.rfc = rfc || null;
+          invoicePayload.fiscal_address = fiscalAddress || null;
+        }
+
+        const { data: invoice, error: insertErr } = await supabase.from('invoices').insert([invoicePayload]).select().maybeSingle();
+        if (insertErr || !invoice) {
+          console.error('[MembershipCheckout] create invoice', insertErr);
+          toast({ title: 'Error', description: 'No fue posible crear la factura', variant: 'destructive' });
+          return;
+        }
+
+        toast({ title: 'Procesando pago...', description: 'Redirigiendo al procesador de pagos' });
+        // simulate external payment flow (replace with real provider integration)
+        setTimeout(async () => {
+          try {
+            const currentUser = authService.getCurrentUser();
+            if (!currentUser?.id) throw new Error('Usuario no autenticado');
+
+            // If coupon applied, attempt conditional consume
+            if (appliedCoupon) {
+              // fetch latest coupon row
+              const { data: latest, error: fetchErr } = await supabase.from('coupons').select('*').eq('id', appliedCoupon.id).maybeSingle();
+              if (fetchErr) throw fetchErr;
+              if (!latest) {
+                await supabase.from('invoices').update({ status: 'failed' }).eq('id', invoice.id);
+                toast({ title: 'Error', description: 'Cupón no encontrado', variant: 'destructive' });
+                return;
+              }
+
+              if (latest.max_redemptions !== null && (latest.redeemed_count || 0) >= latest.max_redemptions) {
+                await supabase.from('invoices').update({ status: 'failed' }).eq('id', invoice.id);
+                toast({ title: 'Cupón agotado', description: 'El cupón ya no tiene usos disponibles', variant: 'destructive' });
+                return;
+              }
+
+              if (latest.max_redemptions !== null) {
+                // conditional update to reduce race window
+                const { data: updated, error: updErr } = await supabase.from('coupons')
+                  .update({ redeemed_count: (latest.redeemed_count || 0) + 1 })
+                  .eq('id', appliedCoupon.id)
+                  .lt('redeemed_count', latest.max_redemptions)
+                  .select();
+                if (updErr) throw updErr;
+                if (!updated || (Array.isArray(updated) && updated.length === 0)) {
+                  await supabase.from('invoices').update({ status: 'failed' }).eq('id', invoice.id);
+                  toast({ title: 'Cupon agotado', description: 'El cupón ya no tiene usos disponibles', variant: 'destructive' });
+                  return;
+                }
+              } else {
+                const { error: updErr } = await supabase.from('coupons')
+                  .update({ redeemed_count: (latest.redeemed_count || 0) + 1 })
+                  .eq('id', appliedCoupon.id);
+                if (updErr) throw updErr;
+              }
+
+              // record redemption
+              const { error: redeemErr } = await supabase.from('coupon_redemptions').insert([{ coupon_id: appliedCoupon.id, user_id: currentUser.id, invoice_id: invoice.id }]);
+              if (redeemErr) {
+                // try to rollback decrement
+                await supabase.from('coupons').update({ redeemed_count: (appliedCoupon.redeemed_count || 0) }).eq('id', appliedCoupon.id);
+                await supabase.from('invoices').update({ status: 'failed' }).eq('id', invoice.id);
+                toast({ title: 'Error', description: 'No fue posible registrar el uso del cupón', variant: 'destructive' });
+                return;
+              }
+            }
+
+            // Create user_membership
+            const { data: plan } = await supabase.from('membership_plans').select('*').eq('id', membership.id).maybeSingle();
+            if (plan) {
+              const duration_days = plan.duration_days ?? 30;
+              const started_at = new Date().toISOString();
+              const expires_at = new Date(Date.now() + duration_days * 24 * 60 * 60 * 1000).toISOString();
+              const { data: um, error: umErr } = await supabase.from('user_memberships').insert([{
+                user_id: currentUser.id,
+                membership_plan_id: plan.id,
+                status: 'active',
+                started_at,
+                expires_at,
+                auto_renew: false,
+                metadata: {}
+              }]).select().maybeSingle();
+              if (umErr) {
+                // attempt rollback of coupon redemption if we created it
+                try { await supabase.from('coupon_redemptions').delete().eq('invoice_id', invoice.id); } catch (e) {}
+                try { await supabase.from('coupons').update({ redeemed_count: (appliedCoupon?.redeemed_count || 0) }).eq('id', appliedCoupon?.id); } catch (e) {}
+                await supabase.from('invoices').update({ status: 'failed' }).eq('id', invoice.id);
+                toast({ title: 'Error', description: 'No fue posible crear la membresía', variant: 'destructive' });
+                return;
+              }
+
+              // attach membership id to invoice
+              await supabase.from('invoices').update({ user_membership_id: um.id }).eq('id', invoice.id);
+            }
+
+            // mark invoice paid
+            const { error: payErr } = await supabase.from('invoices').update({ status: 'paid', payment_provider: 'test', provider_payment_id: Math.random().toString(36).slice(2,10) }).eq('id', invoice.id);
+            if (payErr) {
+              await supabase.from('invoices').update({ status: 'failed' }).eq('id', invoice.id);
+              throw payErr;
+            }
+
+            toast({ title: '¡Membresía adquirida!', description: `Has adquirido ${membership.name ?? membership.title ?? ''} exitosamente` });
+            if (returnTo === '/loan-process') navigate('/loan-process', { state: { membershipAcquired: true } });
+            else navigate('/memberships');
+          } catch (err) {
+            console.error('[MembershipCheckout] finalize flow (client)', err);
+            toast({ title: 'Error', description: 'Ocurrió un error finalizando el pago', variant: 'destructive' });
+            try { await supabase.from('invoices').update({ status: 'failed' }).eq('id', invoice.id); } catch (e) {}
+          }
+        }, 1500);
+      } catch (err) {
+        console.error('[MembershipCheckout] proceed', err);
+        toast({ title: 'Error', description: 'No fue posible iniciar el pago', variant: 'destructive' });
       }
-    }, 1500);
+    })();
   };
 
   const handleBack = () => {
@@ -172,8 +314,8 @@ const MembershipCheckout = () => {
                       <Crown className="h-7 w-7 text-white" />
                     </div>
                     <div>
-                      <h3 className="font-bold text-lg">{membership.title}</h3>
-                      <p className="text-sm text-muted-foreground">Renovación {membership.renewalPeriod}</p>
+                      <h3 className="font-bold text-lg">{membership.name ?? membership.title}</h3>
+                      <p className="text-sm text-muted-foreground">Renovación {membership.renewalPeriod ?? membership.duration_days ?? ''}</p>
                     </div>
                   </div>
                   <div className="text-right">
@@ -194,13 +336,13 @@ const MembershipCheckout = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {couponApplied ? (
+                {appliedCoupon ? (
                   <div className="flex items-center justify-between p-4 bg-success/10 border border-success/30 rounded-xl">
                     <div className="flex items-center gap-3">
                       <CheckCircle2 className="h-5 w-5 text-success" />
                       <div>
                         <p className="font-medium">Cupón aplicado</p>
-                        <p className="text-sm text-muted-foreground">{discount}% de descuento</p>
+                        <p className="text-sm text-muted-foreground">{discountPercent !== null ? `${discountPercent}% de descuento` : discountFixedAmount ? `-$${discountFixedAmount}` : ''}</p>
                       </div>
                     </div>
                     <Button variant="ghost" size="sm" onClick={handleRemoveCoupon}>
@@ -220,9 +362,7 @@ const MembershipCheckout = () => {
                     </Button>
                   </div>
                 )}
-                <p className="text-xs text-muted-foreground mt-2">
-                  Prueba: "DESCUENTO10" o "DESCUENTO20"
-                </p>
+                
               </CardContent>
             </Card>
 
@@ -324,9 +464,9 @@ const MembershipCheckout = () => {
                     <span>${originalPrice.toLocaleString()} MXN</span>
                   </div>
                   
-                  {couponApplied && (
+                  {appliedCoupon && (
                     <div className="flex justify-between text-success">
-                      <span>Descuento ({discount}%)</span>
+                      <span>{discountPercent !== null ? `Descuento (${discountPercent}%)` : `Descuento`}</span>
                       <span>-${discountAmount.toLocaleString()} MXN</span>
                     </div>
                   )}
@@ -336,7 +476,7 @@ const MembershipCheckout = () => {
                   <div className="flex justify-between items-center">
                     <span className="text-lg font-bold">Total Final</span>
                     <div className="text-right">
-                      {couponApplied && (
+                      {appliedCoupon && (
                         <p className="text-sm text-muted-foreground line-through">
                           ${originalPrice.toLocaleString()} MXN
                         </p>

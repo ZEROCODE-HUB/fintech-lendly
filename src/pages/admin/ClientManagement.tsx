@@ -441,10 +441,27 @@ const ClientManagement = () => {
                         <CardTitle>Base de Datos de Clientes</CardTitle>
                         <CardDescription>Información completa de todos los usuarios registrados</CardDescription>
                       </div>
-                      <Button onClick={() => setAddUserOpen(true)}>
-                        <UserPlus className="h-4 w-4 mr-2" />
-                        Agregar Usuario
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        <Button onClick={() => setAddUserOpen(true)}>
+                          <UserPlus className="h-4 w-4 mr-2" />
+                          Agregar Usuario
+                        </Button>
+                        <Button variant="outline" onClick={async () => {
+                          try {
+                            const { data, error } = await supabase.functions.invoke('create-user', {
+                              body: { email: `test-invoke+${Date.now()}@example.com`, first_name: 'InvokeTest' },
+                            });
+                            console.log('[TestEdge] data:', data, 'error:', error);
+                            if (error) throw error;
+                            alert('Test invoke done - ver consola');
+                          } catch (err) {
+                            console.error('[TestEdge] invoke error', err);
+                            alert('Invoke error: ' + (err?.message || String(err)));
+                          }
+                        }}>
+                          Test Edge
+                        </Button>
+                      </div>
                     </div>
                   </CardHeader>
                   <CardContent>
@@ -831,40 +848,14 @@ const ClientManagement = () => {
         </main>
 
         {/* Client Modals */}
-        <AddUserModal 
-          open={addUserOpen} 
-          onOpenChange={setAddUserOpen} 
+        <AddUserModal
+          open={addUserOpen}
+          onOpenChange={setAddUserOpen}
           onConfirm={async (data) => {
             try {
-              // 1) Crear usuario en auth.users mediante signUp usando un cliente alterno
-              const tempPassword = Math.random().toString(36).slice(-10) + "A1!";
-              const metadata: any = {
-                first_name: data.firstName || '',
-                last_name: data.lastName || '',
-                phone: data.phone || '',
-                address: data.address || '',
-                birth_date: data.birthDate || null,
-                curp: data.curp || '',
-                ine_key: data.ine || '',
-              };
-
-              const { data: signUpData, error: signUpError } = await supabase
-                .auth
-                .signUp(
-                  { email: data.email as string, password: tempPassword },
-                  { data: metadata }
-                );
-
-              if (signUpError || !signUpData?.user) {
-                console.error('[ClientManagement] signUp error', signUpError);
-                throw signUpError || new Error('No se pudo crear el usuario de autenticación');
-              }
-
-              const userId = signUpData.user.id;
-
-              // 2) Asegurar que la fila en public.users tenga todos los campos deseados y rol correcto
               const payload: any = {
                 email: data.email,
+                password: (data as any).password || undefined,
                 first_name: data.firstName,
                 last_name: data.lastName,
                 phone: data.phone,
@@ -875,22 +866,45 @@ const ClientManagement = () => {
                 role: data.role === 'Admin' ? 'admin' : 'client',
               };
 
-              const { data: profileRow, error: profileError } = await supabase
-                .from('users')
-                .upsert({ id: userId, ...payload }, { onConflict: 'id' })
-                .select('id, role, email, first_name, last_name, phone, address, birth_date, curp, ine_key, created_at')
-                .maybeSingle();
+              // Preferir usar supabase.functions.invoke si está disponible
+              let fnResponse: any = null;
+              try {
+                // Ensure the caller is authenticated: supabase.functions.invoke will send the
+                // Authorization header (user access token) automatically only if a session exists.
+                const { data: sessionData } = await supabase.auth.getSession();
+                const session = (sessionData as any)?.session;
+                if (!session) {
+                  throw new Error('Usuario no autenticado. Inicia sesión antes de crear usuarios.');
+                }
 
-              if (profileError) {
-                console.error('[ClientManagement] profile upsert error', profileError);
-                throw profileError;
+                const { data: fnData, error: fnError } = await supabase.functions.invoke('create-user', {
+                  body: payload,
+                });
+
+                if (fnError) {
+                  // Attach more context to the thrown error for easier debugging
+                  const enriched = new Error(`Edge function error: ${fnError.message || String(fnError)}`);
+                  (enriched as any).original = fnError;
+                  throw enriched;
+                }
+
+                fnResponse = fnData;
+              } catch (fnErr) {
+                console.error('[ClientManagement] Edge function error', fnErr);
+                throw fnErr;
               }
 
-              const row = (profileRow as any) || {};
+              if (fnResponse?.error) {
+                throw new Error(fnResponse.error);
+              }
 
-              // 3) Mapear a Client y añadirlo a la lista local (si no viene created_at, usamos la fecha actual)
+              const profileRow = fnResponse.profile || fnResponse.user || (fnResponse.data && fnResponse.data.profile) || {};
+              const userId = profileRow.id || (fnResponse.user && fnResponse.user.id) || '';
+
+              const row: any = profileRow || {};
+
               const newClient: Client = {
-                id: (row.id as string) || userId,
+                id: (row.id as string) || userId || `local-${Date.now()}`,
                 role: (row.role === 'admin' ? 'Admin' : 'Usuario') || (payload.role === 'admin' ? 'Admin' : 'Usuario'),
                 firstName: row.first_name ?? (data.firstName || ''),
                 lastName: row.last_name ?? (data.lastName || ''),
@@ -916,7 +930,7 @@ const ClientManagement = () => {
               console.error('[ClientManagement] Error creating client from admin', err);
               throw err;
             }
-          }} 
+          }}
         />
         <ModifyClientModal 
           open={modifyClientOpen} 

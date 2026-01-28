@@ -182,6 +182,26 @@ All colors MUST be HSL.
     opacity: 0;
   }
 
+  /* Shimmer skeleton for loading states */
+  .skeleton {
+    position: relative;
+    overflow: hidden;
+    background: hsl(var(--muted));
+  }
+
+  .skeleton::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.10) 50%, rgba(255,255,255,0) 100%);
+    animation: shimmer 1.2s ease-in-out infinite;
+  }
+
+  @keyframes shimmer {
+    100% { transform: translateX(100%); }
+  }
+
   /* Justified text for legal and informational content */
   .prose-justified {
     text-align: justify;

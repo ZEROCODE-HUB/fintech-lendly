@@ -23,6 +23,7 @@ import LoanManagement from "./pages/admin/LoanManagement";
 import ClientManagement from "./pages/admin/ClientManagement";
 import SystemConfig from "./pages/admin/SystemConfig";
 import MembershipManagement from "./pages/admin/MembershipManagement";
+import CouponManagement from "./pages/admin/CouponManagement";
 import MyAccount from "./pages/MyAccount";
 import UsuarioNuevoMarketing from "./pages/UsuarioNuevoMarketing";
 import NotFound from "./pages/NotFound";
@@ -64,6 +65,7 @@ const App = () => (
           <Route path="/admin/clients" element={<RequireAuth allowedRoles={["admin"]}><ClientManagement /></RequireAuth>} />
           <Route path="/admin/config" element={<RequireAuth allowedRoles={["admin"]}><SystemConfig /></RequireAuth>} />
           <Route path="/admin/memberships" element={<RequireAuth allowedRoles={["admin"]}><MembershipManagement /></RequireAuth>} />
+          <Route path="/admin/coupons" element={<RequireAuth allowedRoles={["admin"]}><CouponManagement /></RequireAuth>} />
           <Route path="/usuario-nuevo-marketing" element={<UsuarioNuevoMarketing />} />
           <Route path="/aviso-legal" element={<AvisoLegal />} />
           <Route path="/politicas-privacidad" element={<PoliticasPrivacidad />} />

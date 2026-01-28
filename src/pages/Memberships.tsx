@@ -7,22 +7,14 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+// table imports removed (payment history moved/removed)
 import { Crown, Check, Users, Percent, CreditCard, Calendar, RefreshCw } from "lucide-react";
+import { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext } from "@/components/ui/carousel";
 import { useToast } from "@/hooks/use-toast";
 import { 
   defaultMemberships, 
   mockActiveMembership, 
-  mockPaymentHistory,
   UserMembership,
-  PaymentHistory,
   Membership,
 } from "@/data/memberships";
 import { supabase } from "@/lib/supabase";
@@ -38,7 +30,6 @@ const Memberships = () => {
   // Set to mockActiveMembership to test Scenario B, or null for Scenario A
   const [userMembership, setUserMembership] = useState<UserMembership | null>(null);
   const [autoRenewal, setAutoRenewal] = useState(userMembership?.autoRenewal ?? true);
-  const [paymentHistory] = useState<PaymentHistory[]>(mockPaymentHistory);
 
   // Cargar membresías reales desde la base de datos (tabla membership_plans)
   useEffect(() => {
@@ -106,9 +97,47 @@ const Memberships = () => {
     fetchMemberships();
   }, [toast]);
 
-  const handleAcquireMembership = (membershipId: string) => {
+  // Cargar la membresía activa del usuario (si existe)
+  useEffect(() => {
+    const loadUserMembership = async () => {
+      try {
+        const { authService } = await import('@/utils/auth');
+        const user = authService.getCurrentUser();
+        if (!user?.id) return;
+
+        const { data: umRow, error } = await supabase
+          .from('user_memberships')
+          .select('id, membership_plan_id, status, started_at, expires_at, auto_renew')
+          .eq('user_id', user.id)
+          .eq('status', 'active')
+          .order('expires_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (error) throw error;
+        if (!umRow) return;
+
+        setUserMembership({
+          id: umRow.id,
+          membershipId: umRow.membership_plan_id,
+          membershipTitle: '',
+          status: umRow.status ?? 'active',
+          startDate: umRow.started_at ?? new Date().toISOString(),
+          expirationDate: umRow.expires_at ?? new Date().toISOString(),
+          autoRenewal: umRow.auto_renew ?? false,
+        });
+        setAutoRenewal(umRow.auto_renew ?? false);
+      } catch (err) {
+        // ignore: unauthenticated/demo user
+      }
+    };
+
+    loadUserMembership();
+  }, []);
+
+  const handleAcquireMembership = (membership: Membership) => {
     navigate("/membership-checkout", {
-      state: { membershipId, returnTo: "/memberships" }
+      state: { membership, membershipId: membership.id, returnTo: "/memberships" }
     });
   };
 
@@ -170,8 +199,8 @@ const Memberships = () => {
           </header>
 
           <div className="p-6 space-y-6">
-            {/* Scenario A: No active membership - Show available plans */}
-            {!userMembership && (
+            {/* Available plans - always show the carousel */}
+            (
               <>
                 {/* Header */}
                 <div className="text-center py-8">
@@ -182,209 +211,115 @@ const Memberships = () => {
                   </p>
                 </div>
 
-                {/* Membership Cards */}
-                <div className="grid gap-6 md:grid-cols-2 max-w-4xl mx-auto">
-                  {loadingMemberships && (
-                    <>
-                      {[1, 2].map((i) => (
-                        <Card key={i} className="h-full flex flex-col shadow-soft border border-border">
-                          <CardHeader className="text-center pb-3">
-                            <div className="mx-auto mb-3 h-16 w-16 rounded-full bg-muted flex items-center justify-center">
-                              <Skeleton className="h-8 w-8 rounded-full" />
-                            </div>
-                            <Skeleton className="h-5 w-40 mx-auto mb-2" />
-                            <Skeleton className="h-4 w-32 mx-auto" />
-                          </CardHeader>
-                          <CardContent className="flex flex-col flex-grow space-y-3">
-                            <Skeleton className="h-8 w-32 mx-auto" />
-                            <div className="space-y-2 py-4 border-y">
-                              <Skeleton className="h-4 w-40" />
-                              <Skeleton className="h-4 w-36" />
-                            </div>
-                            <div className="space-y-2 flex-grow py-4">
-                              {[1, 2, 3].map((j) => (
-                                <Skeleton key={j} className="h-4 w-full" />
-                              ))}
-                            </div>
-                            <Skeleton className="h-10 w-full" />
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </>
-                  )}
-
-                  {!loadingMemberships && memberships.map((membership) => (
-                    <Card 
-                      key={membership.id} 
-                      className="h-full flex flex-col shadow-soft hover:shadow-elegant transition-all duration-300 hover:-translate-y-2 border border-border"
-                    >
-                      <CardHeader className="text-center pb-3">
-                        <div className="mx-auto mb-3 h-16 w-16 rounded-full bg-gradient-hero flex items-center justify-center">
-                          <Crown className="h-8 w-8 text-white" />
-                        </div>
-                        <CardTitle className="text-2xl">{membership.title}</CardTitle>
-                        <CardDescription className="flex items-center justify-center gap-1">
-                          <Users className="h-3 w-3" />
-                          {membership.targetAudience}
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent className="flex flex-col flex-grow">
-                        {/* Pricing */}
-                        <div className="text-center">
-                          <span className="text-4xl font-bold text-primary">
-                            ${membership.cost.toLocaleString()}
-                          </span>
-                          <span className="text-muted-foreground"> MXN / {membership.renewalPeriod}</span>
-                        </div>
-
-                        {/* Features */}
-                        <div className="space-y-2 py-4 border-y">
-                          <div className="flex items-center gap-2 text-sm">
-                            <Percent className="h-4 w-4 text-primary" />
-                            <span>Tasa preferencial: {membership.interestRate}%</span>
-                          </div>
-                          <div className="flex items-center gap-2 text-sm">
-                            <CreditCard className="h-4 w-4 text-primary" />
-                            <span>Renovación: {membership.renewalPeriod}</span>
-                          </div>
-                        </div>
-
-                        {/* Benefits - grows to fill space */}
-                        <ul className="space-y-2 flex-grow py-4">
-                          {membership.benefits.map((benefit, index) => (
-                            <li key={index} className="flex items-center gap-2 text-sm">
-                              <Check className="h-4 w-4 text-success" />
-                              {benefit}
-                            </li>
-                          ))}
-                        </ul>
-
-                        {/* CTA Button - always at bottom */}
-                        <Button 
-                          className="w-full mt-auto"
-                          size="lg"
-                          onClick={() => handleAcquireMembership(membership.id)}
-                        >
-                          Adquirir Membresía
-                        </Button>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              </>
-            )}
-
-            {/* Scenario B: Has active membership */}
-            {userMembership && (
-              <>
-                {/* My Membership Section */}
-                <div className="max-w-3xl mx-auto">
-                  <h2 className="text-2xl font-bold mb-6">Mi Membresía</h2>
-                  
-                  <Card className="shadow-elegant border-2 border-primary/20 bg-gradient-to-br from-card to-accent/5">
-                    <CardHeader className="pb-4">
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-center gap-4">
-                          <div className="h-16 w-16 rounded-full bg-gradient-hero flex items-center justify-center">
-                            <Crown className="h-8 w-8 text-white" />
-                          </div>
-                          <div>
-                            <CardTitle className="text-2xl">{userMembership.membershipTitle}</CardTitle>
-                            <CardDescription className="flex items-center gap-2 mt-1">
-                              <Calendar className="h-3 w-3" />
-                              Miembro desde {formatDate(userMembership.startDate)}
-                            </CardDescription>
-                          </div>
-                        </div>
-                        {getStatusBadge(userMembership.status)}
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-6">
-                      {/* Membership Details */}
-                      <div className="grid gap-4 md:grid-cols-2">
-                        <div className="p-4 rounded-lg bg-accent/50">
-                          <p className="text-sm text-muted-foreground mb-1">Fecha de Expiración</p>
-                          <p className="font-semibold text-lg">{formatDate(userMembership.expirationDate)}</p>
-                        </div>
-                        <div className="p-4 rounded-lg bg-accent/50">
-                          <p className="text-sm text-muted-foreground mb-1">Estado</p>
-                          <p className="font-semibold text-lg flex items-center gap-2">
-                            {userMembership.status === 'active' ? (
-                              <>
-                                <span className="h-2 w-2 rounded-full bg-success animate-pulse" />
-                                Activo
-                              </>
-                            ) : (
-                              'Vencido'
-                            )}
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Auto Renewal Toggle */}
-                      <div className="flex items-center justify-between p-4 rounded-lg border bg-card">
-                        <div className="flex items-center gap-3">
-                          <RefreshCw className="h-5 w-5 text-primary" />
-                          <div>
-                            <Label htmlFor="auto-renewal" className="font-medium">
-                              Renovación Automática
-                            </Label>
-                            <p className="text-sm text-muted-foreground">
-                              Tu membresía se renovará automáticamente al vencer
-                            </p>
-                          </div>
-                        </div>
-                        <Switch
-                          id="auto-renewal"
-                          checked={autoRenewal}
-                          onCheckedChange={handleAutoRenewalToggle}
-                        />
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-
-                {/* Payment History Section */}
-                <div className="max-w-3xl mx-auto">
-                  <h2 className="text-2xl font-bold mb-6">Historial de Pagos</h2>
-                  
-                  <Card className="shadow-soft">
-                    <CardContent className="pt-6">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Fecha</TableHead>
-                            <TableHead>Concepto</TableHead>
-                            <TableHead className="text-right">Monto</TableHead>
-                            <TableHead className="text-center">Estado</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {paymentHistory.map((payment) => (
-                            <TableRow key={payment.id}>
-                              <TableCell>{formatDate(payment.date)}</TableCell>
-                              <TableCell>{payment.concept}</TableCell>
-                              <TableCell className="text-right font-medium">
-                                ${payment.amount.toLocaleString()} MXN
-                              </TableCell>
-                              <TableCell className="text-center">
-                                {getPaymentStatusBadge(payment.status)}
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                      
-                      {paymentHistory.length === 0 && (
-                        <div className="text-center py-8 text-muted-foreground">
-                          No hay pagos registrados
-                        </div>
+                {/* Membership Cards as Carousel */}
+                <div className="max-w-6xl w-full mx-auto relative px-4">
+                  <Carousel>
+                    <CarouselPrevious />
+                    <CarouselContent className="py-4">
+                      {loadingMemberships && (
+                        [1, 2].map((i) => (
+                          <CarouselItem key={`skeleton-${i}`}>
+                            <Card className="h-full flex flex-col shadow-soft border border-border">
+                              <CardHeader className="text-center pb-3">
+                                <div className="mx-auto mb-3 h-16 w-16 rounded-full bg-muted flex items-center justify-center">
+                                  <Skeleton className="h-8 w-8 rounded-full" />
+                                </div>
+                                <Skeleton className="h-5 w-40 mx-auto mb-2" />
+                                <Skeleton className="h-4 w-32 mx-auto" />
+                              </CardHeader>
+                              <CardContent className="flex flex-col flex-grow space-y-3">
+                                <Skeleton className="h-8 w-32 mx-auto" />
+                                <div className="space-y-2 py-4 border-y">
+                                  <Skeleton className="h-4 w-40" />
+                                  <Skeleton className="h-4 w-36" />
+                                </div>
+                                <div className="space-y-2 flex-grow py-4">
+                                  {[1, 2, 3].map((j) => (
+                                    <Skeleton key={j} className="h-4 w-full" />
+                                  ))}
+                                </div>
+                                <Skeleton className="h-10 w-full" />
+                              </CardContent>
+                            </Card>
+                          </CarouselItem>
+                        ))
                       )}
-                    </CardContent>
-                  </Card>
+
+                      {!loadingMemberships && memberships.map((membership) => (
+                        <CarouselItem key={membership.id}>
+                          <Card 
+                            className={`h-full flex flex-col transition-all duration-300 hover:-translate-y-2 ${userMembership && userMembership.membershipId === membership.id ? 'border-success bg-success/10 shadow-elegant' : 'shadow-soft border border-border hover:shadow-elegant'}`}
+                          >
+                            <CardHeader className="text-center pb-3">
+                              <div className="mx-auto mb-3 h-16 w-16 rounded-full bg-gradient-hero flex items-center justify-center">
+                                <Crown className="h-8 w-8 text-white" />
+                              </div>
+                              <CardTitle className="text-2xl">{membership.title}</CardTitle>
+                              <CardDescription className="flex items-center justify-center gap-1">
+                                <Users className="h-3 w-3" />
+                                {membership.targetAudience}
+                              </CardDescription>
+                              {userMembership && userMembership.membershipId === membership.id && userMembership.expirationDate && (
+                                <div className="mt-2 text-sm text-success text-center">Expira {formatDate(userMembership.expirationDate)}</div>
+                              )}
+                            </CardHeader>
+                            <CardContent className="flex flex-col flex-grow">
+                              {/* Pricing */}
+                              <div className="text-center">
+                                <span className="text-4xl font-bold text-primary">
+                                  ${membership.cost.toLocaleString()}
+                                </span>
+                                <span className="text-muted-foreground"> MXN / {membership.renewalPeriod}</span>
+                              </div>
+
+                              {/* Features */}
+                              <div className="space-y-2 py-4 border-y">
+                                <div className="flex items-center gap-2 text-sm">
+                                  <Percent className="h-4 w-4 text-primary" />
+                                  <span>Tasa preferencial: {membership.interestRate}%</span>
+                                </div>
+                                <div className="flex items-center gap-2 text-sm">
+                                  <CreditCard className="h-4 w-4 text-primary" />
+                                  <span>Renovación: {membership.renewalPeriod}</span>
+                                </div>
+                              </div>
+
+                              {/* Benefits - grows to fill space */}
+                              <ul className="space-y-2 flex-grow py-4">
+                                {membership.benefits.map((benefit, index) => (
+                                  <li key={index} className="flex items-center gap-2 text-sm">
+                                    <Check className="h-4 w-4 text-success" />
+                                    {benefit}
+                                  </li>
+                                ))}
+                              </ul>
+
+                              {/* CTA Button - always at bottom */}
+                              {userMembership && userMembership.membershipId === membership.id ? (
+                                <Button className="w-full mt-auto bg-success text-white" size="lg" disabled>
+                                  Membresía activa
+                                </Button>
+                              ) : (
+                                <Button 
+                                  className="w-full mt-auto"
+                                  size="lg"
+                                  onClick={() => handleAcquireMembership(membership)}
+                                >
+                                  Adquirir Membresía
+                                </Button>
+                              )}
+                            </CardContent>
+                          </Card>
+                        </CarouselItem>
+                      ))}
+                    </CarouselContent>
+                    <CarouselNext />
+                  </Carousel>
                 </div>
               </>
-            )}
+            )
+
+            
           </div>
         </main>
       </div>
