@@ -33,6 +33,8 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { defaultMemberships } from "@/data/memberships";
 import { useToast } from "@/hooks/use-toast";
+import { authService } from "@/utils/auth";
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from '@/lib/supabaseConfig';
 import { supabase } from "@/lib/supabase";
 import { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext } from "@/components/ui/carousel";
 
@@ -360,7 +362,44 @@ const LoanProcess = () => {
         if (!loan) return; // creation failed
       }
 
-      setIsAnalyzing(true);
+        // send SignNow invite immediately when user clicks Iniciar
+        (async () => {
+          try {
+            const user = authService.getCurrentUser();
+            const userEmail = user?.email;
+            if (userEmail) {
+              try {
+                console.log('[loanprocess] calling external signnow endpoint (immediate)', { url: 'https://increscendo-api.vercel.app/signnow-invite', method: 'POST' });
+                try {
+                  const resp = await fetch('https://increscendo-api.vercel.app/signnow-invite', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ recipient_email: userEmail }),
+                  });
+                  console.log('[loanprocess] external signnow response status (immediate)', resp.status);
+                  const data = await resp.json().catch(() => null);
+                  console.log('[loanprocess] external signnow response data (immediate)', data);
+                  if (!resp.ok) throw data || new Error('External function error');
+                  toast({ title: 'Invitación enviada', description: 'Se ha enviado la invitación para firmar el contrato a tu correo.' });
+                  try {
+                    await supabase.from('loans').update({ contract_sent_at: new Date().toISOString(), metadata: Object.assign({}, loan?.metadata || {}, { signnow_invite: data }) }).eq('id', loan.id);
+                  } catch (e) { console.error('[loanprocess] failed to save signnow_invite metadata (immediate)', e); }
+                } catch (e) {
+                  console.error('[loanprocess] external signnow error (immediate)', e);
+                  toast({ title: 'Error', description: 'No se pudo enviar la invitación de firma (external).', variant: 'destructive' });
+                }
+              } catch (e) {
+                console.error('Edge function signnow_invite error (immediate)', e);
+                toast({ title: 'Error', description: 'No se pudo enviar la invitación de firma (Edge Function).', variant: 'destructive' });
+              }
+            }
+          } catch (e) {
+            console.error('SignNow invite error', e);
+            toast({ title: 'Error', description: 'No se pudo enviar la invitación de firma (SignNow).', variant: 'destructive' });
+          }
+        })();
+
+        setIsAnalyzing(true);
 
       const checkStatus = async () => {
         try {
@@ -376,6 +415,46 @@ const LoanProcess = () => {
             // refresh current loan with latest status
             const { data: full, error: fullErr } = await supabase.from('loans').select('*').eq('id', loan.id).maybeSingle();
             if (!fullErr && full) setCurrentLoan(full);
+
+            // send SignNow invite only if it wasn't sent before
+            if (!full?.contract_sent_at && !(full?.metadata && full.metadata.signnow_invite)) {
+              (async () => {
+                try {
+                  const user = authService.getCurrentUser();
+                  const userEmail = user?.email;
+                        if (userEmail) {
+                          try {
+                            console.log('[loanprocess] calling external signnow endpoint (on-approved)', { url: 'https://increscendo-api.vercel.app/signnow-invite', method: 'POST' });
+                            try {
+                              const resp = await fetch('https://increscendo-api.vercel.app/signnow-invite', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ recipient_email: userEmail }),
+                              });
+                              console.log('[loanprocess] external signnow response status (on-approved)', resp.status);
+                              const inviteResp = await resp.json().catch(() => null);
+                              console.log('[loanprocess] external signnow response data (on-approved)', inviteResp);
+                              if (!resp.ok) throw inviteResp || new Error('External function error');
+                              toast({ title: 'Contrato enviado', description: 'Te hemos enviado la invitación para firmar el contrato por correo.' });
+                              try {
+                                await supabase.from('loans').update({ contract_sent_at: new Date().toISOString(), metadata: Object.assign({}, full?.metadata || {}, { signnow_invite: inviteResp }) }).eq('id', loan.id);
+                              } catch (e) { console.error('[loanprocess] failed to save signnow_invite metadata (on-approved)', e); }
+                            } catch (e) {
+                              console.error('[loanprocess] external signnow error (on-approved)', e);
+                              toast({ title: 'Error', description: 'No se pudo enviar la invitación de firma (external).', variant: 'destructive' });
+                            }
+                          } catch (e) {
+                            console.error('Edge function signnow_invite error (on-approved)', e);
+                            toast({ title: 'Error', description: 'No se pudo enviar la invitación de firma (Edge Function).', variant: 'destructive' });
+                          }
+                        }
+                } catch (e) {
+                  console.error('SignNow invite error', e);
+                  toast({ title: 'Error', description: 'No se pudo enviar la invitación de firma (SignNow).', variant: 'destructive' });
+                }
+              })();
+            }
+
             if (pollIntervalRef.current) {
               clearInterval(pollIntervalRef.current);
               pollIntervalRef.current = null;

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ChevronDown } from "lucide-react";
+import * as XLSX from 'xlsx';
 import { PendingLoan } from "@/types/loans";
 
 interface ModifyLoanModalProps {
@@ -25,45 +26,67 @@ export const ModifyLoanModal = ({ open, onOpenChange, loan, onSend }: ModifyLoan
 
   useEffect(() => {
     if (loan) {
-      setAmount(loan.amount);
-      setInstallments(loan.installments);
-      setRate(18);
+      setAmount(loan.amount ?? loan.raw?.amount ?? 0);
+      setInstallments(loan.installments ?? loan.raw?.installments ?? 12);
+      setRate(loan.raw?.interest_rate ?? loan.interest_rate ?? loan.metadata?.interest_rate ?? 18);
       setMessage('');
     }
   }, [loan]);
 
-  const calculateSchedule = () => {
-    const monthlyRate = rate / 100 / 12;
-    const monthlyPayment = (amount * monthlyRate * Math.pow(1 + monthlyRate, installments)) / 
-                          (Math.pow(1 + monthlyRate, installments) - 1);
-    
-    const schedule = [];
-    let balance = amount;
-    
-    for (let i = 1; i <= installments; i++) {
-      const interestPayment = balance * monthlyRate;
-      const principalPayment = monthlyPayment - interestPayment;
-      balance -= principalPayment;
-      
-      const paymentDate = new Date();
-      paymentDate.setMonth(paymentDate.getMonth() + i);
-      
+  const calculateSchedule = useMemo(() => {
+    if (!loan) return [];
+
+    const l = loan.raw ?? loan;
+    const P = Number(l.amount ?? amount ?? 0);
+    const n = Number(l.installments ?? installments ?? 12);
+    const annualRate = Number(l.interest_rate ?? rate ?? l.metadata?.interest_rate ?? 0);
+    const monthlyRate = annualRate / 100 / 12;
+
+    let monthlyPayment = 0;
+    if (monthlyRate === 0) monthlyPayment = P / n;
+    else monthlyPayment = P * (monthlyRate) / (1 - Math.pow(1 + monthlyRate, -n));
+    monthlyPayment = Math.round(monthlyPayment);
+
+    const schedule: any[] = [];
+    let remaining = P;
+
+    const paidAmount = Number(l.metadata?.paid_amount ?? 0);
+    const approvedDate = l.approved_at ? new Date(l.approved_at) : (l.applied_at ? new Date(l.applied_at) : (l.created_at ? new Date(l.created_at) : new Date()));
+
+    const paidInstallments = monthlyPayment > 0 ? Math.floor(paidAmount / monthlyPayment) : 0;
+
+    for (let i = 1; i <= n; i++) {
+      const due = new Date(approvedDate);
+      due.setMonth(due.getMonth() + i);
+
+      const interestRaw = remaining * monthlyRate;
+      const interest = Math.round(interestRaw);
+      let principal = Math.round(monthlyPayment - interest);
+      if (i === n) principal = remaining;
+      const total = principal + interest;
+      const balanceAfter = Math.max(0, remaining - principal);
+
+      const status = i <= paidInstallments ? 'paid' : 'pending';
+
       schedule.push({
         number: i,
-        date: paymentDate.toLocaleDateString('es-MX'),
-        payment: monthlyPayment,
-        principal: principalPayment,
-        interest: interestPayment,
-        balance: Math.max(0, balance)
+        date: `${due.getDate().toString().padStart(2,'0')}/${(due.getMonth()+1).toString().padStart(2,'0')}/${due.getFullYear()}`,
+        payment: total,
+        principal,
+        interest,
+        balance: balanceAfter,
+        status,
       });
-    }
-    
-    return schedule;
-  };
 
-  const schedule = calculateSchedule();
+      remaining = balanceAfter;
+    }
+
+    return schedule;
+  }, [loan, amount, installments, rate]);
+
+  const schedule = calculateSchedule;
   const monthlyPayment = schedule[0]?.payment || 0;
-  const totalPayment = monthlyPayment * installments;
+  const totalPayment = monthlyPayment * (installments || schedule.length);
 
   const handleSend = () => {
     onSend({ amount, installments, rate, message });
@@ -127,12 +150,26 @@ export const ModifyLoanModal = ({ open, onOpenChange, loan, onSend }: ModifyLoan
           <Collapsible open={showSchedule} onOpenChange={setShowSchedule}>
             <CollapsibleTrigger asChild>
               <Button variant="outline" className="w-full justify-between">
-                Ver Cronograma de Pagos
+                  Ver Cronograma de Pagos
                 <ChevronDown className={`h-4 w-4 transition-transform ${showSchedule ? 'rotate-180' : ''}`} />
               </Button>
             </CollapsibleTrigger>
             <CollapsibleContent className="mt-4">
-              <div className="border rounded-lg max-h-[300px] overflow-auto">
+                <div className="border rounded-lg max-h-[300px] overflow-auto">
+                  <div className="p-3 flex justify-end">
+                    <Button variant="outline" size="sm" onClick={() => {
+                      if (!schedule || schedule.length === 0) return;
+                      const headers = ['#','Fecha','Pago (MXN)','Capital (MXN)','Interés (MXN)','Saldo (MXN)','Estado'];
+                      const rows = schedule.map((r:any) => [r.number, r.date, r.payment, r.principal, r.interest, r.balance, r.status === 'paid' ? 'Pagado' : 'Pendiente']);
+                      const aoa = [headers, ...rows];
+                      const ws = XLSX.utils.aoa_to_sheet(aoa);
+                      const wb = XLSX.utils.book_new();
+                      XLSX.utils.book_append_sheet(wb, ws, 'Cronograma');
+                      XLSX.writeFile(wb, `cronograma_loan_${loan?.id || 'loan'}.xlsx`);
+                    }}>
+                      Exportar
+                    </Button>
+                  </div>
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -141,20 +178,28 @@ export const ModifyLoanModal = ({ open, onOpenChange, loan, onSend }: ModifyLoan
                       <TableHead>Pago</TableHead>
                       <TableHead>Capital</TableHead>
                       <TableHead>Interés</TableHead>
-                      <TableHead>Saldo</TableHead>
+                        <TableHead>Saldo</TableHead>
+                        <TableHead>Estado</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {schedule.map((row) => (
-                      <TableRow key={row.number}>
-                        <TableCell>{row.number}</TableCell>
-                        <TableCell>{row.date}</TableCell>
-                        <TableCell>${row.payment.toFixed(2)}</TableCell>
-                        <TableCell>${row.principal.toFixed(2)}</TableCell>
-                        <TableCell>${row.interest.toFixed(2)}</TableCell>
-                        <TableCell>${row.balance.toFixed(2)}</TableCell>
-                      </TableRow>
-                    ))}
+                      {schedule.map((row) => (
+                        <TableRow key={row.number}>
+                          <TableCell>{row.number}</TableCell>
+                          <TableCell>{row.date}</TableCell>
+                          <TableCell>${row.payment.toLocaleString(undefined, {maximumFractionDigits:0})}</TableCell>
+                          <TableCell>${row.principal.toLocaleString(undefined, {maximumFractionDigits:0})}</TableCell>
+                          <TableCell>${row.interest.toLocaleString(undefined, {maximumFractionDigits:0})}</TableCell>
+                          <TableCell>${row.balance.toLocaleString(undefined, {maximumFractionDigits:0})}</TableCell>
+                          <TableCell>
+                            {row.status === 'paid' ? (
+                              <span className="text-success">Pagado</span>
+                            ) : (
+                              <span className="text-muted-foreground">Pendiente</span>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
                   </TableBody>
                 </Table>
               </div>

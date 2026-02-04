@@ -8,11 +8,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Eye, CheckCircle, XCircle, CheckCircle2, Edit, MoreHorizontal, Send, FileText, DollarSign, Bell, TrendingDown, RefreshCw } from "lucide-react";
+import { Eye, CheckCircle, XCircle, CheckCircle2, Edit, MoreHorizontal, Send, FileText, DollarSign, Bell, TrendingDown, RefreshCw, Calendar } from "lucide-react";
+import PaymentScheduleModal from '@/components/admin/loans/modals/PaymentScheduleModal';
 import { useToast } from "@/hooks/use-toast";
 
 import { ColumnConfig, PendingLoan, ContractLoan, DisbursementLoan, OverdueLoan } from "@/types/loans";
 import { supabase } from "@/lib/supabase";
+import { authService } from '@/utils/auth';
 import { LoanTableFilters } from "@/components/admin/loans/LoanTableFilters";
 import { INECURPModal } from "@/components/admin/loans/modals/INECURPModal";
 import { ModifyLoanModal } from "@/components/admin/loans/modals/ModifyLoanModal";
@@ -78,6 +80,7 @@ const defaultActiveColumns: ColumnConfig[] = [
   { key: 'ine', label: 'INE', visible: true },
   { key: 'lastPaymentDate', label: 'F. Últ. Pago', visible: true },
   { key: 'status', label: 'Estado', visible: true },
+  { key: 'actions', label: 'Acciones', visible: true },
 ];
 
 const defaultOverdueColumns: ColumnConfig[] = [
@@ -141,6 +144,45 @@ const LoanManagement = () => {
             ? (rawMembership.name ?? rawMembership.title ?? String(rawMembership.membership_plan_id ?? ''))
             : '');
 
+        // derive payment-related fields
+        const paidAmount = Number(l.metadata?.paid_amount ?? 0);
+        const amt = Number(l.amount ?? 0);
+        const term = Number(l.installments ?? l.metadata?.installments ?? 12);
+        const installmentAmount = term > 0 ? Math.round(amt / term) : amt;
+        const paidInstallments = installmentAmount > 0 ? Math.floor(paidAmount / installmentAmount) : 0;
+        const lastPaymentDate = l.metadata?.last_payment_date ? (new Date(l.metadata.last_payment_date)).toISOString().slice(0,10) : '';
+
+        // friendly status: Al día / Atrasado / Liquidado (basic heuristics)
+        let friendlyStatus = '';
+        if (l.status === 'closed') friendlyStatus = 'Liquidado';
+        else if (l.status === 'active') {
+          if (l.metadata?.overdue === true) friendlyStatus = 'Atrasado';
+          else friendlyStatus = 'Al día';
+        } else {
+          friendlyStatus = l.status ?? '';
+        }
+
+        // compute next payment date and overdue flag
+        const approvedDateForNext = l.approved_at ? new Date(l.approved_at) : (l.applied_at ? new Date(l.applied_at) : (l.created_at ? new Date(l.created_at) : null));
+        let nextPaymentDate = '';
+        if (l.metadata?.next_payment_date) {
+          try { nextPaymentDate = new Date(l.metadata.next_payment_date).toISOString().slice(0,10); } catch { nextPaymentDate = ''; }
+        } else if (approvedDateForNext) {
+          const termCount = Number(l.installments ?? l.metadata?.installments ?? 12);
+          const amtVal = Number(l.amount ?? 0);
+          const installmentAmount = termCount > 0 ? Math.round(amtVal / termCount) : amtVal;
+          const paidAmt = Number(l.metadata?.paid_amount ?? 0);
+          const paidInst = installmentAmount > 0 ? Math.floor(paidAmt / installmentAmount) : 0;
+          const nextInst = paidInst + 1;
+          const d = new Date(approvedDateForNext);
+          d.setMonth(d.getMonth() + nextInst);
+          nextPaymentDate = d.toISOString().slice(0,10);
+        }
+
+        const now = new Date();
+        const totalAmount = Number(l.amount ?? 0);
+        const overdueFlag = (l.status === 'active') && nextPaymentDate && (new Date(nextPaymentDate) < now) && (paidAmount < totalAmount);
+
         return {
           id: l.id,
           user_id: l.user_id,
@@ -149,6 +191,7 @@ const LoanManagement = () => {
           requestDate: l.applied_at ? new Date(l.applied_at).toISOString().slice(0,10) : (l.created_at ? new Date(l.created_at).toISOString().slice(0,10) : ''),
           amount: l.amount,
           installments: l.installments,
+          paidInstallments,
           membership: membershipVal,
           ineNumber: user.ine_key ?? l.metadata?.ine_key ?? '',
           curpNumber: user.curp ?? l.metadata?.curp ?? '',
@@ -159,6 +202,10 @@ const LoanManagement = () => {
           disbursementStatus: latestDisbursement ? 'Desembolsado' : (l.status === 'disbursed' ? 'Desembolsado' : 'Pendiente'),
           bank: latestDisbursement?.destination_account?.bank ?? l.metadata?.bank ?? '',
           accountNumber: latestDisbursement?.destination_account?.clabe ?? l.metadata?.clabe ?? '',
+          lastPaymentDate,
+          nextPaymentDate,
+          overdue: overdueFlag,
+          status: friendlyStatus,
           raw: l,
         };
       });
@@ -166,8 +213,8 @@ const LoanManagement = () => {
       setPendingLoansData(mapped.filter(m => m.raw.status === 'pending' || m.raw.status === 'under_review'));
       setContractLoansData(mapped.filter(m => m.raw.status === 'approved' || m.raw.status === 'signed'));
       setDisbursementLoansData(mapped.filter(m => m.raw.status === 'signed' || m.raw.status === 'disbursed'));
-      setActiveLoansData(mapped.filter(m => m.raw.status === 'active'));
-      setOverdueLoansData(mapped.filter(m => m.raw.status === 'active' && (m.raw.metadata?.overdue === true)));
+      setActiveLoansData(mapped.filter(m => m.raw.status === 'active' && !m.overdue));
+      setOverdueLoansData(mapped.filter(m => m.raw.status === 'active' && m.overdue));
       setHistoryLoansData(mapped.filter(m => m.raw.status === 'closed' || m.raw.status === 'cancelled'));
     } catch (err) {
       console.error('Error loading loans', err);
@@ -218,6 +265,7 @@ const LoanManagement = () => {
   const [reminderModal, setReminderModal] = useState<{ open: boolean; loan: OverdueLoan | null }>({ open: false, loan: null });
   const [sellPortfolioModal, setSellPortfolioModal] = useState<{ open: boolean; loan: OverdueLoan | null }>({ open: false, loan: null });
   const [updateInstallmentsModal, setUpdateInstallmentsModal] = useState<{ open: boolean; loan: OverdueLoan | null }>({ open: false, loan: null });
+  const [scheduleModal, setScheduleModal] = useState<{ open: boolean; loan: any | null }>({ open: false, loan: null });
 
   const exportToExcel = () => {
     toast({ title: "Exportando...", description: "El archivo Excel se descargará en breve." });
@@ -258,6 +306,63 @@ const LoanManagement = () => {
     } catch (err) {
       console.error('Error rechazando solicitud', err);
       toast({ title: 'Error', description: 'No se pudo rechazar la solicitud.' });
+    }
+  };
+
+  const handleConfirmDisbursement = async (file: File | null) => {
+    const loan = confirmDisbursementModal.loan;
+    if (!loan) return;
+    try {
+      toast({ title: 'Procesando', description: 'Confirmando desembolso...' });
+
+      let publicUrl: string | null = null;
+      if (file) {
+        const userId = loan.user_id || 'unknown';
+        const ext = file.name.split('.').pop() || 'pdf';
+        const objectName = `voucher-${loan.id}-${Date.now()}.${ext}`;
+        const path = `${userId}/${objectName}`;
+
+        const { error: uploadError } = await supabase.storage.from('documents').upload(path, file, { upsert: true });
+        if (uploadError) throw uploadError;
+
+        const { data: publicData } = await supabase.storage.from('documents').getPublicUrl(path);
+        publicUrl = (publicData as any)?.publicUrl ?? null;
+      }
+
+      // insert loan_disbursement record
+      const disbursementPayload: any = {
+        loan_id: loan.id,
+        amount: loan.amount,
+        destination_account: { bank: loan.bank, clabe: loan.accountNumber },
+      };
+      const { error: disbErr } = await supabase.from('loan_disbursements').insert([disbursementPayload]);
+      if (disbErr) throw disbErr;
+
+      // insert loan_documents if we uploaded a file
+      if (publicUrl) {
+        const uploader = authService.getCurrentUser();
+        const docPayload = {
+          loan_id: loan.id,
+          type: 'voucher',
+          uploader_id: uploader?.id ?? null,
+          file_url: publicUrl,
+          file_name: file?.name ?? null,
+          mime_type: file?.type ?? null,
+        };
+        const { error: docErr } = await supabase.from('loan_documents').insert([docPayload]);
+        if (docErr) console.warn('Failed to insert loan_documents', docErr);
+      }
+
+      // update loan status to active and set disbursed_at
+      const { error: loanErr } = await supabase.from('loans').update({ status: 'active', disbursed_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq('id', loan.id);
+      if (loanErr) throw loanErr;
+
+      toast({ title: 'Desembolso confirmado', description: 'El préstamo se marcó como activo y el voucher fue subido.' });
+      setConfirmDisbursementModal({ open: false, loan: null });
+      await loadLoans();
+    } catch (err) {
+      console.error('Error confirmando desembolso', err);
+      toast({ title: 'Error', description: 'No se pudo confirmar el desembolso.', variant: 'destructive' });
     }
   };
 
@@ -612,6 +717,7 @@ const LoanManagement = () => {
                             {isColumnVisible(activeColumns, 'ine') && <TableHead>INE</TableHead>}
                             {isColumnVisible(activeColumns, 'lastPaymentDate') && <TableHead>F. Últ. Pago</TableHead>}
                             {isColumnVisible(activeColumns, 'status') && <TableHead>Estado</TableHead>}
+                            {isColumnVisible(activeColumns, 'actions') && <TableHead>Acciones</TableHead>}
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -630,6 +736,35 @@ const LoanManagement = () => {
                               {isColumnVisible(activeColumns, 'ine') && <TableCell>{loan.ineNumber.slice(0, 10)}...</TableCell>}
                               {isColumnVisible(activeColumns, 'lastPaymentDate') && <TableCell>{loan.lastPaymentDate}</TableCell>}
                               {isColumnVisible(activeColumns, 'status') && <TableCell>{getStatusBadge(loan.status)}</TableCell>}
+                              {isColumnVisible(activeColumns, 'actions') && (
+                                <TableCell>
+                                  <div className="flex gap-1">
+                                    <Button size="sm" variant="ghost" onClick={() => setModifyModal({ open: true, loan })} title="Ver/Editar">
+                                      <Eye className="h-4 w-4" />
+                                    </Button>
+                                    <Button size="sm" variant="ghost" onClick={() => setScheduleModal({ open: true, loan })} title="Ver Cronograma">
+                                      <Calendar className="h-4 w-4" />
+                                    </Button>
+                                    <DropdownMenu>
+                                      <DropdownMenuTrigger asChild>
+                                        <Button size="sm" variant="ghost">
+                                          <MoreHorizontal className="h-4 w-4" />
+                                        </Button>
+                                      </DropdownMenuTrigger>
+                                      <DropdownMenuContent align="end">
+                                        <DropdownMenuItem onClick={() => setReminderModal({ open: true, loan })}>
+                                          <Bell className="h-4 w-4 mr-2" />
+                                          Enviar recordatorio
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => setUpdateInstallmentsModal({ open: true, loan })}>
+                                          <RefreshCw className="h-4 w-4 mr-2" />
+                                          Actualizar cuotas
+                                        </DropdownMenuItem>
+                                      </DropdownMenuContent>
+                                    </DropdownMenu>
+                                  </div>
+                                </TableCell>
+                              )}
                             </TableRow>
                           ))}
                         </TableBody>
@@ -863,7 +998,7 @@ const LoanManagement = () => {
           open={confirmDisbursementModal.open}
           onOpenChange={(open) => setConfirmDisbursementModal(prev => ({ ...prev, open }))}
           loan={confirmDisbursementModal.loan}
-          onConfirm={() => toast({ title: "Desembolso confirmado", description: "El desembolso ha sido registrado exitosamente." })}
+          onConfirm={(file) => handleConfirmDisbursement(file)}
         />
 
         <SendReminderModal
@@ -885,6 +1020,11 @@ const LoanManagement = () => {
           onOpenChange={(open) => setUpdateInstallmentsModal(prev => ({ ...prev, open }))}
           loan={updateInstallmentsModal.loan}
           onConfirm={() => toast({ title: "Cuotas actualizadas", description: "Las cuotas han sido actualizadas correctamente." })}
+        />
+        <PaymentScheduleModal
+          open={scheduleModal.open}
+          onOpenChange={(open) => setScheduleModal(prev => ({ ...prev, open }))}
+          loan={scheduleModal.loan}
         />
       </div>
     </SidebarProvider>

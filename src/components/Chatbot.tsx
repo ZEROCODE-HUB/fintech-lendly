@@ -4,6 +4,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { MessageCircle, X, Send } from "lucide-react";
 
+// WARNING: Embedding API keys in frontend code is insecure and exposes your key publicly.
+// Only do this for local testing and never commit real keys to version control.
+const INSECURE_OPENAI_KEY = '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';
+
 interface Message {
   id: string;
   text: string;
@@ -23,30 +27,78 @@ export const Chatbot = () => {
   ]);
   const [inputValue, setInputValue] = useState('');
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!inputValue.trim()) return;
+
+    const messageText = inputValue;
 
     const userMessage: Message = {
       id: Date.now().toString(),
-      text: inputValue,
+      text: messageText,
       sender: 'user',
       timestamp: new Date()
     };
 
+    // append user message and clear input
     setMessages(prev => [...prev, userMessage]);
     setInputValue('');
 
-    // Simulate bot response
-    setTimeout(() => {
-      const botResponse = getBotResponse(inputValue);
-      const botMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        text: botResponse,
-        sender: 'bot',
-        timestamp: new Date()
-      };
-      setMessages(prev => [...prev, botMessage]);
-    }, 1000);
+    // add a temporary typing indicator
+    const typingId = `typing-${Date.now()}`;
+    setMessages(prev => [...prev, { id: typingId, text: 'Escribiendo...', sender: 'bot', timestamp: new Date() }]);
+
+    try {
+      // Prefer the embedded insecure key for direct calls, fallback to VITE_OPENAI_KEY.
+      const envClientKey = (import.meta as any)?.env?.VITE_OPENAI_KEY;
+      const clientKey = INSECURE_OPENAI_KEY || envClientKey;
+      if (!clientKey) {
+        console.warn('[Chatbot] No OpenAI key available, using local fallback');
+        setMessages(prev => prev.filter(m => m.id !== typingId));
+        const botResponse = getBotResponse(messageText);
+        setMessages(prev => [...prev, { id: (Date.now() + 1).toString(), text: botResponse, sender: 'bot', timestamp: new Date() }]);
+        return;
+      }
+
+      const r = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${clientKey}`
+        },
+        body: JSON.stringify({
+          model: (import.meta as any).env.VITE_OPENAI_MODEL || 'gpt-3.5-turbo',
+          messages: [
+            { role: 'system', content: 'Eres un asistente virtual amable y breve para una fintech en español.' },
+            { role: 'user', content: messageText }
+          ],
+          max_tokens: 500,
+          temperature: 0.2
+        })
+      });
+
+      if (!r.ok) {
+        const errText = await r.text().catch(() => '[no body]');
+        console.error('[Chatbot] direct OpenAI call failed', r.status, errText);
+        setMessages(prev => prev.filter(m => m.id !== typingId));
+        const botResponse = getBotResponse(messageText);
+        setMessages(prev => [...prev, { id: (Date.now() + 1).toString(), text: botResponse, sender: 'bot', timestamp: new Date() }]);
+        return;
+      }
+
+      const data = await r.json().catch((e) => {
+        console.error('[Chatbot] invalid JSON from OpenAI', e);
+        return null;
+      });
+      console.debug('[Chatbot] OpenAI response', data);
+      const reply = data?.choices?.[0]?.message?.content ?? getBotResponse(messageText);
+      setMessages(prev => prev.filter(m => m.id !== typingId));
+      setMessages(prev => [...prev, { id: (Date.now() + 2).toString(), text: reply, sender: 'bot', timestamp: new Date() }]);
+    } catch (err) {
+      console.error('[Chatbot] unexpected error', err);
+      setMessages(prev => prev.filter(m => m.id !== typingId));
+      const botResponse = getBotResponse(messageText);
+      setMessages(prev => [...prev, { id: (Date.now() + 3).toString(), text: botResponse, sender: 'bot', timestamp: new Date() }]);
+    }
   };
 
   const getBotResponse = (input: string): string => {
