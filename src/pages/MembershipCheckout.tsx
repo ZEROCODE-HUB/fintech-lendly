@@ -84,7 +84,8 @@ const MembershipCheckout = () => {
       if (!coupon.active) return toast({ title: 'Cupón inactivo', description: 'Este cupón no está activo', variant: 'destructive' });
       const now = new Date();
       if (coupon.starts_at && new Date(coupon.starts_at) > now) return toast({ title: 'No disponible aún', description: 'El cupón aún no está activo', variant: 'destructive' });
-      if (coupon.ends_at && new Date(coupon.ends_at) < now) return toast({ title: 'Expirado', description: 'El cupón ya expiró', variant: 'destructive' });
+      // treat ends_at <= now as expired
+      if (coupon.ends_at && new Date(coupon.ends_at) <= now) return toast({ title: 'Expirado', description: 'El cupón ya expiró', variant: 'destructive' });
       if (coupon.max_redemptions !== null && coupon.redeemed_count !== null && coupon.redeemed_count >= coupon.max_redemptions) {
         return toast({ title: 'Cupon agotado', description: 'El cupón alcanzó su límite de usos', variant: 'destructive' });
       }
@@ -209,8 +210,8 @@ const MembershipCheckout = () => {
               // record redemption
               const { error: redeemErr } = await supabase.from('coupon_redemptions').insert([{ coupon_id: appliedCoupon.id, user_id: currentUser.id, invoice_id: invoice.id }]);
               if (redeemErr) {
-                // try to rollback decrement
-                await supabase.from('coupons').update({ redeemed_count: (appliedCoupon.redeemed_count || 0) }).eq('id', appliedCoupon.id);
+                // try to rollback decrement to the latest known value
+                await supabase.from('coupons').update({ redeemed_count: (latest.redeemed_count || 0) }).eq('id', appliedCoupon.id);
                 await supabase.from('invoices').update({ status: 'failed' }).eq('id', invoice.id);
                 toast({ title: 'Error', description: 'No fue posible registrar el uso del cupón', variant: 'destructive' });
                 return;

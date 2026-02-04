@@ -8,11 +8,17 @@ import { DollarSign, TrendingUp, CreditCard, AlertCircle, ArrowRight, Clock, Arr
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { LoanOnboardingModal } from "@/components/LoanOnboardingModal";
+import { supabase } from '@/lib/supabase';
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const [showLoanOnboarding, setShowLoanOnboarding] = useState(false);
   const [clientName, setClientName] = useState<string>("Usuario");
+  const [isLoading, setIsLoading] = useState(false);
+  const [activeCount, setActiveCount] = useState(0);
+  const [overdueCount, setOverdueCount] = useState(0);
+  const [totalOutstanding, setTotalOutstanding] = useState(0);
+  const [nextPaymentInfo, setNextPaymentInfo] = useState<{date: string; amount: number; loanId?: string} | null>(null);
   
   // Cargar nombre del usuario logueado desde el perfil local
   useEffect(() => {
@@ -22,17 +28,72 @@ const Dashboard = () => {
         const u = JSON.parse(stored);
         if (u?.name) {
           setClientName(u.name);
-          return;
-        }
-        if (u?.email) {
+        } else if (u?.email) {
           setClientName(u.email);
-          return;
         }
       }
     } catch (e) {
       console.warn('[Dashboard] failed to parse increscendo_user', e);
     }
-    setClientName('Usuario');
+    // load admin metrics
+    (async () => {
+      setIsLoading(true);
+      try {
+        const { data: loans } = await supabase.from('loans').select('id,amount,status,approved_at,applied_at,created_at,installments,metadata');
+        if (!loans) return;
+
+        const now = new Date();
+        let aCount = 0;
+        let oCount = 0;
+        let totalOut = 0;
+        let nextDue: {date: Date; amount: number; loanId?: string} | null = null;
+
+        for (const l of loans as any[]) {
+          const status = l.status;
+          const paid = Number(l.metadata?.paid_amount ?? 0);
+          const amt = Number(l.amount ?? 0);
+          const installments = Number(l.installments ?? l.metadata?.installments ?? 12);
+
+          // compute next payment date
+          let nextDate: Date | null = null;
+          if (l.metadata?.next_payment_date) {
+            try { nextDate = new Date(l.metadata.next_payment_date); } catch { nextDate = null; }
+          } else {
+            const approved = l.approved_at ? new Date(l.approved_at) : (l.applied_at ? new Date(l.applied_at) : (l.created_at ? new Date(l.created_at) : null));
+            if (approved) {
+              const installmentAmount = installments > 0 ? Math.round(amt / installments) : amt;
+              const paidInst = installmentAmount > 0 ? Math.floor(paid / installmentAmount) : 0;
+              const nextInst = paidInst + 1;
+              const d = new Date(approved);
+              d.setMonth(d.getMonth() + nextInst);
+              nextDate = d;
+            }
+          }
+
+          if (status === 'active') {
+            aCount += 1;
+            const remaining = Math.max(0, amt - paid);
+            totalOut += remaining;
+            const isOverdue = nextDate && nextDate < now && paid < amt;
+            if (isOverdue) oCount += 1;
+
+            if (nextDate) {
+              const installmentAmount = installments > 0 ? Math.round(amt / installments) : amt;
+              if (!nextDue || nextDate < nextDue.date) nextDue = { date: nextDate, amount: installmentAmount, loanId: l.id };
+            }
+          }
+        }
+
+        setActiveCount(aCount);
+        setOverdueCount(oCount);
+        setTotalOutstanding(totalOut);
+        if (nextDue) setNextPaymentInfo({ date: nextDue.date.toISOString().slice(0,10), amount: nextDue.amount, loanId: nextDue.loanId });
+      } catch (e) {
+        console.error('Failed loading dashboard metrics', e);
+      } finally {
+        setIsLoading(false);
+      }
+    })();
   }, []);
   const loanStatus = "Al día"; // Opciones: "Al día", "Cuota Pendiente", "Atrasado"
 
@@ -82,9 +143,9 @@ const Dashboard = () => {
                     <DollarSign className="h-4 w-4 text-muted-foreground" />
                   </div>
                   <div className="mt-2 md:mt-3 space-y-1 md:space-y-2">
-                    <div className="text-xl sm:text-2xl md:text-2xl lg:text-3xl font-bold">$15,000.00</div>
+                    <div className="text-xl sm:text-2xl md:text-2xl lg:text-3xl font-bold">{isLoading ? 'Cargando...' : `${activeCount} préstamos`}</div>
                     <p className="text-[10px] sm:text-xs text-muted-foreground">
-                      Saldo actual de tu préstamo
+                      Préstamos en estado activo
                     </p>
                   </div>
                 </div>
@@ -97,9 +158,9 @@ const Dashboard = () => {
                     <Clock className="h-4 w-4 text-muted-foreground" />
                   </div>
                   <div className="mt-2 md:mt-3 space-y-1 md:space-y-2">
-                    <div className="text-xl sm:text-2xl md:text-2xl lg:text-3xl font-bold">$1,450.00</div>
+                    <div className="text-xl sm:text-2xl md:text-2xl lg:text-3xl font-bold">{isLoading ? 'Cargando...' : nextPaymentInfo ? `$${nextPaymentInfo.amount.toLocaleString()}` : '—'}</div>
                     <p className="text-[10px] sm:text-xs text-muted-foreground">
-                      Vence el 15 de Diciembre
+                      {isLoading ? '' : nextPaymentInfo ? `Vence el ${nextPaymentInfo.date}` : 'No hay pagos programados'}
                     </p>
                   </div>
                 </div>
@@ -112,11 +173,9 @@ const Dashboard = () => {
                     <TrendingUp className="h-4 w-4 text-muted-foreground" />
                   </div>
                   <div className="mt-2 md:mt-3 space-y-1 md:space-y-2">
-                    <Badge className={`text-sm sm:text-base md:text-base px-2 sm:px-3 py-0.5 sm:py-1 ${getStatusBadgeVariant(loanStatus)}`}>
-                      {loanStatus}
-                    </Badge>
+                    <div className="text-xl sm:text-2xl md:text-2xl lg:text-3xl font-bold">{isLoading ? 'Cargando...' : `$${totalOutstanding.toLocaleString()}`}</div>
                     <p className="text-[10px] sm:text-xs text-muted-foreground">
-                      Estado de tu préstamo
+                      Total pendiente de préstamos activos
                     </p>
                   </div>
                 </div>

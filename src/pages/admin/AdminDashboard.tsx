@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -27,19 +27,139 @@ import {
   Legend
 } from "recharts";
 
+import { supabase } from "@/lib/supabase";
+
 const AdminDashboard = () => {
   const [membershipDateRange, setMembershipDateRange] = useState("6months");
   const [profitabilityDateRange, setProfitabilityDateRange] = useState("6months");
 
-  // KPI Stats
-  const stats = {
-    totalClients: 245,
-    activeLoans: 128,
-    pendingRequests: 12,
-    totalDisbursed: 2450000,
-    overdueLoans: 8,
-    pendingDisbursement: 185000, // Pendiente + Pendiente de firma
-  };
+  // KPI Stats (real)
+  const [stats, setStats] = useState({
+    totalClients: 0,
+    activeLoans: 0,
+    pendingRequests: 0,
+    totalDisbursed: 0,
+    overdueLoans: 0,
+    pendingDisbursement: 0,
+  });
+
+  const [activeLoanStatusDataDynamic, setActiveLoanStatusDataDynamic] = useState<any[]>([]);
+  const [profitabilityDynamic, setProfitabilityDynamic] = useState<Record<string, any[]>>({ '3months': [], '6months': [], '12months': [] });
+  const [membershipDynamic, setMembershipDynamic] = useState<Record<string, any[]>>({ '3months': [], '6months': [], '12months': [] });
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data: users } = await supabase.from('users').select('id,created_at,metadata');
+        const { data: userMemberships } = await supabase.from('user_memberships').select('user_id,started_at,status,expires_at');
+        const { data: loans } = await supabase.from('loans').select('id,amount,status,approved_at,applied_at,created_at,installments,metadata');
+        const { data: disbursements } = await supabase.from('loan_disbursements').select('amount,created_at');
+        const { data: invoices } = await supabase.from('invoices').select('amount,created_at');
+
+        const totalClients = Array.isArray(users) ? users.length : 0;
+
+        const loansArr = Array.isArray(loans) ? loans : [];
+        const activeLoans = loansArr.filter((l:any) => l.status === 'active').length;
+        const pendingRequests = loansArr.filter((l:any) => ['pending','under_review'].includes(l.status)).length;
+
+        const totalDisbursed = Array.isArray(disbursements) ? disbursements.reduce((s:any, d:any) => s + Number(d.amount || 0), 0) : 0;
+
+        // pending disbursement: sum amounts of loans approved/signed but not disbursed
+        const pendingDisbursement = loansArr.filter((l:any) => ['approved','signed'].includes(l.status)).reduce((s:any,l:any) => s + Number(l.amount||0), 0);
+
+        // overdue calculation: basic heuristic using metadata.next_payment_date or derived schedule
+        const now = new Date();
+        let overdueLoans = 0;
+        const statusCounts = { onday: 0, overdue: 0, urgent: 0, juridico: 0 };
+        for (const l of loansArr) {
+          if (l.status !== 'active') continue;
+          let nextDate: Date | null = null;
+          if (l.metadata?.next_payment_date) {
+            try { nextDate = new Date(l.metadata.next_payment_date); } catch { nextDate = null; }
+          } else {
+            const approved = l.approved_at ? new Date(l.approved_at) : (l.applied_at ? new Date(l.applied_at) : (l.created_at ? new Date(l.created_at) : null));
+            if (approved) {
+              const installments = Number(l.installments ?? l.metadata?.installments ?? 12);
+              const installmentAmount = installments > 0 ? Math.round(Number(l.amount||0) / installments) : Number(l.amount||0);
+              const paid = Number(l.metadata?.paid_amount ?? 0);
+              const paidInst = installmentAmount > 0 ? Math.floor(paid / installmentAmount) : 0;
+              const nextInst = paidInst + 1;
+              const d = new Date(approved);
+              d.setMonth(d.getMonth() + nextInst);
+              nextDate = d;
+            }
+          }
+          const isOverdue = nextDate && nextDate < now && (Number(l.metadata?.paid_amount ?? 0) < Number(l.amount ?? 0));
+          if (isOverdue) {
+            overdueLoans += 1;
+            statusCounts.overdue += 1;
+          } else {
+            statusCounts.onday += 1;
+          }
+        }
+
+        setStats({ totalClients, activeLoans, pendingRequests, totalDisbursed, overdueLoans, pendingDisbursement });
+
+        setActiveLoanStatusDataDynamic([
+          { name: 'Al día', value: statusCounts.onday, color: 'hsl(var(--success))' },
+          { name: 'Atrasado', value: statusCounts.overdue, color: 'hsl(var(--warning))' },
+          { name: 'Urgente', value: statusCounts.urgent, color: 'hsl(var(--danger))' },
+          { name: 'Jurídico', value: statusCounts.juridico, color: 'hsl(142, 50%, 30%)' },
+        ]);
+
+        // membership: compute registered vs memberships (last 12 months, will slice to 3/6/12)
+        try {
+          const monthsForMembership = 12;
+          const nowM = new Date();
+          const labelsM: string[] = [];
+          const registradosSeries: number[] = [];
+          const conMembresiaSeries: number[] = [];
+          for (let i = monthsForMembership - 1; i >= 0; i--) {
+            const d = new Date(nowM.getFullYear(), nowM.getMonth() - i, 1);
+            const label = d.toLocaleString('default', { month: 'short' });
+            labelsM.push(label);
+            const monthStart = new Date(d.getFullYear(), d.getMonth(), 1);
+            const monthEnd = new Date(d.getFullYear(), d.getMonth() + 1, 1);
+
+            const monthRegs = Array.isArray(users) ? users.filter((u:any) => { const dt = new Date(u.created_at); return dt >= monthStart && dt < monthEnd; }) : [];
+            const monthMemb = Array.isArray(userMemberships) ? userMemberships.filter((m:any) => { if (!m.started_at) return false; const dt = new Date(m.started_at); return dt >= monthStart && dt < monthEnd && m.status === 'active'; }) : [];
+            registradosSeries.push(monthRegs.length);
+            conMembresiaSeries.push(monthMemb.length);
+          }
+          const monthsArrM = labelsM.map((m, idx) => ({ month: m, registrados: registradosSeries[idx], conMembresia: conMembresiaSeries[idx] }));
+          setMembershipDynamic({ '12months': monthsArrM, '6months': monthsArrM.slice(-6), '3months': monthsArrM.slice(-3) });
+        } catch (err) {
+          console.warn('membership calc error', err);
+        }
+
+        // profitability: aggregate last 6 months from disbursements and invoices
+        const months = 6;
+        const nowDate = new Date();
+        const labels: string[] = [];
+        const desembolsosSeries: number[] = [];
+        const pagosSeries: number[] = [];
+        for (let i = months - 1; i >= 0; i--) {
+          const d = new Date(nowDate.getFullYear(), nowDate.getMonth() - i, 1);
+          const label = d.toLocaleString('default', { month: 'short' });
+          labels.push(label);
+          const monthStart = new Date(d.getFullYear(), d.getMonth(), 1);
+          const monthEnd = new Date(d.getFullYear(), d.getMonth() + 1, 1);
+
+          const monthDes = Array.isArray(disbursements) ? disbursements.filter((x:any) => { const dt = new Date(x.created_at); return dt >= monthStart && dt < monthEnd; }) : [];
+          const monthPag = Array.isArray(invoices) ? invoices.filter((x:any) => { const dt = new Date(x.created_at); return dt >= monthStart && dt < monthEnd; }) : [];
+          desembolsosSeries.push(monthDes.reduce((s:any,x:any) => s + Number(x.amount||0), 0));
+          pagosSeries.push(monthPag.reduce((s:any,x:any) => s + Number(x.amount||0), 0));
+        }
+
+        // construct profitabilityDynamic structure compatible with existing UI
+        const monthsArr = labels.map((m, idx) => ({ month: m, desembolsos: desembolsosSeries[idx], pagos: pagosSeries[idx] }));
+        setProfitabilityDynamic({ '6months': monthsArr, '3months': monthsArr.slice(-3), '12months': monthsArr.concat([]) });
+
+      } catch (e) {
+        console.error('AdminDashboard load error', e);
+      }
+    })();
+  }, []);
 
   // Membership status data (Usuarios Registrados vs Con Membresía)
   const membershipData = {
@@ -80,7 +200,7 @@ const AdminDashboard = () => {
     { name: "Jurídico", value: 4, color: "hsl(142, 50%, 30%)" },
   ];
 
-  const totalActiveLoans = activeLoanStatusData.reduce((acc, item) => acc + item.value, 0);
+  const totalActiveLoans = (activeLoanStatusDataDynamic.length ? activeLoanStatusDataDynamic : activeLoanStatusData).reduce((acc, item) => acc + item.value, 0);
 
   // Profitability data (Desembolsos vs Pagos de Usuarios)
   const profitabilityData = {
@@ -303,7 +423,7 @@ const AdminDashboard = () => {
                 </CardHeader>
                 <CardContent className="p-2 sm:p-6">
                   <ResponsiveContainer width="100%" height={250} className="sm:h-[300px]">
-                    <LineChart data={membershipData[membershipDateRange as keyof typeof membershipData]}>
+                    <LineChart data={(membershipDynamic[membershipDateRange] && membershipDynamic[membershipDateRange].length) ? membershipDynamic[membershipDateRange] : membershipData[membershipDateRange as keyof typeof membershipData]}>
                       <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                       <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" />
                       <YAxis stroke="hsl(var(--muted-foreground))" />
@@ -340,7 +460,7 @@ const AdminDashboard = () => {
                   <ResponsiveContainer width="100%" height={250} className="sm:h-[300px]">
                     <PieChart>
                       <Pie
-                        data={activeLoanStatusData}
+                        data={activeLoanStatusDataDynamic.length ? activeLoanStatusDataDynamic : activeLoanStatusData}
                         cx="50%"
                         cy="50%"
                         innerRadius={60}
@@ -348,7 +468,7 @@ const AdminDashboard = () => {
                         paddingAngle={2}
                         dataKey="value"
                       >
-                        {activeLoanStatusData.map((entry, index) => (
+                        {(activeLoanStatusDataDynamic.length ? activeLoanStatusDataDynamic : activeLoanStatusData).map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={entry.color} />
                         ))}
                       </Pie>
@@ -388,7 +508,7 @@ const AdminDashboard = () => {
               </CardHeader>
               <CardContent className="p-2 sm:p-6">
                 <ResponsiveContainer width="100%" height={280} className="sm:h-[350px]">
-                  <LineChart data={profitabilityData[profitabilityDateRange as keyof typeof profitabilityData]}>
+                  <LineChart data={(profitabilityDynamic[profitabilityDateRange] && profitabilityDynamic[profitabilityDateRange].length) ? profitabilityDynamic[profitabilityDateRange] : profitabilityData[profitabilityDateRange as keyof typeof profitabilityData]}>
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                     <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" />
                     <YAxis 

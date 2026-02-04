@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { CreditCard, Eye, Calendar, DollarSign, Loader2, Shield } from "lucide-react";
+import * as XLSX from 'xlsx';
 import { Chatbot } from "@/components/Chatbot";
 
 interface Installment {
@@ -18,6 +19,8 @@ interface Installment {
   dueDate: string;
   amount: number;
   status: 'paid' | 'pending';
+  principal?: number;
+  interest?: number;
 }
 
 const MyLoans = () => {
@@ -56,6 +59,15 @@ const MyLoans = () => {
     return generateInstallments(paymentLoan);
   }, [paymentLoan]);
 
+  // KPIs derived from loaded loans
+  const kpis = useMemo(() => {
+    const totalRequested = loansData.reduce((s, l) => s + Number(l.amount || 0), 0);
+    const totalPaid = loansData.reduce((s, l) => s + Number(l.paid || 0), 0);
+    const totalRemaining = loansData.reduce((s, l) => s + Number(l.remaining || 0), 0);
+    const percent = totalRequested > 0 ? (totalPaid / totalRequested) * 100 : 0;
+    return { totalRequested, totalPaid, totalRemaining, percent };
+  }, [loansData]);
+
   const pendingInstallments = useMemo(() => {
     return currentInstallments.filter(inst => inst.status === 'pending');
   }, [currentInstallments]);
@@ -76,6 +88,94 @@ const MyLoans = () => {
       setSelectedInstallments([]);
     }
     setPaymentDialogOpen(true);
+  };
+
+  // Payment schedule for selected loan (amortization)
+  const paymentSchedule = useMemo(() => {
+    if (!selectedLoanId) return [] as Installment[];
+    const loan = loansData.find(l => String(l.id) === String(selectedLoanId));
+    if (!loan) return [] as Installment[];
+
+    const P = Number(loan.amount || 0);
+    const annualRate = Number(loan.rate || 0);
+    const n = Number(loan.term || 12);
+    const paidAmount = Number(loan.paid || 0);
+
+    const monthlyRate = annualRate / 100 / 12;
+    let payment = 0;
+    if (monthlyRate === 0) {
+      payment = P / n;
+    } else {
+      payment = P * (monthlyRate) / (1 - Math.pow(1 + monthlyRate, -n));
+    }
+
+    // Use cents-less integers (pesos). Keep rounding consistent.
+    payment = Math.round(payment);
+
+    const installments: Installment[] = [];
+    let remaining = P;
+    let paidInstallments = 0;
+    if (payment > 0) paidInstallments = Math.floor(paidAmount / payment);
+
+    const approvedDate = loan.approved ? new Date(loan.approved) : new Date();
+
+    for (let i = 1; i <= n; i++) {
+      const due = new Date(approvedDate);
+      due.setMonth(due.getMonth() + i);
+
+      // interest on outstanding
+      const interestRaw = remaining * monthlyRate;
+      const interest = Math.round(interestRaw);
+
+      // principal portion
+      let principal = Math.round(payment - interest);
+      // last installment adjust to clear remaining
+      if (i === n) principal = remaining;
+
+      const total = principal + interest;
+
+      const status = i <= paidInstallments ? 'paid' : 'pending';
+
+      installments.push({
+        number: i,
+        dueDate: `${due.getDate().toString().padStart(2, '0')}/${(due.getMonth() + 1).toString().padStart(2, '0')}/${due.getFullYear()}`,
+        amount: total,
+        principal,
+        interest,
+        status,
+      });
+
+      remaining = Math.max(0, remaining - principal);
+    }
+
+    return installments;
+  }, [selectedLoanId, loansData]);
+
+  const handleExport = () => {
+    if (!selectedLoanId) return;
+    if (!paymentSchedule || paymentSchedule.length === 0) return;
+
+    const loan = loansData.find(l => String(l.id) === String(selectedLoanId));
+    const headers = ['Cuota', 'Fecha', 'Capital (MXN)', 'Interés (MXN)', 'Total (MXN)', 'Estado'];
+
+    const rows = paymentSchedule.map((inst) => [
+      inst.number,
+      inst.dueDate,
+      inst.principal ?? 0,
+      inst.interest ?? 0,
+      inst.amount,
+      inst.status === 'paid' ? 'Pagado' : 'Pendiente',
+    ]);
+
+    const aoa = [headers, ...rows];
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+
+    // try to set header style (xlsx has limited browser styling support)
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Cronograma');
+
+    const filename = `cronograma_loan_${selectedLoanId}.xlsx`;
+    XLSX.writeFile(wb, filename);
   };
 
   const loadLoans = async () => {
@@ -99,20 +199,38 @@ const MyLoans = () => {
 
       const mapped = (data as any[]).map((l) => {
         const amount = Number(l.amount ?? 0);
-        const paid = Number(l.metadata?.paid_amount ?? 0);
-        const remaining = Math.max(0, amount - paid);
-        return {
-          id: l.id,
-          amount,
-          approved: l.approved_at ? new Date(l.approved_at).toISOString().slice(0,10) : (l.applied_at ? new Date(l.applied_at).toISOString().slice(0,10) : ''),
-          rate: Number(l.interest_rate ?? l.metadata?.interest_rate ?? 0),
-          term: l.installments ?? 12,
-          status: l.status ?? 'pending',
-          paid,
-          remaining,
-          nextPayment: l.metadata?.next_payment_date ? new Date(l.metadata.next_payment_date).toISOString().slice(0,10) : '-',
-          raw: l,
-        };
+          const paid = Number(l.metadata?.paid_amount ?? 0);
+          const remaining = Math.max(0, amount - paid);
+
+          const approvedDate = l.approved_at ? new Date(l.approved_at) : (l.applied_at ? new Date(l.applied_at) : null);
+
+          // compute next payment date: prefer metadata.next_payment_date, otherwise derive from approved_at + paid installments
+          let nextPayment = '-';
+          if (l.metadata?.next_payment_date) {
+            try { nextPayment = new Date(l.metadata.next_payment_date).toISOString().slice(0,10); } catch { nextPayment = '-'; }
+          } else if (approvedDate && (l.status === 'active' || l.status === 'approved' || l.status === 'signed')) {
+            const term = l.installments ?? 12;
+            const installmentAmount = term > 0 ? (amount / term) : amount;
+            const paidInstallments = installmentAmount > 0 ? Math.floor(paid / installmentAmount) : 0;
+            const nextInstallmentNumber = paidInstallments + 1;
+            const base = new Date(approvedDate);
+            // next installment due at approved_at + nextInstallmentNumber months
+            base.setMonth(base.getMonth() + nextInstallmentNumber);
+            nextPayment = base.toISOString().slice(0,10);
+          }
+
+          return {
+            id: l.id,
+            amount,
+            approved: approvedDate ? approvedDate.toISOString().slice(0,10) : '',
+            rate: Number(l.interest_rate ?? l.metadata?.interest_rate ?? 0),
+            term: l.installments ?? 12,
+            status: l.status ?? 'pending',
+            paid,
+            remaining,
+            nextPayment,
+            raw: l,
+          };
       });
 
       setLoansData(mapped);
@@ -200,7 +318,7 @@ const MyLoans = () => {
                     <DollarSign className="h-4 w-4 text-primary" />
                   </div>
                   <div className="mt-2 md:mt-3 space-y-1 md:space-y-2">
-                    <div className="text-xl sm:text-2xl md:text-2xl lg:text-3xl font-bold">$30,000</div>
+                    <div className="text-xl sm:text-2xl md:text-2xl lg:text-3xl font-bold">${kpis.totalRequested.toLocaleString()}</div>
                     <p className="text-[10px] sm:text-xs text-muted-foreground">
                       Monto total solicitado
                     </p>
@@ -215,9 +333,9 @@ const MyLoans = () => {
                     <DollarSign className="h-4 w-4 text-success" />
                   </div>
                   <div className="mt-2 md:mt-3 space-y-1 md:space-y-2">
-                    <div className="text-xl sm:text-2xl md:text-2xl lg:text-3xl font-bold">$15,500</div>
+                    <div className="text-xl sm:text-2xl md:text-2xl lg:text-3xl font-bold">${kpis.totalPaid.toLocaleString()}</div>
                     <p className="text-[10px] sm:text-xs text-muted-foreground">
-                      51.67% del total
+                      {kpis.percent.toFixed(2)}% del total
                     </p>
                   </div>
                 </div>
@@ -230,7 +348,7 @@ const MyLoans = () => {
                     <DollarSign className="h-4 w-4 text-danger" />
                   </div>
                   <div className="mt-2 md:mt-3 space-y-1 md:space-y-2">
-                    <div className="text-xl sm:text-2xl md:text-2xl lg:text-3xl font-bold">$14,500</div>
+                    <div className="text-xl sm:text-2xl md:text-2xl lg:text-3xl font-bold">${kpis.totalRemaining.toLocaleString()}</div>
                     <p className="text-[10px] sm:text-xs text-muted-foreground">
                       Por liquidar
                     </p>
@@ -342,7 +460,7 @@ const MyLoans = () => {
                           </option>
                         ))}
                     </select>
-                    <Button variant="outline" size="sm" className="text-xs sm:text-sm">
+                    <Button variant="outline" size="sm" className="text-xs sm:text-sm" onClick={handleExport}>
                       <Calendar className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
                       Exportar
                     </Button>
@@ -363,32 +481,30 @@ const MyLoans = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {Array.from({ length: 6 }).map((_, i) => (
-                      <TableRow key={i}>
-                        <TableCell className="text-xs sm:text-sm whitespace-nowrap">#{i + 1}</TableCell>
-                        <TableCell className="text-xs sm:text-sm whitespace-nowrap">15/{String(i + 5).padStart(2, '0')}/24</TableCell>
-                        <TableCell className="text-xs sm:text-sm whitespace-nowrap hidden sm:table-cell">$800</TableCell>
-                        <TableCell className="text-xs sm:text-sm whitespace-nowrap hidden md:table-cell">$100</TableCell>
-                        <TableCell className="font-semibold text-xs sm:text-sm whitespace-nowrap">$900</TableCell>
-                        <TableCell>
-                          <Badge className="bg-success/20 text-success border-success text-xs">
-                            Pagado
-                          </Badge>
+                    {paymentSchedule.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center text-xs sm:text-sm py-6">
+                          Selecciona un préstamo para ver su cronograma de cuotas.
                         </TableCell>
                       </TableRow>
-                    ))}
-                    {Array.from({ length: 6 }).map((_, i) => (
-                      <TableRow key={i + 6}>
-                        <TableCell className="text-xs sm:text-sm whitespace-nowrap">#{i + 7}</TableCell>
-                        <TableCell className="text-xs sm:text-sm whitespace-nowrap">15/{String(i + 11).padStart(2, '0')}/24</TableCell>
-                        <TableCell className="text-xs sm:text-sm whitespace-nowrap hidden sm:table-cell">$800</TableCell>
-                        <TableCell className="text-xs sm:text-sm whitespace-nowrap hidden md:table-cell">$100</TableCell>
-                        <TableCell className="font-semibold text-xs sm:text-sm whitespace-nowrap">$900</TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className="text-xs">Pendiente</Badge>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    ) : (
+                      paymentSchedule.map((inst) => (
+                        <TableRow key={inst.number}>
+                          <TableCell className="text-xs sm:text-sm whitespace-nowrap">#{inst.number}</TableCell>
+                          <TableCell className="text-xs sm:text-sm whitespace-nowrap">{inst.dueDate}</TableCell>
+                          <TableCell className="text-xs sm:text-sm whitespace-nowrap hidden sm:table-cell">${(inst.principal ?? 0).toLocaleString()}</TableCell>
+                          <TableCell className="text-xs sm:text-sm whitespace-nowrap hidden md:table-cell">${(inst.interest ?? 0).toLocaleString()}</TableCell>
+                          <TableCell className="font-semibold text-xs sm:text-sm whitespace-nowrap">${inst.amount.toLocaleString()}</TableCell>
+                          <TableCell>
+                            {inst.status === 'paid' ? (
+                              <Badge className="bg-success/20 text-success border-success text-xs">Pagado</Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-xs">Pendiente</Badge>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
                   </TableBody>
                 </Table>
                 </div>
@@ -576,24 +692,63 @@ const MyLoans = () => {
               </div>
             ) : (
               <DialogFooter className="p-4 sm:p-6 pt-0">
-                <Button
+                  <Button
                   className="w-full bg-primary hover:bg-primary/90 text-white font-semibold py-6 text-base"
                   disabled={selectedInstallments.length === 0}
-                  onClick={() => {
+                  onClick={async () => {
                     setIsProcessing(true);
-                    // Simulate payment processing
-                    setTimeout(() => {
+                    try {
+                      // determine current user
+                      const { data: userData } = await supabase.auth.getUser();
+                      const userId = userData?.user?.id ?? null;
+
+                      // create invoice record (mark as paid since payment already processed)
+                      const invoicePayload: any = {
+                        user_id: userId,
+                        amount: totalToPay,
+                        currency: 'MXN',
+                        status: 'paid',
+                        metadata: { loan_id: paymentLoan?.id, installments: selectedInstallments },
+                      };
+                      const { data: invoiceData, error: invoiceErr } = await supabase.from('invoices').insert([invoicePayload]).select().maybeSingle();
+                      if (invoiceErr) throw invoiceErr;
+
+                      // fetch latest loan row to avoid races
+                      const loanId = paymentLoan?.id;
+                      const { data: loanRow, error: loanErr } = await supabase.from('loans').select('id, amount, metadata, status').eq('id', loanId).maybeSingle();
+                      if (loanErr) throw loanErr;
+                      if (!loanRow) throw new Error('Loan not found');
+
+                      const currentPaid = Number(loanRow.metadata?.paid_amount ?? 0);
+                      const newPaid = currentPaid + Number(totalToPay || 0);
+                      const updatedMetadata = Object.assign({}, loanRow.metadata || {}, {
+                        paid_amount: newPaid,
+                        last_payment_date: new Date().toISOString(),
+                      });
+
+                      const updates: any = { metadata: updatedMetadata, updated_at: new Date().toISOString() };
+                      if (newPaid >= Number(loanRow.amount || 0)) {
+                        updates.status = 'closed';
+                        updates.closed_at = new Date().toISOString();
+                      } else {
+                        updates.status = 'active';
+                      }
+
+                      const { error: updateLoanErr } = await supabase.from('loans').update(updates).eq('id', loanId);
+                      if (updateLoanErr) throw updateLoanErr;
+
+                      // success: navigate to payment success and reload loans
+                      const folio = invoiceData?.id ?? ("INC-" + Math.random().toString(36).substring(2, 10).toUpperCase());
                       setIsProcessing(false);
                       setPaymentDialogOpen(false);
-                      // Simulate success (90% success rate for demo)
-                      const isSuccess = Math.random() > 0.1;
-                      const folio = "INC-" + Math.random().toString(36).substring(2, 10).toUpperCase();
-                      if (isSuccess) {
-                        navigate(`/payment-success?amount=${totalToPay}&folio=${folio}`);
-                      } else {
-                        navigate(`/payment-error?returnTo=/my-loans`);
-                      }
-                    }, 3000);
+                      await loadLoans();
+                      navigate(`/payment-success?amount=${totalToPay}&folio=${folio}`);
+                    } catch (e) {
+                      console.error('Payment processing error', e);
+                      setIsProcessing(false);
+                      setPaymentDialogOpen(false);
+                      navigate(`/payment-error?returnTo=/my-loans`);
+                    }
                   }}
                 >
                   <CreditCard className="h-5 w-5 mr-2" />

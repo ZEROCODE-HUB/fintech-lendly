@@ -29,7 +29,15 @@ const CouponManagement = () => {
   const [loading, setLoading] = useState(true);
   const [isOpen, setIsOpen] = useState(false);
   const [editing, setEditing] = useState<Coupon | null>(null);
-  const [form, setForm] = useState({ code: "", discount_percent: "", discount_amount: "", max_redemptions: "" });
+  const [form, setForm] = useState({ code: "", discount_percent: "", discount_amount: "", max_redemptions: "", starts_at: "", ends_at: "" });
+
+  const toDatetimeLocal = (iso?: string | null) => {
+    if (!iso) return "";
+    const d = new Date(iso);
+    const offset = d.getTimezoneOffset();
+    const local = new Date(d.getTime() - offset * 60000);
+    return local.toISOString().slice(0, 16);
+  };
 
   useEffect(() => {
     if (!authService.isAdmin()) {
@@ -137,6 +145,16 @@ const CouponManagement = () => {
                       <Label>Máx. usos</Label>
                       <Input value={form.max_redemptions} onChange={(e) => setForm({...form, max_redemptions: e.target.value})} type="number" />
                     </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="grid gap-2">
+                        <Label>Empieza (fecha y hora)</Label>
+                        <Input type="datetime-local" value={form.starts_at} onChange={(e) => setForm({...form, starts_at: e.target.value})} />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label>Expira (fecha y hora)</Label>
+                        <Input type="datetime-local" value={form.ends_at} onChange={(e) => setForm({...form, ends_at: e.target.value})} />
+                      </div>
+                    </div>
                   </div>
                   <DialogFooter>
                     <Button variant="outline" onClick={() => { setIsOpen(false); setEditing(null); }}>Cancelar</Button>
@@ -144,6 +162,12 @@ const CouponManagement = () => {
                       // Validate mutually-exclusive fields
                       if (form.discount_percent && form.discount_amount) {
                         return toast({ title: 'Error', description: 'Usa sólo porcentaje o monto, no ambos', variant: 'destructive' });
+                      }
+                      // validate date range if both provided
+                      if (form.starts_at && form.ends_at) {
+                        const s = new Date(form.starts_at);
+                        const e = new Date(form.ends_at);
+                        if (e <= s) return toast({ title: 'Error', description: 'La fecha de expiración debe ser posterior a la de inicio', variant: 'destructive' });
                       }
                       if (editing) {
                         // update
@@ -155,20 +179,42 @@ const CouponManagement = () => {
                           else payload.discount_amount = null;
                           if (form.max_redemptions) payload.max_redemptions = Number(form.max_redemptions);
                           else payload.max_redemptions = null;
+                          if (form.starts_at) payload.starts_at = new Date(form.starts_at).toISOString();
+                          else payload.starts_at = null;
+                          if (form.ends_at) payload.ends_at = new Date(form.ends_at).toISOString();
+                          else payload.ends_at = null;
                           const { error } = await supabase.from('coupons').update(payload).eq('id', editing.id);
                           if (error) throw error;
                           toast({ title: 'Cupón actualizado' });
                           setIsOpen(false);
                           setEditing(null);
-                          setForm({ code: "", discount_percent: "", discount_amount: "", max_redemptions: "" });
+                          setForm({ code: "", discount_percent: "", discount_amount: "", max_redemptions: "", starts_at: "", ends_at: "" });
                           await fetchCoupons();
                         } catch (err) {
                           console.error('[CouponManagement] update', err);
                           toast({ title: 'Error', description: 'No se pudo actualizar el cupón', variant: 'destructive' });
                         }
-                      } else {
+                      }
+                      else {
                         // create
-                        await handleCreate();
+                        // include date fields when creating
+                        try {
+                          const payload: any = { code: form.code.toUpperCase().trim(), active: true };
+                          if (form.discount_percent) payload.discount_percent = Number(form.discount_percent);
+                          if (form.discount_amount) payload.discount_amount = Number(form.discount_amount);
+                          if (form.max_redemptions) payload.max_redemptions = Number(form.max_redemptions);
+                          if (form.starts_at) payload.starts_at = new Date(form.starts_at).toISOString();
+                          if (form.ends_at) payload.ends_at = new Date(form.ends_at).toISOString();
+                          const { error } = await supabase.from('coupons').insert([payload]);
+                          if (error) throw error;
+                          toast({ title: 'Cupón creado' });
+                          setIsOpen(false);
+                          setForm({ code: "", discount_percent: "", discount_amount: "", max_redemptions: "", starts_at: "", ends_at: "" });
+                          await fetchCoupons();
+                        } catch (err) {
+                          console.error('[CouponManagement] create', err);
+                          toast({ title: 'Error', description: 'No se pudo crear el cupón', variant: 'destructive' });
+                        }
                       }
                     }}>{editing ? 'Guardar Cambios' : 'Crear Cupón'}</Button>
                   </DialogFooter>
@@ -183,6 +229,7 @@ const CouponManagement = () => {
                     <TableHead>Código</TableHead>
                     <TableHead>Descuento</TableHead>
                     <TableHead>Usos</TableHead>
+                    <TableHead>Expira</TableHead>
                     <TableHead>Activo</TableHead>
                     <TableHead>Acciones</TableHead>
                   </TableRow>
@@ -198,12 +245,13 @@ const CouponManagement = () => {
                         <TableCell>{c.code}</TableCell>
                         <TableCell>{c.discount_percent ? `${c.discount_percent}%` : c.discount_amount ? `$${c.discount_amount}` : '-'}</TableCell>
                         <TableCell>{c.max_redemptions ?? '∞'}</TableCell>
+                        <TableCell>{c.ends_at ? new Date(c.ends_at).toLocaleString() : '—'}</TableCell>
                         <TableCell>{c.active ? 'Sí' : 'No'}</TableCell>
                         <TableCell>
                           <div className="flex gap-2">
                             <Button size="icon" onClick={() => {
                               setEditing(c);
-                              setForm({ code: c.code, discount_percent: c.discount_percent ? String(c.discount_percent) : "", discount_amount: c.discount_amount ? String(c.discount_amount) : "", max_redemptions: c.max_redemptions ? String(c.max_redemptions) : "" });
+                              setForm({ code: c.code, discount_percent: c.discount_percent ? String(c.discount_percent) : "", discount_amount: c.discount_amount ? String(c.discount_amount) : "", max_redemptions: c.max_redemptions ? String(c.max_redemptions) : "", starts_at: toDatetimeLocal(c.starts_at), ends_at: toDatetimeLocal(c.ends_at) });
                               setIsOpen(true);
                             }}><Edit className="h-4 w-4" /></Button>
                             <Button variant="destructive" size="icon" onClick={() => handleDelete(c.id)}><Trash2 className="h-4 w-4" /></Button>
