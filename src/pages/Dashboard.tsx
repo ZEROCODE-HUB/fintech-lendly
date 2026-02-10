@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { Chatbot } from "@/components/Chatbot";
+import { AnimatedNumber } from "@/components/AnimatedNumber";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { DollarSign, TrendingUp, CreditCard, AlertCircle, ArrowRight, Clock, ArrowLeft } from "lucide-react";
@@ -9,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { LoanOnboardingModal } from "@/components/LoanOnboardingModal";
 import { supabase } from '@/lib/supabase';
+import { authService } from '@/utils/auth';
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -20,21 +22,39 @@ const Dashboard = () => {
   const [totalOutstanding, setTotalOutstanding] = useState(0);
   const [nextPaymentInfo, setNextPaymentInfo] = useState<{date: string; amount: number; loanId?: string} | null>(null);
   
-  // Cargar nombre del usuario logueado desde el perfil local
+  // Cargar nombre del usuario logueado desde Supabase
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem('increscendo_user');
-      if (stored) {
-        const u = JSON.parse(stored);
-        if (u?.name) {
-          setClientName(u.name);
-        } else if (u?.email) {
-          setClientName(u.email);
+    const loadUserName = async () => {
+      try {
+        const currentUser = authService.getCurrentUser();
+        if (!currentUser?.id) return;
+
+        const { data: userData, error } = await supabase
+          .from('users')
+          .select('first_name, last_name')
+          .eq('id', currentUser.id)
+          .maybeSingle();
+
+        if (error) {
+          console.warn('[Dashboard] failed to fetch user name', error);
+          return;
         }
+
+        if (userData) {
+          const firstName = userData.first_name?.trim() || '';
+          const lastName = userData.last_name?.trim() || '';
+          if (firstName || lastName) {
+            setClientName(`${firstName} ${lastName}`.trim());
+          } else if (currentUser.name) {
+            setClientName(currentUser.name);
+          }
+        }
+      } catch (e) {
+        console.warn('[Dashboard] failed to load user name', e);
       }
-    } catch (e) {
-      console.warn('[Dashboard] failed to parse increscendo_user', e);
-    }
+    };
+
+    loadUserName();
     // load admin metrics
     (async () => {
       setIsLoading(true);
@@ -116,7 +136,7 @@ const Dashboard = () => {
         <AppSidebar />
         
         <main className="flex-1 overflow-x-hidden">
-          <header className="h-14 sm:h-16 border-b border-border bg-card flex items-center px-3 sm:px-4 md:px-6 gap-2 sm:gap-4 sticky top-0 z-10">
+          <header className="h-14 sm:h-16 border-b border-border bg-card flex items-center px-3 sm:px-4 md:px-6 gap-2 sm:gap-4 fixed md:sticky top-0 z-10 w-full md:w-auto">
             <SidebarTrigger />
             <div className="flex-1 min-w-0">
               <h1 className="text-base sm:text-lg md:text-xl font-bold truncate">Bienvenido {clientName}</h1>
@@ -133,7 +153,7 @@ const Dashboard = () => {
             </Button>
           </header>
 
-          <div className="p-4 sm:p-6 md:px-6 lg:p-8 space-y-4 sm:space-y-6">
+          <div className="p-4 sm:p-6 md:px-6 lg:p-8 space-y-4 sm:space-y-6 pt-16 sm:pt-20 md:pt-0">
             {/* Stats Cards */}
             <div className="grid gap-3 sm:gap-4 md:gap-5 lg:gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3">
               <Card className="shadow-soft md:min-h-[140px] lg:min-h-[160px]">
@@ -143,7 +163,9 @@ const Dashboard = () => {
                     <DollarSign className="h-4 w-4 text-muted-foreground" />
                   </div>
                   <div className="mt-2 md:mt-3 space-y-1 md:space-y-2">
-                    <div className="text-xl sm:text-2xl md:text-2xl lg:text-3xl font-bold">{isLoading ? 'Cargando...' : `${activeCount} préstamos`}</div>
+                    <div className="text-xl sm:text-2xl md:text-2xl lg:text-3xl font-bold">
+                      <AnimatedNumber value={activeCount} duration={800} delay={0} />
+                    </div>
                     <p className="text-[10px] sm:text-xs text-muted-foreground">
                       Préstamos en estado activo
                     </p>
@@ -158,9 +180,9 @@ const Dashboard = () => {
                     <Clock className="h-4 w-4 text-muted-foreground" />
                   </div>
                   <div className="mt-2 md:mt-3 space-y-1 md:space-y-2">
-                    <div className="text-xl sm:text-2xl md:text-2xl lg:text-3xl font-bold">{isLoading ? 'Cargando...' : nextPaymentInfo ? `$${nextPaymentInfo.amount.toLocaleString()}` : '—'}</div>
+                    <div className="text-xl sm:text-2xl md:text-2xl lg:text-3xl font-bold">{nextPaymentInfo ? <AnimatedNumber value={nextPaymentInfo.amount} duration={800} delay={50} formatter={(val) => `$${val.toLocaleString()}`} /> : '—'}</div>
                     <p className="text-[10px] sm:text-xs text-muted-foreground">
-                      {isLoading ? '' : nextPaymentInfo ? `Vence el ${nextPaymentInfo.date}` : 'No hay pagos programados'}
+                      {nextPaymentInfo ? `Vence el ${nextPaymentInfo.date}` : 'No hay pagos programados'}
                     </p>
                   </div>
                 </div>
@@ -173,7 +195,9 @@ const Dashboard = () => {
                     <TrendingUp className="h-4 w-4 text-muted-foreground" />
                   </div>
                   <div className="mt-2 md:mt-3 space-y-1 md:space-y-2">
-                    <div className="text-xl sm:text-2xl md:text-2xl lg:text-3xl font-bold">{isLoading ? 'Cargando...' : `$${totalOutstanding.toLocaleString()}`}</div>
+                    <div className="text-xl sm:text-2xl md:text-2xl lg:text-3xl font-bold">
+                      <AnimatedNumber value={totalOutstanding} duration={800} delay={100} formatter={(val) => `$${val.toLocaleString()}`} />
+                    </div>
                     <p className="text-[10px] sm:text-xs text-muted-foreground">
                       Total pendiente de préstamos activos
                     </p>

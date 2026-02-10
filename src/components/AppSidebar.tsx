@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Home, CreditCard, DollarSign, History, Users, Bell, LayoutDashboard, Cog, Wallet, User, Crown, LogOut, Tag } from "lucide-react";
 import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import { authService } from "@/utils/auth";
+import { supabase } from "@/lib/supabase";
 import logoIcon from "@/assets/logo-icon.jpeg";
 import logoSidebar from "@/assets/logo-sidebar.png";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -54,6 +55,36 @@ export function AppSidebar() {
   const showAdminMenu = isAdmin && (isAdminRoute || location.pathname === '/mi-cuenta');
   const showClientMenu = !showAdminMenu;
   const [showLoanOnboarding, setShowLoanOnboarding] = useState(false);
+  const [userFirstName, setUserFirstName] = useState('');
+  const [userLastName, setUserLastName] = useState('');
+
+  // Cargar nombres del usuario desde Supabase
+  useEffect(() => {
+    const loadUserNames = async () => {
+      if (!currentUser?.id) return;
+      try {
+        const { data, error } = await supabase
+          .from('users')
+          .select('first_name, last_name')
+          .eq('id', currentUser.id)
+          .maybeSingle();
+
+        if (error) {
+          console.warn('[AppSidebar] failed to fetch user names', error);
+          return;
+        }
+
+        if (data) {
+          setUserFirstName(data.first_name || '');
+          setUserLastName(data.last_name || '');
+        }
+      } catch (e) {
+        console.warn('[AppSidebar] failed to load user names', e);
+      }
+    };
+
+    loadUserNames();
+  }, [currentUser?.id]);
 
   const getNavClass = ({ isActive }: { isActive: boolean }) =>
     isActive
@@ -73,8 +104,18 @@ export function AppSidebar() {
   };
 
   const getUserInitial = () => {
+    if (userFirstName || userLastName) {
+      return (userFirstName.charAt(0) + userLastName.charAt(0)).toUpperCase();
+    }
     const name = currentUser?.name || 'Usuario';
     return name.charAt(0).toUpperCase();
+  };
+
+  const getUserDisplayName = () => {
+    if (userFirstName || userLastName) {
+      return `${userFirstName} ${userLastName}`.trim();
+    }
+    return currentUser?.name || 'Usuario';
   };
 
   const handleMenuClick = (item: typeof menuItems[0], e: React.MouseEvent) => {
@@ -100,7 +141,7 @@ export function AppSidebar() {
                     </AvatarFallback>
                   </Avatar>
                   <span className="text-base font-semibold text-sidebar-foreground group-hover:text-success transition-colors truncate">
-                    {currentUser?.name || 'Usuario'}
+                    {getUserDisplayName()}
                   </span>
                 </button>
               </DropdownMenuTrigger>

@@ -1291,14 +1291,14 @@ const LoanProcess = () => {
         <AppSidebar />
         
         <main className="flex-1 overflow-x-hidden">
-          <header className="h-14 sm:h-16 border-b border-border bg-card flex items-center px-3 sm:px-4 md:px-6 gap-2 sm:gap-4 sticky top-0 z-10">
+          <header className="h-14 sm:h-16 border-b border-border bg-card flex items-center px-3 sm:px-4 md:px-6 gap-2 sm:gap-4 fixed md:sticky top-0 z-10 w-full md:w-auto">
             <SidebarTrigger />
             <div className="flex-1 min-w-0">
               <h1 className="text-lg sm:text-xl md:text-2xl font-bold truncate">Proceso de Préstamo</h1>
             </div>
           </header>
 
-          <div className="p-4 sm:p-6 md:p-8 max-w-4xl mx-auto">
+          <div className="p-4 sm:p-6 md:p-8 max-w-4xl mx-auto pt-16 sm:pt-20 md:pt-0">
             {/* Stepper */}
             <Stepper />
 

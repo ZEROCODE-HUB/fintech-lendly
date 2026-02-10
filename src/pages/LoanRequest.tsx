@@ -13,8 +13,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DollarSign, CheckCircle2, AlertTriangle, ArrowRight, Calendar } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { authService } from "@/utils/auth";
 
-const INTEREST_RATE = 0.42; // 42% tasa anual
 const MIN_INSTALLMENTS = 3;
 
 const LoanRequest = () => {
@@ -26,6 +26,16 @@ const LoanRequest = () => {
   const [paymentSchedule, setPaymentSchedule] = useState<any[]>([]);
   const [userMembership, setUserMembership] = useState<any | null>(null);
   const [membershipTitle, setMembershipTitle] = useState<string | null>(null);
+  const [interestRate, setInterestRate] = useState(0.42); // Default 42% anual
+
+  // Limpiar resume_loan_id del localStorage cuando se monta el componente
+  useEffect(() => {
+    try {
+      localStorage.removeItem('resume_loan_id');
+    } catch (e) {
+      console.warn('Failed to clear resume_loan_id from localStorage', e);
+    }
+  }, []);
 
   const handleStartLoanProcess = () => {
     navigate("/loan-process", {
@@ -33,7 +43,7 @@ const LoanRequest = () => {
         amount: parseFloat(loanAmount) || 0,
         installments: parseInt(installments),
         monthlyPayment: estimatedPayment,
-        interestRate: INTEREST_RATE * 100,
+        interestRate: interestRate * 100,
         totalToPay: estimatedPayment * parseInt(installments),
       },
     });
@@ -41,7 +51,7 @@ const LoanRequest = () => {
 
   const calculatePayment = (amount: string, months: number) => {
     const principal = parseFloat(amount) || 0;
-    const monthlyRate = INTEREST_RATE / 12;
+    const monthlyRate = interestRate / 12;
     const payment = principal > 0 ? (principal * monthlyRate * Math.pow(1 + monthlyRate, months)) / (Math.pow(1 + monthlyRate, months) - 1) : 0;
     setEstimatedPayment(payment);
   };
@@ -58,7 +68,7 @@ const LoanRequest = () => {
 
   const generatePaymentSchedule = () => {
     const principal = parseFloat(loanAmount) || 0;
-    const monthlyRate = INTEREST_RATE / 12;
+    const monthlyRate = interestRate / 12;
     const months = parseInt(installments);
     const monthlyPayment = estimatedPayment;
     
@@ -102,7 +112,6 @@ const LoanRequest = () => {
   useEffect(() => {
     const loadUserMembership = async () => {
       try {
-        const { authService } = await import('@/utils/auth');
         const user = authService.getCurrentUser();
         if (!user?.id) return;
 
@@ -120,14 +129,28 @@ const LoanRequest = () => {
 
         setUserMembership(umRow);
 
-        // Fetch plan title
+        // Fetch plan title and interest rate
         const { data: plan } = await supabase
           .from('membership_plans')
-          .select('name')
+          .select('name, features')
           .eq('id', umRow.membership_plan_id)
           .maybeSingle();
 
         if (plan?.name) setMembershipTitle(plan.name);
+        
+        // Extract interest rate from features JSON
+        if (plan?.features) {
+          try {
+            const features = typeof plan.features === 'string' ? JSON.parse(plan.features) : plan.features;
+            const rate = features?.interestRate;
+            if (rate) {
+              // Convertir el porcentaje a decimal (si es 4 significa 4%, entonces 0.04)
+              setInterestRate(rate / 100);
+            }
+          } catch (parseErr) {
+            console.warn('Failed to parse membership features', parseErr);
+          }
+        }
       } catch (err) {
         // ignore unauthenticated/demo
       }
@@ -142,14 +165,14 @@ const LoanRequest = () => {
         <AppSidebar />
         
         <main className="flex-1">
-          <header className="h-14 sm:h-16 border-b border-border bg-card flex items-center px-3 sm:px-4 md:px-6 gap-2 sm:gap-4 sticky top-0 z-10">
+          <header className="h-14 sm:h-16 border-b border-border bg-card flex items-center px-3 sm:px-4 md:px-6 gap-2 sm:gap-4 fixed md:sticky top-0 z-10 w-full md:w-auto">
             <SidebarTrigger />
             <div className="flex-1 min-w-0">
               <h1 className="text-lg sm:text-xl md:text-2xl font-bold truncate">Solicitar Préstamo</h1>
             </div>
           </header>
 
-          <div className="p-3 sm:p-4 md:p-6 max-w-4xl mx-auto space-y-4 sm:space-y-6">
+          <div className="p-3 sm:p-4 md:p-6 max-w-4xl mx-auto space-y-4 sm:space-y-6 pt-16 sm:pt-20 md:pt-0">
             {/* Membership Status Alert (shows only if user has an active membership) */}
             {userMembership && (
               <Card className="border-success bg-accent">
@@ -239,7 +262,7 @@ const LoanRequest = () => {
                       </div>
                       <div>
                         <p className="text-xs text-muted-foreground">Tasa Anual</p>
-                        <p className="font-semibold text-sm sm:text-base">42%</p>
+                        <p className="font-semibold text-sm sm:text-base">{(interestRate * 100).toFixed(0)}%</p>
                       </div>
                       <div>
                         <p className="text-xs text-muted-foreground">Total a Pagar</p>
@@ -288,51 +311,52 @@ const LoanRequest = () => {
 
         {/* Payment Schedule Simulation Dialog */}
         <Dialog open={simulationDialogOpen} onOpenChange={setSimulationDialogOpen}>
-          <DialogContent className="max-w-[95vw] sm:max-w-2xl md:max-w-4xl max-h-[85vh] overflow-y-auto">
+          <DialogContent className="w-[95vw] sm:max-w-2xl md:max-w-4xl p-3 sm:p-6 flex flex-col max-h-[95vh]">
             <DialogHeader>
-              <DialogTitle className="text-lg sm:text-xl">Simulación del Cronograma de Pagos</DialogTitle>
+              <DialogTitle className="text-base sm:text-lg md:text-xl">Simulación del Cronograma de Pagos</DialogTitle>
               <DialogDescription className="text-xs sm:text-sm">
                 Visualiza cómo se distribuirán tus pagos mensuales
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-3 sm:space-y-4">
-              <div className="bg-accent rounded-lg p-3 sm:p-4">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-                  <div>
-                    <p className="text-xs sm:text-sm text-muted-foreground">Monto Total</p>
-                    <p className="text-lg sm:text-xl font-bold">${parseFloat(loanAmount).toLocaleString()} MXN</p>
-                  </div>
-                  <div>
-                    <p className="text-xs sm:text-sm text-muted-foreground">Pago Mensual</p>
-                    <p className="text-lg sm:text-xl font-bold">${estimatedPayment.toFixed(2)} MXN</p>
-                  </div>
-                  <div>
-                    <p className="text-xs sm:text-sm text-muted-foreground">Total a Pagar</p>
-                    <p className="text-lg sm:text-xl font-bold">${totalToPay.toFixed(2)} MXN</p>
-                  </div>
+            
+            <div className="bg-accent rounded-lg p-3 sm:p-4 flex-shrink-0">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+                <div>
+                  <p className="text-xs text-muted-foreground">Monto Total</p>
+                  <p className="text-base sm:text-lg font-bold">${parseFloat(loanAmount).toLocaleString()} MXN</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Pago Mensual</p>
+                  <p className="text-base sm:text-lg font-bold">${estimatedPayment.toFixed(2)} MXN</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Total a Pagar</p>
+                  <p className="text-base sm:text-lg font-bold">${totalToPay.toFixed(2)} MXN</p>
                 </div>
               </div>
+            </div>
               
-              <Table>
-                <TableHeader>
+            <div className="overflow-x-auto overflow-y-auto -mx-3 sm:mx-0 px-3 sm:px-0 mt-3 sm:mt-4 flex-1">
+              <Table className="min-w-full">
+                <TableHeader className="sticky top-0 bg-background">
                   <TableRow>
-                    <TableHead>Cuota</TableHead>
-                    <TableHead>Fecha</TableHead>
-                    <TableHead>Capital</TableHead>
-                    <TableHead>Interés</TableHead>
-                    <TableHead>Total</TableHead>
-                    <TableHead>Saldo</TableHead>
+                    <TableHead className="text-xs sm:text-sm">Cuota</TableHead>
+                    <TableHead className="text-xs sm:text-sm">Fecha</TableHead>
+                    <TableHead className="text-xs sm:text-sm text-right">Capital</TableHead>
+                    <TableHead className="text-xs sm:text-sm text-right">Interés</TableHead>
+                    <TableHead className="text-xs sm:text-sm text-right">Total</TableHead>
+                    <TableHead className="text-xs sm:text-sm text-right">Saldo</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {paymentSchedule.map((payment) => (
                     <TableRow key={payment.month}>
-                      <TableCell className="font-medium">#{payment.month}</TableCell>
-                      <TableCell>{payment.date}</TableCell>
-                      <TableCell>${payment.principal.toFixed(2)}</TableCell>
-                      <TableCell>${payment.interest.toFixed(2)}</TableCell>
-                      <TableCell className="font-semibold">${payment.total.toFixed(2)}</TableCell>
-                      <TableCell className="text-muted-foreground">${payment.balance.toFixed(2)}</TableCell>
+                      <TableCell className="font-medium text-xs sm:text-sm">#{payment.month}</TableCell>
+                      <TableCell className="text-xs sm:text-sm">{payment.date}</TableCell>
+                      <TableCell className="text-xs sm:text-sm text-right">${payment.principal.toFixed(2)}</TableCell>
+                      <TableCell className="text-xs sm:text-sm text-right">${payment.interest.toFixed(2)}</TableCell>
+                      <TableCell className="font-semibold text-xs sm:text-sm text-right">${payment.total.toFixed(2)}</TableCell>
+                      <TableCell className="text-muted-foreground text-xs sm:text-sm text-right">${payment.balance.toFixed(2)}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

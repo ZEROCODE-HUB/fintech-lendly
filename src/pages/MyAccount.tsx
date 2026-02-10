@@ -103,7 +103,7 @@ const MyAccount = () => {
               console.log('[MyAccount] minimal profile created', data);
               // update local minimal profile cache
               try {
-                const profile = { id: userId, email: authEmail ?? undefined, name: `${minimal.first_name || ''} ${minimal.last_name || ''}`.trim(), role: data?.role ?? 'client', avatar: data?.avatar_url ?? null };
+                const profile = { id: userId, email: authEmail ?? undefined, name: `${minimal.first_name || ''} ${minimal.last_name || ''}`.trim(), firstName: minimal.first_name || '', lastName: minimal.last_name || '', role: data?.role ?? 'client', avatar: data?.avatar_url ?? null };
                 localStorage.setItem('increscendo_user', JSON.stringify(profile));
               } catch (e) { /* ignore */ }
             }
@@ -196,6 +196,8 @@ const MyAccount = () => {
           if (stored) {
             const profile = JSON.parse(stored);
             profile.name = `${payload.first_name || ''} ${payload.last_name || ''}`.trim() || profile.name;
+            profile.firstName = payload.first_name || '';
+            profile.lastName = payload.last_name || '';
             profile.email = data?.[0]?.email ?? profile.email;
             localStorage.setItem('increscendo_user', JSON.stringify(profile));
           }
@@ -236,7 +238,7 @@ const MyAccount = () => {
         <AppSidebar />
 
         <main className="flex-1">
-          <header className="h-14 sm:h-16 border-b border-border bg-card flex items-center px-3 sm:px-4 md:px-6 gap-2 sm:gap-4 sticky top-0 z-10">
+          <header className="h-14 sm:h-16 border-b border-border bg-card flex items-center px-3 sm:px-4 md:px-6 gap-2 sm:gap-4 fixed md:sticky top-0 z-10 w-full md:w-auto">
             <SidebarTrigger />
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-primary/10">
@@ -249,7 +251,7 @@ const MyAccount = () => {
             </div>
           </header>
 
-          <div className="p-3 sm:p-4 md:p-6 max-w-4xl mx-auto space-y-4 sm:space-y-6">
+          <div className="p-3 sm:p-4 md:p-6 max-w-4xl mx-auto space-y-4 sm:space-y-6 pt-16 sm:pt-20 md:pt-0">
             {isLoadingProfile && (
               <div className="p-4 bg-muted rounded text-sm text-muted-foreground">Cargando información de usuario...</div>
             )}

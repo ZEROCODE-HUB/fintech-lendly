@@ -64,7 +64,7 @@ const History = () => {
         <AppSidebar />
         
         <main className="flex-1 overflow-x-hidden">
-          <header className="border-b border-border bg-card sticky top-0 z-10">
+          <header className="border-b border-border bg-card fixed md:sticky top-0 z-10 w-full md:w-auto">
             <div className="flex items-center h-14 sm:h-16 px-4 sm:px-6 gap-3">
               <SidebarTrigger />
               <div className="flex-1 min-w-0">
@@ -83,7 +83,7 @@ const History = () => {
             </div>
           </header>
 
-          <div className="p-4 sm:p-6 md:px-6 lg:p-8 space-y-4 sm:space-y-6">
+          <div className="p-4 sm:p-6 md:px-6 lg:p-8 space-y-4 sm:space-y-6 pt-16 sm:pt-20 md:pt-0">
             {/* Search */}
             <div className="relative max-w-md">
               <Search className="absolute left-3 top-2.5 sm:top-3 h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />

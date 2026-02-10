@@ -191,14 +191,14 @@ const Memberships = () => {
         <AppSidebar />
         
         <main className="flex-1">
-          <header className="h-16 border-b border-border bg-card flex items-center px-6 gap-4 sticky top-0 z-10">
+          <header className="h-16 border-b border-border bg-card flex items-center px-6 gap-4 fixed md:sticky top-0 z-10 w-full md:w-auto">
             <SidebarTrigger />
             <div className="flex-1">
               <h1 className="text-2xl font-bold">Membresías</h1>
             </div>
           </header>
 
-          <div className="p-6 space-y-6">
+          <div className="p-6 space-y-6 pt-20 md:pt-0">
             {/* Available plans - always show the carousel */}
             (
               <>

@@ -288,7 +288,7 @@ const MembershipCheckout = () => {
         <AppSidebar />
         
         <main className="flex-1">
-          <header className="h-16 border-b border-border bg-card flex items-center px-6 gap-4 sticky top-0 z-10">
+          <header className="h-16 border-b border-border bg-card flex items-center px-6 gap-4 fixed md:sticky top-0 z-10 w-full md:w-auto">
             <SidebarTrigger />
             <Button variant="ghost" size="sm" onClick={handleBack} className="gap-2">
               <ArrowLeft className="h-4 w-4" />
@@ -299,7 +299,7 @@ const MembershipCheckout = () => {
             </div>
           </header>
 
-          <div className="p-6 max-w-3xl mx-auto space-y-6">
+          <div className="p-6 max-w-3xl mx-auto space-y-6 pt-20 md:pt-0">
             {/* Order Summary */}
             <Card className="shadow-medium">
               <CardHeader>

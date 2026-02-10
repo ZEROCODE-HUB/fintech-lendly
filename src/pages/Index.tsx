@@ -35,13 +35,15 @@ const Index = () => {
           }
 
           const role = (profileRow as any)?.role ?? 'client';
-          const name = (profileRow as any)?.first_name || (profileRow as any)?.last_name
-            ? `${(profileRow as any)?.first_name || ''} ${(profileRow as any)?.last_name || ''}`.trim()
+          const firstName = (profileRow as any)?.first_name ?? '';
+          const lastName = (profileRow as any)?.last_name ?? '';
+          const name = firstName || lastName
+            ? `${firstName} ${lastName}`.trim()
             : (user.user_metadata?.full_name || user.user_metadata?.name || user.email || 'Usuario');
           const avatar = (profileRow as any)?.avatar_url ?? null;
 
           try {
-            const profile = { id: user.id, email: user.email ?? null, name, role, avatar };
+            const profile = { id: user.id, email: user.email ?? null, name, firstName, lastName, role, avatar };
             localStorage.setItem('increscendo_user', JSON.stringify(profile));
           } catch (storeErr) {
             console.warn('[Index] failed to store refreshed profile', storeErr);

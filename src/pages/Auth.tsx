@@ -75,14 +75,16 @@ const Auth = () => {
             console.log('[Auth] users table lookup result for login', { userId: user.id, profileRow, profileErr });
             const role = (profileRow as any)?.role ?? 'client';
             console.log('[Auth] resolved role for user after login', { userId: user.id, role });
-            const name = (profileRow as any)?.first_name || (profileRow as any)?.last_name ? `${(profileRow as any)?.first_name || ''} ${(profileRow as any)?.last_name || ''}`.trim() : (user.user_metadata?.full_name || user.user_metadata?.name || user.email || 'Usuario');
+            const firstName = (profileRow as any)?.first_name ?? '';
+            const lastName = (profileRow as any)?.last_name ?? '';
+            const name = firstName || lastName ? `${firstName} ${lastName}`.trim() : (user.user_metadata?.full_name || user.user_metadata?.name || user.email || 'Usuario');
             const avatar = (profileRow as any)?.avatar_url ?? null;
-            const profile = { id: user.id, email: user.email ?? null, name, role, avatar };
+            const profile = { id: user.id, email: user.email ?? null, name, firstName, lastName, role, avatar };
             localStorage.setItem('increscendo_user', JSON.stringify(profile));
             console.log('[Auth] stored local profile after login', profile);
           } catch (fetchRoleErr) {
             console.warn('[Auth] failed to fetch role from users table, falling back to client', fetchRoleErr);
-            const profile = { id: user.id, email: user.email ?? null, name: (user.user_metadata?.full_name || user.user_metadata?.name || user.email || 'Usuario'), role: 'client', avatar: null };
+            const profile = { id: user.id, email: user.email ?? null, name: (user.user_metadata?.full_name || user.user_metadata?.name || user.email || 'Usuario'), firstName: '', lastName: '', role: 'client', avatar: null };
             localStorage.setItem('increscendo_user', JSON.stringify(profile));
             console.log('[Auth] stored fallback profile with role=client', profile);
           }
@@ -373,7 +375,7 @@ const Auth = () => {
                               console.log('[Auth] profile row created', created);
                               // persist local profile so app UI treats user as logged in
                               try {
-                                const profile = { id: finalUserId, email: regEmail, name: `${firstName} ${lastName}`, role: 'client', avatar: (created?.avatar_url ?? null) };
+                                const profile = { id: finalUserId, email: regEmail, name: `${firstName} ${lastName}`, firstName, lastName, role: 'client', avatar: (created?.avatar_url ?? null) };
                                 localStorage.setItem('increscendo_user', JSON.stringify(profile));
                                 console.log('[Auth] stored local profile after signup', profile);
                               } catch (storeErr) {

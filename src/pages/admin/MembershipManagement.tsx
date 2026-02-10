@@ -205,14 +205,14 @@ const MembershipManagement = () => {
         <AppSidebar />
         
         <main className="flex-1">
-          <header className="h-16 border-b border-border bg-card flex items-center px-6 gap-4 sticky top-0 z-10">
+          <header className="h-16 border-b border-border bg-card flex items-center px-6 gap-4 fixed md:sticky top-0 z-10 w-full md:w-auto">
             <SidebarTrigger />
             <div className="flex-1">
               <h1 className="text-2xl font-bold">Gestión de Membresías</h1>
             </div>
           </header>
 
-          <div className="p-6 space-y-6">
+          <div className="p-6 space-y-6 pt-16 sm:pt-20 md:pt-0">
             {/* Header Section */}
             <div className="bg-gradient-hero rounded-lg p-8 text-white">
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -230,74 +230,79 @@ const MembershipManagement = () => {
                       Nueva Membresía
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="sm:max-w-[500px]">
-                    <DialogHeader>
-                      <DialogTitle>
+                  <DialogContent className="max-h-screen overflow-y-auto w-[95vw] sm:w-full sm:max-w-[500px]">
+                    <DialogHeader className="mb-4">
+                      <DialogTitle className="text-lg sm:text-xl">
                         {editingMembership ? 'Editar Membresía' : 'Nueva Membresía'}
                       </DialogTitle>
-                      <DialogDescription>
+                      <DialogDescription className="text-xs sm:text-sm">
                         {editingMembership 
                           ? 'Modifica los detalles de la membresía' 
                           : 'Completa los datos para crear una nueva membresía'}
                       </DialogDescription>
                     </DialogHeader>
-                    <div className="grid gap-4 py-4">
+                    <div className="grid gap-3 sm:gap-4 py-4">
                       <div className="grid gap-2">
-                        <Label htmlFor="title">Título *</Label>
+                        <Label htmlFor="title" className="text-xs sm:text-sm">Título *</Label>
                         <Input
                           id="title"
                           value={formData.title}
                           onChange={(e) => setFormData({...formData, title: e.target.value})}
                           placeholder="Ej: Membresía Premium"
+                          className="text-sm"
                         />
                       </div>
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-2 gap-2 sm:gap-4">
                         <div className="grid gap-2">
-                          <Label htmlFor="cost">Costo (MXN) *</Label>
+                          <Label htmlFor="cost" className="text-xs sm:text-sm">Costo (MXN) *</Label>
                           <Input
                             id="cost"
                             type="number"
                             value={formData.cost}
                             onChange={(e) => setFormData({...formData, cost: e.target.value})}
                             placeholder="100"
+                            className="text-sm"
                           />
                         </div>
                         <div className="grid gap-2">
-                          <Label htmlFor="interestRate">Tasa de Interés (%)</Label>
+                          <Label htmlFor="interestRate" className="text-xs sm:text-sm">Tasa (%)</Label>
                           <Input
                             id="interestRate"
                             type="number"
                             value={formData.interestRate}
                             onChange={(e) => setFormData({...formData, interestRate: e.target.value})}
                             placeholder="42"
+                            className="text-sm"
                           />
                         </div>
                       </div>
                       <div className="grid gap-2">
-                        <Label htmlFor="targetAudience">Público Objetivo *</Label>
+                        <Label htmlFor="targetAudience" className="text-xs sm:text-sm">Público Objetivo *</Label>
                         <Input
                           id="targetAudience"
                           value={formData.targetAudience}
                           onChange={(e) => setFormData({...formData, targetAudience: e.target.value})}
                           placeholder="Ej: Persona Natural"
+                          className="text-sm"
                         />
                       </div>
                       <div className="grid gap-2">
-                        <Label htmlFor="benefits">Beneficios (separados por coma)</Label>
+                        <Label htmlFor="benefits" className="text-xs sm:text-sm">Beneficios (separados por coma)</Label>
                         <Textarea
                           id="benefits"
                           value={formData.benefits}
                           onChange={(e) => setFormData({...formData, benefits: e.target.value})}
                           placeholder="Ej: Descuentos, Promociones, Atención preferencial"
                           rows={3}
+                          className="text-sm"
                         />
                       </div>
                     </div>
-                    <DialogFooter>
-                      <Button variant="outline" onClick={() => setIsCreateOpen(false)}>
+                    <DialogFooter className="flex gap-2 sm:gap-3 flex-col-reverse sm:flex-row">
+                      <Button variant="outline" onClick={() => setIsCreateOpen(false)} className="text-sm">
                         Cancelar
                       </Button>
-                      <Button onClick={handleSubmit}>
+                      <Button onClick={handleSubmit} className="text-sm">
                         {editingMembership ? 'Guardar Cambios' : 'Crear Membresía'}
                       </Button>
                     </DialogFooter>
