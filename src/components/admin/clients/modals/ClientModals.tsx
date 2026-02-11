@@ -32,7 +32,6 @@ export const AddUserModal = ({ open, onOpenChange, onConfirm }: AddUserModalProp
     birthDate: "",
     ine: "",
     curp: "",
-    membership: "",
   });
 
   const handleSubmit = () => {
@@ -55,13 +54,12 @@ export const AddUserModal = ({ open, onOpenChange, onConfirm }: AddUserModalProp
           firstName: "",
           lastName: "",
           email: "",
-              password: "",
+          password: "",
           phone: "",
           address: "",
           birthDate: "",
           ine: "",
           curp: "",
-          membership: "",
         });
       })
       .catch((err) => {
@@ -123,17 +121,6 @@ export const AddUserModal = ({ open, onOpenChange, onConfirm }: AddUserModalProp
           <div>
             <Label>CURP</Label>
             <Input value={formData.curp} onChange={(e) => setFormData({ ...formData, curp: e.target.value })} />
-          </div>
-          <div>
-            <Label>Membresía</Label>
-            <Select value={formData.membership} onValueChange={(v) => setFormData({ ...formData, membership: v })}>
-              <SelectTrigger><SelectValue placeholder="Seleccionar" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Básico">Básico</SelectItem>
-                <SelectItem value="Premium">Premium</SelectItem>
-                <SelectItem value="Premier">Premier</SelectItem>
-              </SelectContent>
-            </Select>
           </div>
         </div>
         <DialogFooter>
@@ -217,32 +204,6 @@ export const ModifyClientModal = ({ open, onOpenChange, client, onConfirm, plans
             <Label>CURP</Label>
             <Input defaultValue={client.curp} onChange={(e) => setFormData({ ...formData, curp: e.target.value })} />
           </div>
-          <div>
-            <Label>Membresía</Label>
-            <Select
-              defaultValue={client.membership}
-              onValueChange={(v) => setFormData({ ...formData, membership: v })}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Seleccionar" />
-              </SelectTrigger>
-              <SelectContent>
-                {plans && plans.length > 0 ? (
-                  plans.map((p) => (
-                    <SelectItem key={p.id} value={p.name}>
-                      {p.name}
-                    </SelectItem>
-                  ))
-                ) : (
-                  <>
-                    <SelectItem value="Básico">Básico</SelectItem>
-                    <SelectItem value="Premium">Premium</SelectItem>
-                    <SelectItem value="Premier">Premier</SelectItem>
-                  </>
-                )}
-              </SelectContent>
-            </Select>
-          </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
@@ -304,12 +265,18 @@ export const ViewPhotoModal = ({ open, onOpenChange, client }: ViewPhotoModalPro
           <DialogDescription>{client?.firstName} {client?.lastName}</DialogDescription>
         </DialogHeader>
         <div className="flex flex-col items-center gap-4">
-          <div className="w-48 h-48 bg-accent rounded-full flex items-center justify-center">
-            <User className="w-24 h-24 text-muted-foreground" />
+          <div className="w-48 h-48 bg-muted rounded-full flex items-center justify-center overflow-hidden border-4 border-border">
+            {client?.photoUrl ? (
+              <img src={client.photoUrl} alt={`${client.firstName} ${client.lastName}`} className="w-full h-full object-cover" />
+            ) : (
+              <User className="w-24 h-24 text-muted-foreground" />
+            )}
           </div>
-          <p className="text-sm text-muted-foreground text-center">
-            (Simulación - en producción mostraría la foto real del usuario)
-          </p>
+          {!client?.photoUrl && (
+            <p className="text-sm text-muted-foreground text-center">
+              Este usuario no tiene foto de perfil
+            </p>
+          )}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cerrar</Button>

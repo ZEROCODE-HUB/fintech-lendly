@@ -181,9 +181,9 @@ const Auth = () => {
           </div>
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-4 sm:mb-6 md:mb-8">
-              <TabsTrigger value="login" className="text-xs sm:text-sm">Iniciar Sesión</TabsTrigger>
-              <TabsTrigger value="register" className="text-xs sm:text-sm">Registrarse</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-2 mb-4 sm:mb-6 md:mb-8 bg-muted/30">
+              <TabsTrigger value="login" className="text-xs sm:text-sm data-[state=active]:bg-white data-[state=active]:shadow-sm">Iniciar Sesión</TabsTrigger>
+              <TabsTrigger value="register" className="text-xs sm:text-sm data-[state=active]:bg-white data-[state=active]:shadow-sm">Registrarse</TabsTrigger>
             </TabsList>
 
             {/* Login Tab */}
@@ -226,42 +226,28 @@ const Auth = () => {
                     </Button>
                   </form>
 
-                  {/* Test Access Buttons */}
                   <Separator className="my-4" />
+                  
                   <div className="space-y-2">
-                    <p className="text-xs text-muted-foreground text-center">Acceso rápido (solo testing)</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          localStorage.setItem('testUserRole', 'client');
-                          localStorage.setItem('testUserEmail', 'cliente@test.com');
-                          toast({
-                            title: "Acceso Cliente",
-                            description: "Ingresando como usuario cliente",
-                          });
-                          navigate('/service-selection');
-                        }}
-                      >
-                        Cliente Test
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          localStorage.setItem('testUserRole', 'admin');
-                          localStorage.setItem('testUserEmail', 'admin@gmail.com');
-                          toast({
-                            title: "Acceso Admin",
-                            description: "Ingresando como administrador",
-                          });
-                          navigate('/admin/dashboard');
-                        }}
-                      >
-                        Admin Test
-                      </Button>
-                    </div>
+                    <p className="text-xs text-muted-foreground text-center">O continúa con</p>
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      size="lg"
+                      onClick={() => {
+                        toast({
+                          title: "Prointipago",
+                          description: "Redirigiendo a Prointipago...",
+                        });
+                        // Aquí puedes agregar la lógica de integración con Prointipago
+                      }}
+                    >
+                      Iniciar con Prointipago
+                    </Button>
+                  </div>
+
+                  <div className="text-center mt-4">
+                    <p className="text-[10px] text-muted-foreground/60">v1.0.1</p>
                   </div>
                 </CardContent>
               </Card>

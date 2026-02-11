@@ -26,7 +26,7 @@ const LoanRequest = () => {
   const [paymentSchedule, setPaymentSchedule] = useState<any[]>([]);
   const [userMembership, setUserMembership] = useState<any | null>(null);
   const [membershipTitle, setMembershipTitle] = useState<string | null>(null);
-  const [interestRate, setInterestRate] = useState(0.42); // Default 42% anual
+  const [interestRate, setInterestRate] = useState(0.2); // Default 42% anual = 0.42 (as decimal)
 
   // Limpiar resume_loan_id del localStorage cuando se monta el componente
   useEffect(() => {
@@ -43,8 +43,10 @@ const LoanRequest = () => {
         amount: parseFloat(loanAmount) || 0,
         installments: parseInt(installments),
         monthlyPayment: estimatedPayment,
-        interestRate: interestRate * 100,
+        interestRate: interestRate * 100, // Convert decimal to percentage (0.42 -> 42)
         totalToPay: estimatedPayment * parseInt(installments),
+        hasMembership: !!userMembership,
+        membershipTitle: membershipTitle,
       },
     });
   };
@@ -172,57 +174,57 @@ const LoanRequest = () => {
             </div>
           </header>
 
-          <div className="p-3 sm:p-4 md:p-6 max-w-4xl mx-auto space-y-4 sm:space-y-6 pt-16 sm:pt-20 md:pt-0">
+          <div className="p-4 sm:p-6 md:p-8 max-w-4xl mx-auto space-y-4 sm:space-y-6 pt-16 sm:pt-20 md:pt-6">
             {/* Membership Status Alert (shows only if user has an active membership) */}
             {userMembership && (
-              <Card className="border-success bg-accent">
-                <CardContent className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 py-3 sm:py-4">
-                  <CheckCircle2 className="h-6 w-6 sm:h-8 sm:w-8 text-success flex-shrink-0" />
+              <Card className="border-success bg-success/5">
+                <CardContent className="flex flex-row items-center gap-3 sm:gap-4 p-4">
+                  <CheckCircle2 className="h-5 w-5 sm:h-6 sm:w-6 text-success flex-shrink-0" />
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-base sm:text-lg">{membershipTitle ?? 'Membresía Activa'}</p>
-                    <p className="text-xs sm:text-sm text-muted-foreground">Tienes acceso a tasas preferenciales y montos más altos</p>
+                    <p className="font-semibold text-sm sm:text-base">{membershipTitle ?? 'Membresía Activa'}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Tienes acceso a tasas preferenciales y montos más altos</p>
                     {userMembership.expires_at && (
-                      <p className="text-xs sm:text-sm text-success mt-1">Expira {formatDate(userMembership.expires_at)}</p>
+                      <p className="text-xs text-success mt-1">Expira {formatDate(userMembership.expires_at)}</p>
                     )}
                   </div>
-                  <Badge className="bg-success text-success-foreground text-xs sm:text-sm shrink-0">Verificado</Badge>
+                  <Badge className="bg-success text-success-foreground text-xs shrink-0">Verificado</Badge>
                 </CardContent>
               </Card>
             )}
 
             {/* Loan Calculator */}
-            <Card className="shadow-medium">
-              <CardHeader className="px-4 sm:px-6 py-4 sm:py-6">
-                <CardTitle className="flex items-center gap-2 text-lg sm:text-xl md:text-2xl">
+            <Card className="shadow-md">
+              <CardHeader className="px-4 sm:px-6 py-4">
+                <CardTitle className="flex items-center gap-2 text-base sm:text-xl">
                   <DollarSign className="h-4 w-4 sm:h-5 sm:w-5" />
                   Simulador de Préstamo
                 </CardTitle>
-                <CardDescription className="text-xs sm:text-sm">
+                <CardDescription className="text-xs sm:text-sm mt-1">
                   Ingresa el monto deseado y visualiza tus pagos mensuales
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4 sm:space-y-6 px-4 sm:px-6 pb-4 sm:pb-6">
+              <CardContent className="space-y-4 px-4 sm:px-6 pb-4 sm:pb-6">
                 <div className="space-y-2">
-                  <Label htmlFor="amount">Monto del Préstamo</Label>
+                  <Label htmlFor="amount" className="text-sm">Monto del Préstamo</Label>
                   <div className="relative">
-                    <span className="absolute left-3 top-3 text-muted-foreground">$</span>
+                    <span className="absolute left-3 top-3 text-sm text-muted-foreground">$</span>
                     <Input
                       id="amount"
                       type="number"
                       placeholder="10000"
                       value={loanAmount}
                       onChange={(e) => handleAmountChange(e.target.value)}
-                      className="pl-7 text-lg font-semibold"
+                      className="pl-7 text-base sm:text-lg font-semibold h-11"
                     />
                   </div>
-                  <div className="grid grid-cols-2 sm:flex gap-2 mt-2">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2">
                     {[5000, 10000, 15000, 20000].map((amount) => (
                       <Button
                         key={amount}
                         variant="outline"
                         size="sm"
                         onClick={() => handleAmountChange(amount.toString())}
-                        className="text-xs sm:text-sm"
+                        className="text-xs h-9"
                       >
                         ${amount.toLocaleString()}
                       </Button>
@@ -231,9 +233,9 @@ const LoanRequest = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="installments">Número de Cuotas</Label>
+                  <Label htmlFor="installments" className="text-sm">Número de Cuotas</Label>
                   <Select value={installments} onValueChange={handleInstallmentsChange}>
-                    <SelectTrigger id="installments">
+                    <SelectTrigger id="installments" className="h-11">
                       <SelectValue placeholder="Selecciona el número de cuotas" />
                     </SelectTrigger>
                     <SelectContent>
@@ -248,58 +250,58 @@ const LoanRequest = () => {
                 </div>
 
                 {loanAmount && (
-                  <div className="bg-gradient-accent rounded-lg p-4 sm:p-6 space-y-3 sm:space-y-4">
-                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-                      <span className="text-sm sm:text-base text-muted-foreground">Pago Mensual Estimado</span>
+                  <div className="bg-gradient-to-br from-primary/5 to-accent/10 rounded-xl p-4 space-y-3">
+                    <div className="flex flex-col gap-1">
+                      <span className="text-xs sm:text-sm text-muted-foreground">Pago Mensual Estimado</span>
                       <span className="text-2xl sm:text-3xl font-bold text-primary">
                         ${estimatedPayment.toFixed(2)}
                       </span>
                     </div>
-                    <div className="grid grid-cols-3 gap-2 sm:gap-4 pt-3 sm:pt-4 border-t border-border">
+                    <div className="grid grid-cols-3 gap-3 pt-3 border-t border-border/50">
                       <div>
-                        <p className="text-xs text-muted-foreground">Plazo</p>
-                        <p className="font-semibold text-sm sm:text-base">{installments} meses</p>
+                        <p className="text-[10px] sm:text-xs text-muted-foreground">Plazo</p>
+                        <p className="font-semibold text-sm mt-0.5">{installments} meses</p>
                       </div>
                       <div>
-                        <p className="text-xs text-muted-foreground">Tasa Anual</p>
-                        <p className="font-semibold text-sm sm:text-base">{(interestRate * 100).toFixed(0)}%</p>
+                        <p className="text-[10px] sm:text-xs text-muted-foreground">Tasa Anual</p>
+                        <p className="font-semibold text-sm mt-0.5">{(interestRate * 100).toFixed(0)}%</p>
                       </div>
                       <div>
-                        <p className="text-xs text-muted-foreground">Total a Pagar</p>
-                        <p className="font-semibold text-sm sm:text-base">${totalToPay.toFixed(2)}</p>
+                        <p className="text-[10px] sm:text-xs text-muted-foreground">Total</p>
+                        <p className="font-semibold text-sm mt-0.5">${totalToPay.toFixed(2)}</p>
                       </div>
                     </div>
                     <Button 
                       variant="outline" 
-                      className="w-full mt-3 sm:mt-4 text-xs sm:text-sm"
+                      className="w-full mt-2 text-xs sm:text-sm h-9 sm:h-10"
                       onClick={generatePaymentSchedule}
                     >
                       <Calendar className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
-                      Ver Simulación del Cronograma
+                      Ver Cronograma
                     </Button>
                   </div>
                 )}
 
                 {/* Información Importante */}
-                <div className="bg-muted rounded-lg p-4 flex items-start gap-3">
-                  <AlertTriangle className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
-                  <div className="text-sm">
-                    <p className="font-semibold mb-1">Información Importante</p>
+                <div className="bg-muted/50 rounded-lg p-3 sm:p-4 flex items-start gap-2 sm:gap-3">
+                  <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5 text-primary mt-0.5 flex-shrink-0" />
+                  <div className="text-xs sm:text-sm">
+                    <p className="font-semibold mb-1.5 text-sm">Información Importante</p>
                     <ul className="space-y-1 text-muted-foreground">
-                      <li>• Tu solicitud será revisada en un plazo de 24-48 horas</li>
-                      <li>• Debes tener una membresía activa para solicitar préstamos</li>
-                      <li>• Los términos finales pueden variar según tu historial crediticio</li>
+                      <li>• Solicitud revisada en 24-48 horas</li>
+                      <li>• Requiere membresía activa</li>
+                      <li>• Términos sujetos a historial crediticio</li>
                     </ul>
                   </div>
                 </div>
 
                 <Button 
-                  className="w-full"
+                  className="w-full h-11 sm:h-12 text-sm sm:text-base"
                   disabled={!loanAmount}
                   size="lg"
                   onClick={handleStartLoanProcess}
                 >
-                  Solicita el préstamo
+                  Solicitar préstamo
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </CardContent>
@@ -311,52 +313,52 @@ const LoanRequest = () => {
 
         {/* Payment Schedule Simulation Dialog */}
         <Dialog open={simulationDialogOpen} onOpenChange={setSimulationDialogOpen}>
-          <DialogContent className="w-[95vw] sm:max-w-2xl md:max-w-4xl p-3 sm:p-6 flex flex-col max-h-[95vh]">
-            <DialogHeader>
-              <DialogTitle className="text-base sm:text-lg md:text-xl">Simulación del Cronograma de Pagos</DialogTitle>
+          <DialogContent className="w-[calc(100%-2rem)] sm:max-w-2xl md:max-w-4xl p-4 sm:p-6 flex flex-col max-h-[90vh] rounded-2xl">
+            <DialogHeader className="pb-3">
+              <DialogTitle className="text-base sm:text-lg">Cronograma de Pagos</DialogTitle>
               <DialogDescription className="text-xs sm:text-sm">
-                Visualiza cómo se distribuirán tus pagos mensuales
+                Distribución de tus pagos mensuales
               </DialogDescription>
             </DialogHeader>
             
-            <div className="bg-accent rounded-lg p-3 sm:p-4 flex-shrink-0">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+            <div className="bg-gradient-to-br from-primary/5 to-accent/10 rounded-xl p-3 sm:p-4 flex-shrink-0">
+              <div className="grid grid-cols-3 gap-2 sm:gap-4">
                 <div>
-                  <p className="text-xs text-muted-foreground">Monto Total</p>
-                  <p className="text-base sm:text-lg font-bold">${parseFloat(loanAmount).toLocaleString()} MXN</p>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground">Monto</p>
+                  <p className="text-xs sm:text-base font-bold mt-0.5">${parseFloat(loanAmount).toLocaleString()}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Pago Mensual</p>
-                  <p className="text-base sm:text-lg font-bold">${estimatedPayment.toFixed(2)} MXN</p>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground">Mensual</p>
+                  <p className="text-xs sm:text-base font-bold mt-0.5">${estimatedPayment.toFixed(2)}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Total a Pagar</p>
-                  <p className="text-base sm:text-lg font-bold">${totalToPay.toFixed(2)} MXN</p>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground">Total</p>
+                  <p className="text-xs sm:text-base font-bold mt-0.5">${totalToPay.toFixed(2)}</p>
                 </div>
               </div>
             </div>
               
-            <div className="overflow-x-auto overflow-y-auto -mx-3 sm:mx-0 px-3 sm:px-0 mt-3 sm:mt-4 flex-1">
-              <Table className="min-w-full">
-                <TableHeader className="sticky top-0 bg-background">
+            <div className="overflow-x-auto overflow-y-auto -mx-4 sm:mx-0 px-4 sm:px-0 mt-3 flex-1">
+              <Table className="min-w-[600px]">
+                <TableHeader className="sticky top-0 bg-background z-10">
                   <TableRow>
-                    <TableHead className="text-xs sm:text-sm">Cuota</TableHead>
-                    <TableHead className="text-xs sm:text-sm">Fecha</TableHead>
-                    <TableHead className="text-xs sm:text-sm text-right">Capital</TableHead>
-                    <TableHead className="text-xs sm:text-sm text-right">Interés</TableHead>
-                    <TableHead className="text-xs sm:text-sm text-right">Total</TableHead>
-                    <TableHead className="text-xs sm:text-sm text-right">Saldo</TableHead>
+                    <TableHead className="text-[10px] sm:text-xs w-14">Cuota</TableHead>
+                    <TableHead className="text-[10px] sm:text-xs">Fecha</TableHead>
+                    <TableHead className="text-[10px] sm:text-xs text-right">Capital</TableHead>
+                    <TableHead className="text-[10px] sm:text-xs text-right">Interés</TableHead>
+                    <TableHead className="text-[10px] sm:text-xs text-right">Total</TableHead>
+                    <TableHead className="text-[10px] sm:text-xs text-right">Saldo</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {paymentSchedule.map((payment) => (
                     <TableRow key={payment.month}>
-                      <TableCell className="font-medium text-xs sm:text-sm">#{payment.month}</TableCell>
-                      <TableCell className="text-xs sm:text-sm">{payment.date}</TableCell>
-                      <TableCell className="text-xs sm:text-sm text-right">${payment.principal.toFixed(2)}</TableCell>
-                      <TableCell className="text-xs sm:text-sm text-right">${payment.interest.toFixed(2)}</TableCell>
-                      <TableCell className="font-semibold text-xs sm:text-sm text-right">${payment.total.toFixed(2)}</TableCell>
-                      <TableCell className="text-muted-foreground text-xs sm:text-sm text-right">${payment.balance.toFixed(2)}</TableCell>
+                      <TableCell className="font-medium text-[10px] sm:text-xs">#{payment.month}</TableCell>
+                      <TableCell className="text-[10px] sm:text-xs whitespace-nowrap">{payment.date}</TableCell>
+                      <TableCell className="text-[10px] sm:text-xs text-right">${payment.principal.toFixed(2)}</TableCell>
+                      <TableCell className="text-[10px] sm:text-xs text-right">${payment.interest.toFixed(2)}</TableCell>
+                      <TableCell className="font-semibold text-[10px] sm:text-xs text-right">${payment.total.toFixed(2)}</TableCell>
+                      <TableCell className="text-muted-foreground text-[10px] sm:text-xs text-right">${payment.balance.toFixed(2)}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

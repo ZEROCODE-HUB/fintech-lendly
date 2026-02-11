@@ -57,39 +57,47 @@ export function AppSidebar() {
   const [showLoanOnboarding, setShowLoanOnboarding] = useState(false);
   const [userFirstName, setUserFirstName] = useState('');
   const [userLastName, setUserLastName] = useState('');
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
-  // Cargar nombres del usuario desde Supabase
+  // Cargar nombres y foto del usuario desde Supabase
   useEffect(() => {
-    const loadUserNames = async () => {
+    const loadUserData = async () => {
       if (!currentUser?.id) return;
       try {
         const { data, error } = await supabase
           .from('users')
-          .select('first_name, last_name')
+          .select('first_name, last_name, avatar_url')
           .eq('id', currentUser.id)
           .maybeSingle();
 
         if (error) {
-          console.warn('[AppSidebar] failed to fetch user names', error);
+          console.warn('[AppSidebar] failed to fetch user data', error);
           return;
         }
 
         if (data) {
           setUserFirstName(data.first_name || '');
           setUserLastName(data.last_name || '');
+          setAvatarUrl(data.avatar_url || null);
         }
       } catch (e) {
-        console.warn('[AppSidebar] failed to load user names', e);
+        console.warn('[AppSidebar] failed to load user data', e);
       }
     };
 
-    loadUserNames();
+    loadUserData();
   }, [currentUser?.id]);
 
-  const getNavClass = ({ isActive }: { isActive: boolean }) =>
-    isActive
-      ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold"
+  const isRouteActive = (url: string) => {
+    return location.pathname === url || location.pathname.startsWith(url + '/');
+  };
+
+  const getNavClass = ({ isActive }: { isActive: boolean }) => {
+    console.log('[Sidebar] getNavClass - isActive:', isActive, 'pathname:', location.pathname);
+    return isActive
+      ? "!bg-blue-500/20 !text-white font-semibold"
       : "hover:bg-sidebar-accent/50";
+  };
 
   const handleLogout = async () => {
     try {
@@ -135,7 +143,7 @@ export function AppSidebar() {
               <DropdownMenuTrigger asChild>
                 <button className="flex items-center gap-3 w-full group cursor-pointer focus:outline-none hover:bg-sidebar-accent/30 rounded-lg p-2 -m-2 transition-colors">
                   <Avatar className="h-12 w-12 ring-2 ring-success/40 ring-offset-2 ring-offset-sidebar-background transition-all group-hover:ring-success/60 group-hover:scale-105 flex-shrink-0">
-                    <AvatarImage src={currentUser?.avatar} alt={currentUser?.name} />
+                    <AvatarImage src={avatarUrl || currentUser?.avatar} alt={currentUser?.name} />
                     <AvatarFallback className="bg-success text-white text-lg font-bold">
                       {getUserInitial()}
                     </AvatarFallback>
@@ -169,7 +177,7 @@ export function AppSidebar() {
               <DropdownMenuTrigger asChild>
                 <button className="flex justify-center w-full focus:outline-none">
                   <Avatar className="h-10 w-10 ring-2 ring-success/40 ring-offset-1 ring-offset-sidebar-background hover:ring-success/60 transition-all cursor-pointer">
-                    <AvatarImage src={currentUser?.avatar} alt={currentUser?.name} />
+                    <AvatarImage src={avatarUrl || currentUser?.avatar} alt={currentUser?.name} />
                     <AvatarFallback className="bg-success text-white text-sm font-bold">
                       {getUserInitial()}
                     </AvatarFallback>
@@ -204,26 +212,29 @@ export function AppSidebar() {
               <SidebarGroupLabel>Menú Principal</SidebarGroupLabel>
               <SidebarGroupContent>
                 <SidebarMenu>
-                  {menuItems.map((item) => (
+                  {menuItems.map((item) => {
+                    console.log('[Sidebar Client] Item:', item.title, 'URL:', item.url, 'Current Path:', location.pathname);
+                    return (
                     <SidebarMenuItem key={item.title}>
-                      <SidebarMenuButton asChild>
-                        {(item as any).isOnboarding ? (
-                          <button
-                            onClick={(e) => handleMenuClick(item, e)}
-                            className={`flex items-center gap-2 w-full px-2 py-1.5 rounded-md hover:bg-sidebar-accent/50`}
-                          >
-                            <item.icon className="h-5 w-5" />
-                            {!isCollapsed && <span>{item.title}</span>}
-                          </button>
-                        ) : (
-                          <NavLink to={item.url} end className={getNavClass}>
-                            <item.icon className="h-5 w-5" />
-                            {!isCollapsed && <span>{item.title}</span>}
-                          </NavLink>
-                        )}
-                      </SidebarMenuButton>
+                      {(item as any).isOnboarding ? (
+                        <button
+                          onClick={(e) => handleMenuClick(item, e)}
+                          className={`flex items-center gap-3 w-full px-3 py-3 md:py-2 rounded-md hover:bg-sidebar-accent/50 min-h-[48px] md:min-h-0`}
+                        >
+                          <item.icon className="h-5 w-5 flex-shrink-0" />
+                          {!isCollapsed && <span className="text-sm md:text-xs">{item.title}</span>}
+                        </button>
+                      ) : (
+                        <NavLink to={item.url} end className={({ isActive }) => {
+                          console.log('[Sidebar NavLink]', item.title, 'isActive:', isActive, 'url:', item.url, 'pathname:', location.pathname);
+                          return `flex items-center gap-3 w-full px-3 py-3 md:py-2 rounded-md min-h-[48px] md:min-h-0 ${getNavClass({ isActive })}`;
+                        }}>
+                          <item.icon className="h-5 w-5 flex-shrink-0" />
+                          {!isCollapsed && <span className="text-sm md:text-xs">{item.title}</span>}
+                        </NavLink>
+                      )}
                     </SidebarMenuItem>
-                  ))}
+                  )})}
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>
@@ -233,12 +244,10 @@ export function AppSidebar() {
               <SidebarGroupContent>
                 <SidebarMenu>
                   <SidebarMenuItem>
-                    <SidebarMenuButton asChild>
-                      <NavLink to="/notifications" className={getNavClass}>
-                        <Bell className="h-5 w-5" />
-                        {!isCollapsed && <span>Notificaciones</span>}
-                      </NavLink>
-                    </SidebarMenuButton>
+                    <NavLink to="/notifications" end className={({ isActive }) => `flex items-center gap-3 w-full px-3 py-3 md:py-2 rounded-md min-h-[48px] md:min-h-0 ${getNavClass({ isActive })}`}>
+                      <Bell className="h-5 w-5 flex-shrink-0" />
+                      {!isCollapsed && <span className="text-sm md:text-xs">Notificaciones</span>}
+                    </NavLink>
                   </SidebarMenuItem>
                 </SidebarMenu>
               </SidebarGroupContent>
@@ -255,12 +264,10 @@ export function AppSidebar() {
                 <SidebarMenu>
                   {adminItems.map((item) => (
                     <SidebarMenuItem key={item.title}>
-                      <SidebarMenuButton asChild>
-                        <NavLink to={item.url} className={getNavClass}>
-                          <item.icon className="h-5 w-5" />
-                          {!isCollapsed && <span>{item.title}</span>}
-                        </NavLink>
-                      </SidebarMenuButton>
+                      <NavLink to={item.url} end className={({ isActive }) => `flex items-center gap-3 w-full px-3 py-3 md:py-2 rounded-md min-h-[48px] md:min-h-0 ${getNavClass({ isActive })}`}>
+                        <item.icon className="h-5 w-5 flex-shrink-0" />
+                        {!isCollapsed && <span className="text-sm md:text-xs">{item.title}</span>}
+                      </NavLink>
                     </SidebarMenuItem>
                   ))}
                 </SidebarMenu>
@@ -272,12 +279,10 @@ export function AppSidebar() {
               <SidebarGroupContent>
                 <SidebarMenu>
                   <SidebarMenuItem>
-                    <SidebarMenuButton asChild>
-                      <NavLink to="/notifications" className={getNavClass}>
-                        <Bell className="h-5 w-5" />
-                        {!isCollapsed && <span>Notificaciones</span>}
-                      </NavLink>
-                    </SidebarMenuButton>
+                    <NavLink to="/notifications" end className={({ isActive }) => `flex items-center gap-3 w-full px-3 py-3 md:py-2 rounded-md min-h-[48px] md:min-h-0 ${getNavClass({ isActive })}`}>
+                      <Bell className="h-5 w-5 flex-shrink-0" />
+                      {!isCollapsed && <span className="text-sm md:text-xs">Notificaciones</span>}
+                    </NavLink>
                   </SidebarMenuItem>
                 </SidebarMenu>
               </SidebarGroupContent>

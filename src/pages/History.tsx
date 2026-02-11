@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,30 +11,83 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Chatbot } from "@/components/Chatbot";
+import { supabase } from "@/lib/supabase";
 
 const History = () => {
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<any>(null);
+  const [loanHistory, setLoanHistory] = useState<any[]>([]);
+  const [paymentHistory, setPaymentHistory] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [activeTab, setActiveTab] = useState("loans");
 
-  const loanHistory = [
-    { id: "PREST-001", type: "Préstamo", amount: 10000, date: "2024-10-01", status: "Aprobado" },
-    { id: "PREST-002", type: "Préstamo", amount: 15000, date: "2024-09-15", status: "Aprobado" },
-    { id: "PREST-003", type: "Préstamo", amount: 5000, date: "2024-06-01", status: "Completado" },
-  ];
+  // Load data on mount
+  useEffect(() => {
+    loadHistoryData();
+  }, []);
 
-  const paymentHistory = [
-    { id: "PAG-045", loan: "PREST-001", amount: 900, date: "2024-10-15", method: "Tarjeta", status: "Exitoso" },
-    { id: "PAG-044", loan: "PREST-001", amount: 900, date: "2024-09-15", method: "Transferencia", status: "Exitoso" },
-    { id: "PAG-043", loan: "PREST-002", amount: 1200, date: "2024-10-20", method: "Tarjeta", status: "Exitoso" },
-    { id: "PAG-042", loan: "PREST-002", amount: 1200, date: "2024-09-20", method: "Tarjeta", status: "Exitoso" },
-    { id: "PAG-041", loan: "PREST-003", amount: 850, date: "2024-08-01", method: "Transferencia", status: "Exitoso" },
-  ];
+  const loadHistoryData = async () => {
+    try {
+      setIsLoading(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
 
-  const serviceHistory = [
-    { id: "SERV-120", type: "Recarga", description: "Recarga Telcel $200", date: "2024-10-25", status: "Completado" },
-    { id: "SERV-119", type: "Pago", description: "CFE - Luz", date: "2024-10-20", status: "Completado" },
-    { id: "SERV-118", type: "Recarga", description: "Recarga Movistar $100", date: "2024-10-15", status: "Completado" },
-  ];
+      // Load loans
+      const { data: loans, error: loansError } = await supabase
+        .from('loans')
+        .select('id, loan_number, amount, status, created_at')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (loansError) throw loansError;
+
+      const mappedLoans = (loans || []).map(l => ({
+        id: l.loan_number || l.id,
+        loan_id: l.id,
+        type: "Préstamo",
+        amount: Number(l.amount || 0),
+        date: new Date(l.created_at).toISOString().split('T')[0],
+        status: l.status === 'active' ? 'Activo' : l.status === 'paid' ? 'Completado' : l.status === 'approved' ? 'Aprobado' : l.status.charAt(0).toUpperCase() + l.status.slice(1),
+        raw: l
+      }));
+
+      setLoanHistory(mappedLoans);
+
+      // Load payments from loan_events table (where event_type is 'payment')
+      const { data: payments, error: paymentsError } = await supabase
+        .from('loan_events')
+        .select(`
+          id,
+          loan_id,
+          event_type,
+          created_at,
+          metadata,
+          loans(loan_number, amount)
+        `)
+        .eq('loans.user_id', user.id)
+        .eq('event_type', 'payment')
+        .order('created_at', { ascending: false });
+
+      if (paymentsError) throw paymentsError;
+
+      const mappedPayments = (payments || []).map((p: any) => ({
+        id: `PAG-${Math.random().toString(36).substr(2, 6).toUpperCase()}`,
+        loan: p.loans?.[0]?.loan_number || p.loan_id,
+        amount: Number(p.metadata?.amount || 0),
+        date: new Date(p.created_at).toISOString().split('T')[0],
+        method: p.metadata?.method || "Transferencia",
+        status: "Exitoso",
+        raw: p
+      }));
+
+      setPaymentHistory(mappedPayments);
+    } catch (err) {
+      console.error('Error loading history:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleViewDetails = (item: any, type: string) => {
     setSelectedItem({ ...item, type });
@@ -46,6 +99,7 @@ const History = () => {
       'Exitoso': { bg: 'bg-success/20', text: 'text-success', border: 'border-success' },
       'Completado': { bg: 'bg-success/20', text: 'text-success', border: 'border-success' },
       'Aprobado': { bg: 'bg-primary/20', text: 'text-primary', border: 'border-primary' },
+      'Activo': { bg: 'bg-primary/20', text: 'text-primary', border: 'border-primary' },
       'Pendiente': { bg: 'bg-warning/20', text: 'text-warning', border: 'border-warning' },
       'Rechazado': { bg: 'bg-danger/20', text: 'text-danger', border: 'border-danger' },
     };
@@ -56,6 +110,46 @@ const History = () => {
         {status}
       </Badge>
     );
+  };
+
+  // Filter data based on search term
+  const filteredLoans = loanHistory.filter(loan =>
+    loan.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    loan.date.includes(searchTerm) ||
+    loan.status.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const filteredPayments = paymentHistory.filter(payment =>
+    payment.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    payment.loan.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    payment.date.includes(searchTerm) ||
+    payment.method.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const handleExport = () => {
+    const dataToExport = activeTab === 'loans' ? filteredLoans : filteredPayments;
+    const headers = activeTab === 'loans' 
+      ? ['ID', 'Tipo', 'Monto', 'Fecha', 'Estado']
+      : ['ID', 'Préstamo', 'Monto', 'Fecha', 'Método', 'Estado'];
+    
+    const csvContent = [
+      headers.join(','),
+      ...dataToExport.map(item => 
+        activeTab === 'loans'
+          ? [item.id, item.type, item.amount, item.date, item.status].join(',')
+          : [item.id, item.loan, item.amount, item.date, item.method, item.status].join(',')
+      )
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `historial_${activeTab}_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   return (
@@ -70,16 +164,6 @@ const History = () => {
               <div className="flex-1 min-w-0">
                 <h1 className="text-xl sm:text-2xl font-bold truncate">Historial</h1>
               </div>
-              <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" className="hidden sm:flex">
-                  <Filter className="h-4 w-4 mr-2" />
-                  <span className="text-sm">Filtrar</span>
-                </Button>
-                <Button variant="outline" size="sm">
-                  <Download className="h-4 w-4 sm:mr-2" />
-                  <span className="hidden sm:inline text-sm">Exportar</span>
-                </Button>
-              </div>
             </div>
           </header>
 
@@ -90,11 +174,13 @@ const History = () => {
               <Input 
                 placeholder="Buscar en historial..." 
                 className="pl-8 sm:pl-10 text-xs sm:text-sm"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
 
             {/* Tabs */}
-            <Tabs defaultValue="loans" className="w-full">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
               <TabsList className="grid w-full max-w-md grid-cols-2">
                 <TabsTrigger value="loans" className="text-xs sm:text-sm">Préstamos</TabsTrigger>
                 <TabsTrigger value="payments" className="text-xs sm:text-sm">Pagos</TabsTrigger>
@@ -108,46 +194,62 @@ const History = () => {
                     <CardDescription className="text-xs sm:text-sm">
                       Todos los préstamos solicitados en tu cuenta
                     </CardDescription>
+                    <div className="pt-3">
+                      <Button variant="outline" size="sm" onClick={handleExport}>
+                        <Download className="h-4 w-4 mr-2" />
+                        <span className="text-xs sm:text-sm">Exportar Historial</span>
+                      </Button>
+                    </div>
                   </CardHeader>
                   <CardContent className="px-2 sm:px-4 md:px-6 pb-4 sm:pb-6">
-                    <div className="overflow-x-auto -mx-2 sm:mx-0">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="text-xs sm:text-sm whitespace-nowrap">ID</TableHead>
-                          <TableHead className="text-xs sm:text-sm whitespace-nowrap hidden sm:table-cell">Tipo</TableHead>
-                          <TableHead className="text-xs sm:text-sm whitespace-nowrap">Monto</TableHead>
-                          <TableHead className="text-xs sm:text-sm whitespace-nowrap hidden md:table-cell">Fecha</TableHead>
-                          <TableHead className="text-xs sm:text-sm whitespace-nowrap">Estado</TableHead>
-                          <TableHead className="text-xs sm:text-sm whitespace-nowrap">Acciones</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {loanHistory.map((item) => (
-                          <TableRow key={item.id}>
-                            <TableCell className="font-medium text-xs sm:text-sm whitespace-nowrap">{item.id}</TableCell>
-                            <TableCell className="text-xs sm:text-sm whitespace-nowrap hidden sm:table-cell">{item.type}</TableCell>
-                            <TableCell className="font-semibold text-xs sm:text-sm whitespace-nowrap">
-                              ${item.amount.toLocaleString()}
-                            </TableCell>
-                            <TableCell className="text-xs sm:text-sm whitespace-nowrap hidden md:table-cell">{item.date}</TableCell>
-                            <TableCell>{getStatusBadge(item.status)}</TableCell>
-                            <TableCell>
-                              <Button 
-                                size="sm" 
-                                variant="outline"
-                                onClick={() => handleViewDetails(item, 'loan')}
-                                className="text-xs"
-                              >
-                                <span className="hidden sm:inline">Ver Detalles</span>
-                                <span className="sm:hidden">Ver</span>
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                    </div>
+                    {isLoading ? (
+                      <div className="text-center py-8">
+                        <p className="text-muted-foreground">Cargando préstamos...</p>
+                      </div>
+                    ) : filteredLoans.length === 0 ? (
+                      <div className="text-center py-8">
+                        <p className="text-muted-foreground">No hay préstamos {searchTerm ? 'que coincidan con tu búsqueda' : 'registrados'}</p>
+                      </div>
+                    ) : (
+                      <div className="overflow-x-auto -mx-2 sm:mx-0">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="text-xs sm:text-sm whitespace-nowrap">ID</TableHead>
+                              <TableHead className="text-xs sm:text-sm whitespace-nowrap hidden sm:table-cell">Tipo</TableHead>
+                              <TableHead className="text-xs sm:text-sm whitespace-nowrap">Monto</TableHead>
+                              <TableHead className="text-xs sm:text-sm whitespace-nowrap hidden md:table-cell">Fecha</TableHead>
+                              <TableHead className="text-xs sm:text-sm whitespace-nowrap">Estado</TableHead>
+                              <TableHead className="text-xs sm:text-sm whitespace-nowrap">Acciones</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {filteredLoans.map((item) => (
+                              <TableRow key={item.loan_id}>
+                                <TableCell className="font-medium text-xs sm:text-sm whitespace-nowrap">{item.id}</TableCell>
+                                <TableCell className="text-xs sm:text-sm whitespace-nowrap hidden sm:table-cell">{item.type}</TableCell>
+                                <TableCell className="font-semibold text-xs sm:text-sm whitespace-nowrap">
+                                  ${item.amount.toLocaleString()}
+                                </TableCell>
+                                <TableCell className="text-xs sm:text-sm whitespace-nowrap hidden md:table-cell">{item.date}</TableCell>
+                                <TableCell>{getStatusBadge(item.status)}</TableCell>
+                                <TableCell>
+                                  <Button 
+                                    size="sm" 
+                                    variant="outline"
+                                    onClick={() => handleViewDetails(item, 'loan')}
+                                    className="text-xs"
+                                  >
+                                    <span className="hidden sm:inline">Ver Detalles</span>
+                                    <span className="sm:hidden">Ver</span>
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               </TabsContent>
@@ -160,36 +262,52 @@ const History = () => {
                     <CardDescription className="text-xs sm:text-sm">
                       Registro completo de todos tus pagos
                     </CardDescription>
+                    <div className="pt-3">
+                      <Button variant="outline" size="sm" onClick={handleExport}>
+                        <Download className="h-4 w-4 mr-2" />
+                        <span className="text-xs sm:text-sm">Exportar Pagos</span>
+                      </Button>
+                    </div>
                   </CardHeader>
                   <CardContent className="px-2 sm:px-4 md:px-6 pb-4 sm:pb-6">
-                    <div className="overflow-x-auto -mx-2 sm:mx-0">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="text-xs sm:text-sm whitespace-nowrap">ID</TableHead>
-                          <TableHead className="text-xs sm:text-sm whitespace-nowrap hidden md:table-cell">Préstamo</TableHead>
-                          <TableHead className="text-xs sm:text-sm whitespace-nowrap">Monto</TableHead>
-                          <TableHead className="text-xs sm:text-sm whitespace-nowrap hidden sm:table-cell">Fecha</TableHead>
-                          <TableHead className="text-xs sm:text-sm whitespace-nowrap hidden lg:table-cell">Método</TableHead>
-                          <TableHead className="text-xs sm:text-sm whitespace-nowrap">Estado</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {paymentHistory.map((item) => (
-                          <TableRow key={item.id}>
-                            <TableCell className="font-medium text-xs sm:text-sm whitespace-nowrap">{item.id}</TableCell>
-                            <TableCell className="text-xs sm:text-sm whitespace-nowrap hidden md:table-cell">{item.loan}</TableCell>
-                            <TableCell className="font-semibold text-xs sm:text-sm whitespace-nowrap">
-                              ${item.amount.toLocaleString()}
-                            </TableCell>
-                            <TableCell className="text-xs sm:text-sm whitespace-nowrap hidden sm:table-cell">{item.date}</TableCell>
-                            <TableCell className="text-xs sm:text-sm whitespace-nowrap hidden lg:table-cell">{item.method}</TableCell>
-                            <TableCell>{getStatusBadge(item.status)}</TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                    </div>
+                    {isLoading ? (
+                      <div className="text-center py-8">
+                        <p className="text-muted-foreground">Cargando pagos...</p>
+                      </div>
+                    ) : filteredPayments.length === 0 ? (
+                      <div className="text-center py-8">
+                        <p className="text-muted-foreground">No hay pagos {searchTerm ? 'que coincidan con tu búsqueda' : 'registrados'}</p>
+                      </div>
+                    ) : (
+                      <div className="overflow-x-auto -mx-2 sm:mx-0">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="text-xs sm:text-sm whitespace-nowrap">ID</TableHead>
+                              <TableHead className="text-xs sm:text-sm whitespace-nowrap hidden md:table-cell">Préstamo</TableHead>
+                              <TableHead className="text-xs sm:text-sm whitespace-nowrap">Monto</TableHead>
+                              <TableHead className="text-xs sm:text-sm whitespace-nowrap hidden sm:table-cell">Fecha</TableHead>
+                              <TableHead className="text-xs sm:text-sm whitespace-nowrap hidden lg:table-cell">Método</TableHead>
+                              <TableHead className="text-xs sm:text-sm whitespace-nowrap">Estado</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {filteredPayments.map((item) => (
+                              <TableRow key={item.id}>
+                                <TableCell className="font-medium text-xs sm:text-sm whitespace-nowrap">{item.id}</TableCell>
+                                <TableCell className="text-xs sm:text-sm whitespace-nowrap hidden md:table-cell">{item.loan}</TableCell>
+                                <TableCell className="font-semibold text-xs sm:text-sm whitespace-nowrap">
+                                  ${item.amount.toLocaleString()}
+                                </TableCell>
+                                <TableCell className="text-xs sm:text-sm whitespace-nowrap hidden sm:table-cell">{item.date}</TableCell>
+                                <TableCell className="text-xs sm:text-sm whitespace-nowrap hidden lg:table-cell">{item.method}</TableCell>
+                                <TableCell>{getStatusBadge(item.status)}</TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               </TabsContent>
@@ -201,7 +319,7 @@ const History = () => {
 
         {/* View Details Dialog */}
         <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
-          <DialogContent className="max-w-[95vw] sm:max-w-lg md:max-w-2xl">
+          <DialogContent className="max-w-[95vw] sm:max-w-lg md:max-w-2xl rounded-2xl">
             <DialogHeader>
               <DialogTitle className="text-lg sm:text-xl">Detalles del Registro</DialogTitle>
               <DialogDescription className="text-xs sm:text-sm">Información completa de la transacción</DialogDescription>

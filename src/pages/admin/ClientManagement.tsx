@@ -74,7 +74,7 @@ const ClientManagement = () => {
         const [usersRes, userMembershipsRes, plansRes] = await Promise.all([
           supabase
             .from('users')
-            .select('id, role, email, first_name, last_name, phone, address, birth_date, curp, ine_key, created_at, ine_front_url, ine_back_url, curp_url', { count: 'exact' })
+            .select('id, role, email, first_name, last_name, phone, address, birth_date, curp, ine_key, created_at, ine_front_url, ine_back_url, curp_url, avatar_url', { count: 'exact' })
             .eq('role', 'client')
             .order('created_at', { ascending: false })
             .range(from, to),
@@ -151,8 +151,32 @@ const ClientManagement = () => {
 
         console.log('[ClientManagement] mappedMemberships', mappedMemberships);
 
+        // Fetch loan counts for each user
+        const loansRes = await supabase
+          .from('loans')
+          .select('user_id, status', { count: 'exact' });
+
+        if (loansRes.error) throw loansRes.error;
+
+        const loans = loansRes.data ?? [];
+        
+        // Build a map of user_id -> { total, active }
+        const loanCountsByUser = new Map<string, { total: number; active: number }>();
+        loans.forEach((loan: any) => {
+          const userId = loan.user_id as string;
+          if (!loanCountsByUser.has(userId)) {
+            loanCountsByUser.set(userId, { total: 0, active: 0 });
+          }
+          const counts = loanCountsByUser.get(userId)!;
+          counts.total += 1;
+          if (loan.status === 'active') {
+            counts.active += 1;
+          }
+        });
+
         const mappedClients: Client[] = (users as any[]).map((u) => {
           const membership = membershipByUser.get(u.id as string);
+          const loanCounts = loanCountsByUser.get(u.id as string) ?? { total: 0, active: 0 };
           return {
             id: u.id as string,
             role: u.role === 'admin' ? 'Admin' : 'Usuario',
@@ -165,14 +189,14 @@ const ClientManagement = () => {
             registrationDate: (u.created_at || '').slice(0, 10),
             ine: u.ine_key ?? '',
             curp: u.curp ?? '',
-            photoUrl: undefined,
+            photoUrl: u.avatar_url ?? undefined,
             ineFrontUrl: u.ine_front_url ?? undefined,
             ineBackUrl: u.ine_back_url ?? undefined,
             curpUrl: u.curp_url ?? undefined,
             membership: membership?.membership ?? '',
             membershipStatus: membership?.membershipStatus ?? 'Sin membresía',
-            totalLoans: 0,
-            activeLoans: 0,
+            totalLoans: loanCounts.total,
+            activeLoans: loanCounts.active,
           };
         });
 

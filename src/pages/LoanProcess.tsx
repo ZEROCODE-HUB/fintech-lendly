@@ -83,9 +83,12 @@ const LoanProcess = () => {
     amount: navState.amount ?? 10000,
     installments: navState.installments ?? 12,
     monthlyPayment: navState.monthlyPayment ?? 952.38,
-    interestRate: navState.interestRate ?? 42,
+    interestRate: navState.interestRate ?? 42, // Percentage (e.g., 42 for 42%)
     totalToPay: navState.totalToPay ?? 11428.56,
   };
+
+  // Convert interest rate from percentage to decimal for calculations
+  const [interestRateDecimal, setInterestRateDecimal] = useState(initialLoanData.interestRate / 100);
 
   // If navigation included resumeLoanId, fetch loan and prefill for resume
   useEffect(() => {
@@ -113,7 +116,12 @@ const LoanProcess = () => {
         if (md.disbursementData) setDisbursementData(prev => ({ ...prev, ...(md.disbursementData || {}) }));
 
         setCurrentLoan(loanRow);
-        setCurrentStep(resumeStep);
+        if (loanRow.status === 'signed') {
+          setIsApproved(true);
+          setCurrentStep(6);
+        } else {
+          setCurrentStep(resumeStep);
+        }
 
         // If still pending, show analyzing loader; if approved, set flag for signature pending
         if (loanRow.status === 'pending' || loanRow.status === 'under_review') {
@@ -128,6 +136,9 @@ const LoanProcess = () => {
                   if (refreshed.status === 'approved') {
                     setIsApproved(true);
                     setCurrentStep(4);
+                  } else if (refreshed.status === 'signed') {
+                    setIsApproved(true);
+                    setCurrentStep(6);
                   }
                   // stop polling if approved or otherwise
                   if (pollIntervalRef.current) { clearInterval(pollIntervalRef.current); pollIntervalRef.current = null; }
@@ -224,7 +235,7 @@ const LoanProcess = () => {
         amount: Number(loanAmount) || 0,
         installments: Number(loanInstallments) || 12,
         monthly_payment: Number(monthlyPayment) || 0,
-        interest_rate: INTEREST_RATE,
+        interest_rate: interestRateDecimal, // Use the decimal rate from state
         total_to_pay: Number(totalToPay) || 0,
         status: 'pending',
         metadata: {
@@ -335,7 +346,7 @@ const LoanProcess = () => {
   const calculatePayment = () => {
     const principal = parseFloat(loanAmount) || 0;
     const months = parseInt(loanInstallments) || 12;
-    const monthlyRate = INTEREST_RATE / 12;
+    const monthlyRate = interestRateDecimal / 12;
     
     if (principal > 0) {
       const payment = (principal * monthlyRate * Math.pow(1 + monthlyRate, months)) / (Math.pow(1 + monthlyRate, months) - 1);
@@ -362,43 +373,6 @@ const LoanProcess = () => {
         if (!loan) return; // creation failed
       }
 
-        // send SignNow invite immediately when user clicks Iniciar
-        (async () => {
-          try {
-            const user = authService.getCurrentUser();
-            const userEmail = user?.email;
-            if (userEmail) {
-              try {
-                console.log('[loanprocess] calling external signnow endpoint (immediate)', { url: 'https://increscendo-api.vercel.app/signnow-invite', method: 'POST' });
-                try {
-                  const resp = await fetch('https://increscendo-api.vercel.app/signnow-invite', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ recipient_email: userEmail }),
-                  });
-                  console.log('[loanprocess] external signnow response status (immediate)', resp.status);
-                  const data = await resp.json().catch(() => null);
-                  console.log('[loanprocess] external signnow response data (immediate)', data);
-                  if (!resp.ok) throw data || new Error('External function error');
-                  toast({ title: 'Invitación enviada', description: 'Se ha enviado la invitación para firmar el contrato a tu correo.' });
-                  try {
-                    await supabase.from('loans').update({ contract_sent_at: new Date().toISOString(), metadata: Object.assign({}, loan?.metadata || {}, { signnow_invite: data }) }).eq('id', loan.id);
-                  } catch (e) { console.error('[loanprocess] failed to save signnow_invite metadata (immediate)', e); }
-                } catch (e) {
-                  console.error('[loanprocess] external signnow error (immediate)', e);
-                  toast({ title: 'Error', description: 'No se pudo enviar la invitación de firma (external).', variant: 'destructive' });
-                }
-              } catch (e) {
-                console.error('Edge function signnow_invite error (immediate)', e);
-                toast({ title: 'Error', description: 'No se pudo enviar la invitación de firma (Edge Function).', variant: 'destructive' });
-              }
-            }
-          } catch (e) {
-            console.error('SignNow invite error', e);
-            toast({ title: 'Error', description: 'No se pudo enviar la invitación de firma (SignNow).', variant: 'destructive' });
-          }
-        })();
-
         setIsAnalyzing(true);
 
       const checkStatus = async () => {
@@ -415,45 +389,6 @@ const LoanProcess = () => {
             // refresh current loan with latest status
             const { data: full, error: fullErr } = await supabase.from('loans').select('*').eq('id', loan.id).maybeSingle();
             if (!fullErr && full) setCurrentLoan(full);
-
-            // send SignNow invite only if it wasn't sent before
-            if (!full?.contract_sent_at && !(full?.metadata && full.metadata.signnow_invite)) {
-              (async () => {
-                try {
-                  const user = authService.getCurrentUser();
-                  const userEmail = user?.email;
-                        if (userEmail) {
-                          try {
-                            console.log('[loanprocess] calling external signnow endpoint (on-approved)', { url: 'https://increscendo-api.vercel.app/signnow-invite', method: 'POST' });
-                            try {
-                              const resp = await fetch('https://increscendo-api.vercel.app/signnow-invite', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ recipient_email: userEmail }),
-                              });
-                              console.log('[loanprocess] external signnow response status (on-approved)', resp.status);
-                              const inviteResp = await resp.json().catch(() => null);
-                              console.log('[loanprocess] external signnow response data (on-approved)', inviteResp);
-                              if (!resp.ok) throw inviteResp || new Error('External function error');
-                              toast({ title: 'Contrato enviado', description: 'Te hemos enviado la invitación para firmar el contrato por correo.' });
-                              try {
-                                await supabase.from('loans').update({ contract_sent_at: new Date().toISOString(), metadata: Object.assign({}, full?.metadata || {}, { signnow_invite: inviteResp }) }).eq('id', loan.id);
-                              } catch (e) { console.error('[loanprocess] failed to save signnow_invite metadata (on-approved)', e); }
-                            } catch (e) {
-                              console.error('[loanprocess] external signnow error (on-approved)', e);
-                              toast({ title: 'Error', description: 'No se pudo enviar la invitación de firma (external).', variant: 'destructive' });
-                            }
-                          } catch (e) {
-                            console.error('Edge function signnow_invite error (on-approved)', e);
-                            toast({ title: 'Error', description: 'No se pudo enviar la invitación de firma (Edge Function).', variant: 'destructive' });
-                          }
-                        }
-                } catch (e) {
-                  console.error('SignNow invite error', e);
-                  toast({ title: 'Error', description: 'No se pudo enviar la invitación de firma (SignNow).', variant: 'destructive' });
-                }
-              })();
-            }
 
             if (pollIntervalRef.current) {
               clearInterval(pollIntervalRef.current);
@@ -600,6 +535,37 @@ const LoanProcess = () => {
     };
   }, []);
 
+  useEffect(() => {
+    if (currentLoan?.status === 'signed' && currentStep === 5) {
+      setCurrentStep(6);
+    }
+  }, [currentLoan?.status, currentStep]);
+
+  useEffect(() => {
+    if (currentStep !== 5 || !currentLoan?.id) return;
+
+    const id = window.setInterval(async () => {
+      try {
+        const { data, error } = await supabase
+          .from('loans')
+          .select('status')
+          .eq('id', currentLoan.id)
+          .maybeSingle();
+        if (error) throw error;
+        if (data?.status === 'signed') {
+          setCurrentLoan(prev => prev ? ({ ...prev, status: 'signed' }) : prev);
+          setCurrentStep(6);
+        }
+      } catch (e) {
+        console.warn('sign status poll error', e);
+      }
+    }, 5000);
+
+    return () => {
+      clearInterval(id);
+    };
+  }, [currentStep, currentLoan?.id]);
+
   // Load current user's profile and prefill personal data for Step 3
   useEffect(() => {
     const loadUserProfile = async () => {
@@ -640,12 +606,14 @@ const LoanProcess = () => {
       <div className="flex items-center justify-between">
         {STEPS.map((step, index) => (
           <div key={step.id} className="flex items-center flex-1">
-            <div className="flex flex-col items-center">
+            <div className="flex flex-col items-center relative">
               <div
                 className={`w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center font-bold text-xs sm:text-sm md:text-base transition-all ${
-                  currentStep >= step.id
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-muted text-muted-foreground"
+                  currentStep === step.id
+                    ? "bg-primary text-primary-foreground shadow-lg ring-2 ring-primary ring-offset-2"
+                    : currentStep > step.id
+                    ? "bg-primary text-primary-foreground shadow-md"
+                    : "bg-white text-muted-foreground border-2 border-muted shadow-sm"
                 }`}
               >
                 {currentStep > step.id ? (
@@ -654,14 +622,14 @@ const LoanProcess = () => {
                   step.id
                 )}
               </div>
-              <span className={`text-[10px] sm:text-xs mt-1 text-center hidden sm:block ${currentStep >= step.id ? "text-primary font-medium" : "text-muted-foreground"}`}>
+              <span className={`text-[10px] sm:text-xs mt-2 text-center hidden sm:block ${currentStep === step.id ? "text-primary font-semibold" : currentStep > step.id ? "text-primary font-medium" : "text-muted-foreground"}`}>
                 {step.title}
               </span>
             </div>
             {index < STEPS.length - 1 && (
               <div
-                className={`flex-1 h-0.5 sm:h-1 mx-1 sm:mx-2 rounded transition-all hidden sm:block ${
-                  currentStep > step.id ? "bg-primary" : "bg-muted"
+                className={`flex-1 h-0.5 sm:h-1 mx-1 sm:mx-2 rounded transition-all hidden sm:block -mt-3 sm:-mt-4 ${
+                  currentStep > step.id ? "bg-primary shadow-sm" : "bg-white shadow-md border border-muted/40"
                 }`}
               />
             )}
@@ -741,28 +709,28 @@ const LoanProcess = () => {
 
         {/* Summary Display */}
         <div className="bg-gradient-to-br from-primary/10 to-accent/30 rounded-xl p-4 sm:p-5 md:p-6">
-          <div className="grid grid-cols-2 gap-3 sm:gap-4 md:gap-5">
-            <div>
-              <p className="text-[10px] sm:text-xs text-muted-foreground">Monto Solicitado</p>
-              <p className="text-lg sm:text-xl md:text-xl lg:text-2xl font-bold text-primary">${parseFloat(loanAmount || "0").toLocaleString()} MXN</p>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-3 md:gap-4">
+            <div className="text-center sm:text-left">
+              <p className="text-xs text-muted-foreground mb-1">Monto Solicitado</p>
+              <p className="text-lg sm:text-lg md:text-xl font-bold text-primary whitespace-nowrap">${parseFloat(loanAmount || "0").toLocaleString()} MXN</p>
             </div>
-            <div>
-              <p className="text-[10px] sm:text-xs text-muted-foreground">Plazo</p>
-              <p className="text-lg sm:text-xl md:text-xl lg:text-2xl font-bold">{loanInstallments} cuotas</p>
+            <div className="text-center sm:text-left">
+              <p className="text-xs text-muted-foreground mb-1">Plazo</p>
+              <p className="text-lg sm:text-lg md:text-xl font-bold whitespace-nowrap">{loanInstallments} cuotas</p>
             </div>
-            <div>
-              <p className="text-[10px] sm:text-xs text-muted-foreground">Tasa de Interés</p>
-              <p className="text-base sm:text-lg md:text-lg lg:text-xl font-semibold">{INTEREST_RATE * 100}% anual</p>
+            <div className="text-center sm:text-left">
+              <p className="text-xs text-muted-foreground mb-1">Tasa de Interés</p>
+              <p className="text-base sm:text-base md:text-lg font-semibold whitespace-nowrap">{initialLoanData.interestRate}% anual</p>
             </div>
-            <div>
-              <p className="text-[10px] sm:text-xs text-muted-foreground">Cuota Mensual</p>
-              <p className="text-base sm:text-lg md:text-lg lg:text-xl font-semibold text-primary">${monthlyPayment.toFixed(2)} MXN</p>
+            <div className="text-center sm:text-left">
+              <p className="text-xs text-muted-foreground mb-1">Cuota Mensual</p>
+              <p className="text-base sm:text-base md:text-lg font-semibold text-primary whitespace-nowrap">${monthlyPayment.toFixed(2)} MXN</p>
             </div>
           </div>
-          <Separator className="my-3 sm:my-4" />
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-1">
-            <p className="text-xs sm:text-sm text-muted-foreground">Total a Pagar</p>
-            <p className="text-lg sm:text-xl md:text-xl lg:text-2xl font-bold">${totalToPay.toFixed(2)} MXN</p>
+          <Separator className="my-4" />
+          <div className="flex flex-row justify-between items-center">
+            <p className="text-sm font-medium text-muted-foreground">Total a Pagar</p>
+            <p className="text-xl sm:text-2xl font-bold text-primary whitespace-nowrap">${totalToPay.toFixed(2)} MXN</p>
           </div>
         </div>
       </CardContent>
@@ -796,66 +764,115 @@ const LoanProcess = () => {
           </div>
         ) : (
           <>
-            <div className="w-full">
-              <Carousel>
-                <CarouselPrevious />
-                <CarouselContent className="py-4">
-                  {(loadingMemberships ? defaultMemberships : membershipPlans.length ? membershipPlans : defaultMemberships).map((membership: any) => (
-                    <CarouselItem key={membership.id}>
-                      <Card className={`h-full flex flex-col transition-all duration-300 hover:-translate-y-2 ${selectedMembership && selectedMembership === membership.id ? 'border-success bg-success/10 shadow-elegant' : 'shadow-soft border border-border hover:shadow-elegant'}`}>
-                        <CardHeader className="text-center pb-3">
-                          <div className="mx-auto mb-3 h-16 w-16 rounded-full bg-gradient-hero flex items-center justify-center">
-                            <Crown className="h-8 w-8 text-white" />
-                          </div>
-                          <CardTitle className="text-2xl">{membership.name ?? membership.title}</CardTitle>
-                          <CardDescription className="flex items-center justify-center gap-1">
-                            <Badge variant="secondary">{membership.targetAudience}</Badge>
-                          </CardDescription>
-                        </CardHeader>
-                        <CardContent className="flex flex-col flex-grow">
-                          <div className="text-center">
-                            <span className="text-4xl font-bold text-primary">${(membership.cost ?? membership.price ?? 0).toLocaleString()}</span>
-                            <span className="text-muted-foreground"> MXN / {membership.renewalPeriod}</span>
-                          </div>
+            {/* Mobile: Vertical Stack */}
+            <div className="w-full md:hidden space-y-4">
+              {(loadingMemberships ? defaultMemberships : membershipPlans.length ? membershipPlans : defaultMemberships).map((membership: any) => (
+                <Card key={membership.id} className={`flex flex-col transition-all duration-300 ${selectedMembership && selectedMembership === membership.id ? 'border-success bg-success/10 shadow-elegant' : 'shadow-soft border border-border hover:shadow-elegant'}`}>
+                  <CardHeader className="text-center pb-3">
+                    <div className="mx-auto mb-3 h-16 w-16 rounded-full bg-gradient-hero flex items-center justify-center">
+                      <Crown className="h-8 w-8 text-white" />
+                    </div>
+                    <CardTitle className="text-2xl">{membership.name ?? membership.title}</CardTitle>
+                    <CardDescription className="flex items-center justify-center gap-1">
+                      <Badge variant="secondary">{membership.targetAudience}</Badge>
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="flex flex-col flex-grow">
+                    <div className="text-center">
+                      <span className="text-4xl font-bold text-primary">${(membership.cost ?? membership.price ?? 0).toLocaleString()}</span>
+                      <span className="text-muted-foreground"> MXN / {membership.renewalPeriod}</span>
+                    </div>
 
-                          <div className="space-y-2 py-4 border-y">
-                            <div className="flex items-center gap-2 text-sm">
-                              <span className="font-medium">Tasa preferencial:</span>
-                              <span>{membership.interestRate ?? 0}%</span>
-                            </div>
-                            <div className="flex items-center gap-2 text-sm">
-                              <span className="font-medium">Renovación:</span>
-                              <span>{membership.renewalPeriod}</span>
-                            </div>
-                          </div>
+                    <div className="space-y-2 py-4 border-y">
+                      <div className="flex items-center gap-2 text-sm">
+                        <span className="font-medium">Tasa preferencial:</span>
+                        <span>{membership.interestRate ?? 0}%</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm">
+                        <span className="font-medium">Renovación:</span>
+                        <span>{membership.renewalPeriod}</span>
+                      </div>
+                    </div>
 
-                          <ul className="space-y-2 flex-grow py-4">
-                            {(membership.benefits ?? []).map((benefit: any, index: number) => (
-                              <li key={index} className="flex items-center gap-2 text-sm">
-                                <CheckCircle2 className="h-4 w-4 text-success" />
-                                {typeof benefit === 'string' ? benefit : benefit.label || JSON.stringify(benefit)}
-                              </li>
-                            ))}
-                          </ul>
+                    <ul className="space-y-2 flex-grow py-4">
+                      {(membership.benefits ?? []).map((benefit: any, index: number) => (
+                        <li key={index} className="flex items-center gap-2 text-sm">
+                          <CheckCircle2 className="h-4 w-4 text-success" />
+                          {typeof benefit === 'string' ? benefit : benefit.label || JSON.stringify(benefit)}
+                        </li>
+                      ))}
+                    </ul>
 
-                          {selectedMembership && selectedMembership === membership.id ? (
-                            <Button className="w-full mt-auto bg-success text-white" size="lg" disabled>
-                              Membresía seleccionada
-                            </Button>
-                          ) : (
-                            <Button className="w-full mt-auto" size="lg" onClick={(e) => { e.stopPropagation(); navigate('/membership-checkout', { state: { membership, returnTo: '/loan-process' } }); }}>
-                              Adquirir Membresía
-                            </Button>
-                          )}
-                        </CardContent>
-                      </Card>
-                    </CarouselItem>
-                  ))}
-                </CarouselContent>
-                <CarouselNext />
-              </Carousel>
+                    {selectedMembership && selectedMembership === membership.id ? (
+                      <Button className="w-full mt-auto bg-success text-white" size="lg" disabled>
+                        Membresía seleccionada
+                      </Button>
+                    ) : (
+                      <Button className="w-full mt-auto" size="lg" onClick={(e) => { e.stopPropagation(); navigate('/membership-checkout', { state: { membership, returnTo: '/loan-process' } }); }}>
+                        Adquirir Membresía
+                      </Button>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
             </div>
-            {/* 'Ya tengo una membresía' button removed per design */}
+
+            {/* Desktop: Horizontal Scroll */}
+            <div className="hidden md:block w-full">
+              <div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent">
+                {(loadingMemberships ? defaultMemberships : membershipPlans.length ? membershipPlans : defaultMemberships).map((membership: any) => (
+                  <div key={membership.id} className="flex-shrink-0 w-[320px] snap-start">
+                    <Card className={`h-full flex flex-col transition-all duration-300 hover:-translate-y-2 ${selectedMembership && selectedMembership === membership.id ? 'border-success bg-success/10 shadow-elegant' : 'shadow-soft border border-border hover:shadow-elegant'}`}>
+                      <CardHeader className="text-center pb-3">
+                        <div className="mx-auto mb-3 h-16 w-16 rounded-full bg-gradient-hero flex items-center justify-center">
+                          <Crown className="h-8 w-8 text-white" />
+                        </div>
+                        <CardTitle className="text-2xl">{membership.name ?? membership.title}</CardTitle>
+                        <CardDescription className="flex items-center justify-center gap-1">
+                          <Badge variant="secondary">{membership.targetAudience}</Badge>
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="flex flex-col flex-grow">
+                        <div className="text-center">
+                          <span className="text-4xl font-bold text-primary">${(membership.cost ?? membership.price ?? 0).toLocaleString()}</span>
+                          <span className="text-muted-foreground"> MXN / {membership.renewalPeriod}</span>
+                        </div>
+
+                        <div className="space-y-2 py-4 border-y">
+                          <div className="flex items-center gap-2 text-sm">
+                            <span className="font-medium">Tasa preferencial:</span>
+                            <span>{membership.interestRate ?? 0}%</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-sm">
+                            <span className="font-medium">Renovación:</span>
+                            <span>{membership.renewalPeriod}</span>
+                          </div>
+                        </div>
+
+                        <ul className="space-y-2 flex-grow py-4">
+                          {(membership.benefits ?? []).map((benefit: any, index: number) => (
+                            <li key={index} className="flex items-center gap-2 text-sm">
+                              <CheckCircle2 className="h-4 w-4 text-success" />
+                              {typeof benefit === 'string' ? benefit : benefit.label || JSON.stringify(benefit)}
+                            </li>
+                          ))}
+                        </ul>
+
+                        {selectedMembership && selectedMembership === membership.id ? (
+                          <Button className="w-full mt-auto bg-success text-white" size="lg" disabled>
+                            Membresía seleccionada
+                          </Button>
+                        ) : (
+                          <Button className="w-full mt-auto" size="lg" onClick={(e) => { e.stopPropagation(); navigate('/membership-checkout', { state: { membership, returnTo: '/loan-process' } }); }}>
+                            Adquirir Membresía
+                          </Button>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </div>
+                ))}
+              </div>
+            </div>
           </>
         )}
       </CardContent>

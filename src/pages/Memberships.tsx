@@ -9,7 +9,6 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 // table imports removed (payment history moved/removed)
 import { Crown, Check, Users, Percent, CreditCard, Calendar, RefreshCw } from "lucide-react";
-import { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext } from "@/components/ui/carousel";
 import { useToast } from "@/hooks/use-toast";
 import { 
   defaultMemberships, 
@@ -191,117 +190,117 @@ const Memberships = () => {
         <AppSidebar />
         
         <main className="flex-1">
-          <header className="h-16 border-b border-border bg-card flex items-center px-6 gap-4 fixed md:sticky top-0 z-10 w-full md:w-auto">
+          <header className="h-14 sm:h-16 border-b border-border bg-card flex items-center px-4 sm:px-6 gap-2 sm:gap-4 fixed md:sticky top-0 z-10 w-full md:w-auto">
             <SidebarTrigger />
-            <div className="flex-1">
-              <h1 className="text-2xl font-bold">Membresías</h1>
+            <div className="flex-1 min-w-0">
+              <h1 className="text-lg sm:text-xl md:text-2xl font-bold truncate">Membresías</h1>
             </div>
           </header>
 
-          <div className="p-6 space-y-6 pt-20 md:pt-0">
+          <div className="p-2 sm:p-6 space-y-3 sm:space-y-6 pt-16 sm:pt-20 md:pt-6">
             {/* Available plans - always show the carousel */}
-            (
-              <>
-                {/* Header */}
-                <div className="text-center py-8">
-                  <Crown className="h-12 w-12 mx-auto mb-4 text-primary" />
-                  <h2 className="text-3xl font-bold mb-2">Elige tu plan ideal</h2>
-                  <p className="text-muted-foreground max-w-2xl mx-auto">
-                    Selecciona la membresía que mejor se adapte a tus necesidades y comienza a disfrutar de todos los beneficios
+            <>
+              {/* Header */}
+              <div className="text-center py-3 sm:py-6 md:py-8 px-2">
+                  <Crown className="h-8 w-8 sm:h-10 sm:w-10 md:h-12 md:w-12 mx-auto mb-2 sm:mb-3 md:mb-4 text-primary" />
+                  <h2 className="text-xl sm:text-2xl md:text-3xl font-bold mb-1.5 sm:mb-2">Elige tu plan ideal</h2>
+                  <p className="text-xs sm:text-sm md:text-base text-muted-foreground max-w-2xl mx-auto">
+                    Selecciona la membresía que mejor se adapte a tus necesidades
                   </p>
                 </div>
 
-                {/* Membership Cards as Carousel */}
-                <div className="max-w-6xl w-full mx-auto relative px-4">
-                  <Carousel>
-                    <CarouselPrevious />
-                    <CarouselContent className="py-4">
-                      {loadingMemberships && (
-                        [1, 2].map((i) => (
-                          <CarouselItem key={`skeleton-${i}`}>
-                            <Card className="h-full flex flex-col shadow-soft border border-border">
-                              <CardHeader className="text-center pb-3">
-                                <div className="mx-auto mb-3 h-16 w-16 rounded-full bg-muted flex items-center justify-center">
-                                  <Skeleton className="h-8 w-8 rounded-full" />
-                                </div>
-                                <Skeleton className="h-5 w-40 mx-auto mb-2" />
-                                <Skeleton className="h-4 w-32 mx-auto" />
-                              </CardHeader>
-                              <CardContent className="flex flex-col flex-grow space-y-3">
-                                <Skeleton className="h-8 w-32 mx-auto" />
-                                <div className="space-y-2 py-4 border-y">
-                                  <Skeleton className="h-4 w-40" />
-                                  <Skeleton className="h-4 w-36" />
-                                </div>
-                                <div className="space-y-2 flex-grow py-4">
-                                  {[1, 2, 3].map((j) => (
-                                    <Skeleton key={j} className="h-4 w-full" />
-                                  ))}
-                                </div>
-                                <Skeleton className="h-10 w-full" />
-                              </CardContent>
-                            </Card>
-                          </CarouselItem>
-                        ))
-                      )}
+              {/* Membership Cards */}
+              <div className="w-full mx-auto max-w-6xl px-2 sm:px-4">
+                {/* Loading skeleton */}
+                {loadingMemberships && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {[1, 2].map((i) => (
+                      <Card key={`skeleton-${i}`} className="h-full flex flex-col shadow-soft border border-border">
+                        <CardHeader className="text-center pb-2 sm:pb-3 px-4">
+                          <div className="mx-auto mb-2 sm:mb-3 h-12 w-12 sm:h-14 sm:w-14 md:h-16 md:w-16 rounded-full bg-muted flex items-center justify-center">
+                            <Skeleton className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8 rounded-full" />
+                          </div>
+                          <Skeleton className="h-4 sm:h-5 w-32 sm:w-40 mx-auto mb-1.5 sm:mb-2" />
+                          <Skeleton className="h-3 sm:h-4 w-24 sm:w-32 mx-auto" />
+                        </CardHeader>
+                        <CardContent className="flex flex-col flex-grow space-y-2 sm:space-y-3 px-4">
+                          <Skeleton className="h-6 sm:h-8 w-24 sm:w-32 mx-auto" />
+                          <div className="space-y-1.5 sm:space-y-2 py-3 sm:py-4 border-y">
+                            <Skeleton className="h-3 sm:h-4 w-32 sm:w-40" />
+                            <Skeleton className="h-3 sm:h-4 w-28 sm:w-36" />
+                          </div>
+                          <div className="space-y-1.5 sm:space-y-2 flex-grow py-3 sm:py-4">
+                            {[1, 2, 3].map((j) => (
+                              <Skeleton key={j} className="h-3 sm:h-4 w-full" />
+                            ))}
+                          </div>
+                          <Skeleton className="h-9 sm:h-10 w-full" />
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
 
-                      {!loadingMemberships && memberships.map((membership) => (
-                        <CarouselItem key={membership.id}>
-                          <Card 
-                            className={`h-full flex flex-col transition-all duration-300 hover:-translate-y-2 ${userMembership && userMembership.membershipId === membership.id ? 'border-success bg-success/10 shadow-elegant' : 'shadow-soft border border-border hover:shadow-elegant'}`}
-                          >
-                            <CardHeader className="text-center pb-3">
-                              <div className="mx-auto mb-3 h-16 w-16 rounded-full bg-gradient-hero flex items-center justify-center">
-                                <Crown className="h-8 w-8 text-white" />
+                {/* Membership cards grid */}
+                {!loadingMemberships && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {memberships.map((membership) => (
+                        <Card 
+                          key={membership.id}
+                          className={`h-full flex flex-col transition-all duration-300 ${userMembership && userMembership.membershipId === membership.id ? 'border-success bg-success/10 shadow-elegant' : 'shadow-soft border border-border'}`}
+                        >
+                            <CardHeader className="text-center pb-2 sm:pb-3 px-4 sm:px-6">
+                              <div className="mx-auto mb-2 sm:mb-3 h-12 w-12 sm:h-14 sm:w-14 md:h-16 md:w-16 rounded-full bg-gradient-hero flex items-center justify-center">
+                                <Crown className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8 text-white" />
                               </div>
-                              <CardTitle className="text-2xl">{membership.title}</CardTitle>
-                              <CardDescription className="flex items-center justify-center gap-1">
+                              <CardTitle className="text-lg sm:text-xl md:text-2xl">{membership.title}</CardTitle>
+                              <CardDescription className="flex items-center justify-center gap-1 text-xs sm:text-sm">
                                 <Users className="h-3 w-3" />
                                 {membership.targetAudience}
                               </CardDescription>
                               {userMembership && userMembership.membershipId === membership.id && userMembership.expirationDate && (
-                                <div className="mt-2 text-sm text-success text-center">Expira {formatDate(userMembership.expirationDate)}</div>
+                                <div className="mt-1.5 sm:mt-2 text-xs sm:text-sm text-success text-center">Expira {formatDate(userMembership.expirationDate)}</div>
                               )}
                             </CardHeader>
-                            <CardContent className="flex flex-col flex-grow">
+                            <CardContent className="flex flex-col flex-grow px-4 sm:px-6 pb-4 sm:pb-6">
                               {/* Pricing */}
                               <div className="text-center">
-                                <span className="text-4xl font-bold text-primary">
+                                <span className="text-2xl sm:text-3xl md:text-4xl font-bold text-primary">
                                   ${membership.cost.toLocaleString()}
                                 </span>
-                                <span className="text-muted-foreground"> MXN / {membership.renewalPeriod}</span>
+                                <span className="text-xs sm:text-sm text-muted-foreground"> MXN / {membership.renewalPeriod}</span>
                               </div>
 
                               {/* Features */}
-                              <div className="space-y-2 py-4 border-y">
-                                <div className="flex items-center gap-2 text-sm">
-                                  <Percent className="h-4 w-4 text-primary" />
-                                  <span>Tasa preferencial: {membership.interestRate}%</span>
+                              <div className="space-y-1.5 sm:space-y-2 py-3 sm:py-4 border-y mt-3">
+                                <div className="flex items-center gap-2 text-xs sm:text-sm">
+                                  <Percent className="h-3 w-3 sm:h-4 sm:w-4 text-primary flex-shrink-0" />
+                                  <span>Tasa: {membership.interestRate}%</span>
                                 </div>
-                                <div className="flex items-center gap-2 text-sm">
-                                  <CreditCard className="h-4 w-4 text-primary" />
+                                <div className="flex items-center gap-2 text-xs sm:text-sm">
+                                  <CreditCard className="h-3 w-3 sm:h-4 sm:w-4 text-primary flex-shrink-0" />
                                   <span>Renovación: {membership.renewalPeriod}</span>
                                 </div>
                               </div>
 
                               {/* Benefits - grows to fill space */}
-                              <ul className="space-y-2 flex-grow py-4">
+                              <ul className="space-y-1.5 sm:space-y-2 flex-grow py-3 sm:py-4">
                                 {membership.benefits.map((benefit, index) => (
-                                  <li key={index} className="flex items-center gap-2 text-sm">
-                                    <Check className="h-4 w-4 text-success" />
-                                    {benefit}
+                                  <li key={index} className="flex items-start gap-2 text-xs sm:text-sm">
+                                    <Check className="h-3 w-3 sm:h-4 sm:w-4 text-success flex-shrink-0 mt-0.5" />
+                                    <span>{benefit}</span>
                                   </li>
                                 ))}
                               </ul>
 
                               {/* CTA Button - always at bottom */}
                               {userMembership && userMembership.membershipId === membership.id ? (
-                                <Button className="w-full mt-auto bg-success text-white" size="lg" disabled>
+                                <Button className="w-full mt-auto bg-success text-white h-10 sm:h-11 text-sm sm:text-base" size="lg" disabled>
                                   Membresía activa
                                 </Button>
                               ) : (
                                 <Button 
-                                  className="w-full mt-auto"
+                                  className="w-full mt-auto h-10 sm:h-11 text-sm sm:text-base"
                                   size="lg"
                                   onClick={() => handleAcquireMembership(membership)}
                                 >
@@ -310,16 +309,11 @@ const Memberships = () => {
                               )}
                             </CardContent>
                           </Card>
-                        </CarouselItem>
-                      ))}
-                    </CarouselContent>
-                    <CarouselNext />
-                  </Carousel>
-                </div>
-              </>
-            )
-
-            
+                        ))}
+                  </div>
+                )}
+              </div>
+            </>
           </div>
         </main>
       </div>

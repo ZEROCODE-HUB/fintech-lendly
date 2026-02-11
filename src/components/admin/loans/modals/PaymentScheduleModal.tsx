@@ -87,52 +87,59 @@ export const PaymentScheduleModal = ({ open, onOpenChange, loan }: Props) => {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl">
-        <DialogHeader>
-          <DialogTitle>Cronograma de Pagos {loan?.id ? `- ${loan.id}` : ''}</DialogTitle>
-          <DialogDescription>Listado de cuotas con capital, interés y estado de pago.</DialogDescription>
+      <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col p-0 w-[calc(100%-2rem)] sm:w-full rounded-2xl sm:rounded-lg">
+        <DialogHeader className="px-4 sm:px-6 pt-4 sm:pt-6 pb-2">
+          <DialogTitle className="text-base sm:text-lg">Cronograma de Pagos {loan?.id ? `- ${loan.id}` : ''}</DialogTitle>
+          <DialogDescription className="text-xs sm:text-sm">Listado de cuotas con capital, interés y estado de pago.</DialogDescription>
         </DialogHeader>
 
-        <div className="p-4">
-          <div className="flex items-center justify-between mb-3">
-            <div className="text-sm text-muted-foreground">Préstamo: {loan?.id} — Monto: ${Number(loan?.amount ?? loan?.raw?.amount ?? 0).toLocaleString()}</div>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={handleExport}>
-                <Calendar className="h-4 w-4 mr-2" />Exportar
-              </Button>
+        <div className="px-4 sm:px-6 py-3 border-b">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <div className="text-xs sm:text-sm text-muted-foreground">
+              <span className="block sm:inline">Préstamo: {loan?.id}</span>
+              <span className="hidden sm:inline mx-2">—</span>
+              <span className="block sm:inline">Monto: ${Number(loan?.amount ?? loan?.raw?.amount ?? 0).toLocaleString()}</span>
             </div>
-          </div>
-
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>#</TableHead>
-                  <TableHead>Fecha</TableHead>
-                  <TableHead>Pago</TableHead>
-                  <TableHead className="hidden sm:table-cell">Capital</TableHead>
-                  <TableHead className="hidden md:table-cell">Interés</TableHead>
-                  <TableHead>Saldo</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {schedule.map(r => (
-                  <TableRow key={r.number}>
-                    <TableCell>#{r.number}</TableCell>
-                    <TableCell>{r.dueDate}</TableCell>
-                    <TableCell className="font-semibold">${r.total.toLocaleString()}</TableCell>
-                    <TableCell className="hidden sm:table-cell">${r.principal.toLocaleString()}</TableCell>
-                    <TableCell className="hidden md:table-cell">${r.interest.toLocaleString()}</TableCell>
-                    <TableCell className="font-medium">${r.balance.toLocaleString()}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <Button variant="outline" size="sm" onClick={handleExport} className="w-full sm:w-auto">
+              <Calendar className="h-4 w-4 mr-2" />
+              Exportar
+            </Button>
           </div>
         </div>
 
-        <DialogFooter>
-          <Button variant="ghost" onClick={() => onOpenChange(false)}>Cerrar</Button>
+        <div className="flex-1 overflow-y-auto px-4 sm:px-6">
+          <div className="overflow-x-auto -mx-4 sm:mx-0 py-4">
+            <div className="min-w-full inline-block align-middle px-4 sm:px-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="text-xs sm:text-sm">#</TableHead>
+                    <TableHead className="text-xs sm:text-sm">Fecha</TableHead>
+                    <TableHead className="text-xs sm:text-sm">Pago</TableHead>
+                    <TableHead className="hidden sm:table-cell text-xs sm:text-sm">Capital</TableHead>
+                    <TableHead className="hidden lg:table-cell text-xs sm:text-sm">Interés</TableHead>
+                    <TableHead className="text-xs sm:text-sm">Saldo</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {schedule.map(r => (
+                    <TableRow key={r.number}>
+                      <TableCell className="text-xs sm:text-sm">#{r.number}</TableCell>
+                      <TableCell className="text-xs sm:text-sm whitespace-nowrap">{r.dueDate}</TableCell>
+                      <TableCell className="font-semibold text-xs sm:text-sm whitespace-nowrap">${r.total.toLocaleString()}</TableCell>
+                      <TableCell className="hidden sm:table-cell text-xs sm:text-sm whitespace-nowrap">${r.principal.toLocaleString()}</TableCell>
+                      <TableCell className="hidden lg:table-cell text-xs sm:text-sm whitespace-nowrap">${r.interest.toLocaleString()}</TableCell>
+                      <TableCell className="font-medium text-xs sm:text-sm whitespace-nowrap">${r.balance.toLocaleString()}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+        </div>
+
+        <DialogFooter className="px-4 sm:px-6 pb-4 sm:pb-6 pt-2 border-t">
+          <Button variant="ghost" onClick={() => onOpenChange(false)} className="w-full sm:w-auto">Cerrar</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
