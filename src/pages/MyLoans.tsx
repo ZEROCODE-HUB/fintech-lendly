@@ -34,6 +34,7 @@ const MyLoans = () => {
   const [paymentLoan, setPaymentLoan] = useState<any>(null);
   const [loansData, setLoansData] = useState<any[]>([]);
   const [isLoadingLoans, setIsLoadingLoans] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<string>('all');
 
   // Generate installments for a loan
   const generateInstallments = (loan: any): Installment[] => {
@@ -71,6 +72,32 @@ const MyLoans = () => {
   const pendingInstallments = useMemo(() => {
     return currentInstallments.filter(inst => inst.status === 'pending');
   }, [currentInstallments]);
+
+  const statusOptions = useMemo(() => {
+    const unique = Array.from(new Set(loansData.map(l => l.status).filter(Boolean)));
+    return unique.sort();
+  }, [loansData]);
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'active': return 'Activo';
+      case 'paid': return 'Pagado';
+      case 'approved': return 'Aprobado';
+      case 'signed': return 'Reembolso';
+      case 'cancelled': return 'Rechazado';
+      case 'rejected': return 'Rechazado';
+      case 'pending': return 'Pendiente';
+      case 'under_review': return 'En revisión';
+      case 'disbursed': return 'Desembolsado';
+      case 'closed': return 'Cerrado';
+      default: return status;
+    }
+  };
+
+  const filteredLoans = useMemo(() => {
+    if (statusFilter === 'all') return loansData;
+    return loansData.filter(l => l.status === statusFilter);
+  }, [loansData, statusFilter]);
 
   const handleViewLoan = (loan: any) => {
     setSelectedLoan(loan);
@@ -174,7 +201,7 @@ const MyLoans = () => {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Cronograma');
 
-    const filename = `cronograma_loan_${selectedLoanId}.xlsx`;
+    const filename = `cronograma_${loan?.loan_number ?? selectedLoanId}.xlsx`;
     XLSX.writeFile(wb, filename);
   };
 
@@ -193,7 +220,7 @@ const MyLoans = () => {
       }
       if (!userId) return setLoansData([]);
 
-      const { data, error } = await supabase.from('loans').select('*').eq('user_id', userId).order('created_at', { ascending: false });
+      const { data, error } = await supabase.from('loans').select('*, loan_number').eq('user_id', userId).order('created_at', { ascending: false });
       if (error) throw error;
       if (!data) return setLoansData([]);
 
@@ -221,6 +248,7 @@ const MyLoans = () => {
 
           return {
             id: l.id,
+            loan_number: l.loan_number,
             amount,
             approved: approvedDate ? approvedDate.toISOString().slice(0,10) : '',
             rate: Number(l.interest_rate ?? l.metadata?.interest_rate ?? 0),
@@ -290,6 +318,18 @@ const MyLoans = () => {
     if (status === 'paid') {
       return <Badge className="bg-primary/20 text-primary border-primary">Pagado</Badge>;
     }
+    if (status === 'signed') {
+      return <Badge className="bg-warning/20 text-warning border-warning">Reembolso</Badge>;
+    }
+    if (status === 'approved') {
+      return <Badge className="bg-blue-500/20 text-blue-600 border-blue-300">Aprobado</Badge>;
+    }
+    if (status === 'cancelled') {
+      return <Badge className="bg-danger/20 text-danger border-danger">Rechazado</Badge>;
+    }
+    if (status === 'rejected') {
+      return <Badge className="bg-danger/20 text-danger border-danger">Rechazado</Badge>;
+    }
     return <Badge variant="outline">Pendiente</Badge>;
   };
 
@@ -299,7 +339,7 @@ const MyLoans = () => {
         <AppSidebar />
         
         <main className="flex-1 overflow-x-hidden">
-          <header className="border-b border-border bg-card sticky top-0 z-10">
+          <header className="border-b border-border bg-card fixed md:sticky top-0 z-10 w-full md:w-auto">
             <div className="flex items-center h-14 sm:h-16 px-4 sm:px-6 gap-3">
               <SidebarTrigger />
               <div className="flex-1 min-w-0">
@@ -308,7 +348,7 @@ const MyLoans = () => {
             </div>
           </header>
 
-          <div className="p-4 sm:p-6 md:px-6 lg:p-8 space-y-4 sm:space-y-6">
+          <div className="p-4 sm:p-6 md:px-6 lg:p-8 space-y-4 sm:space-y-6 pt-16 sm:pt-20 md:pt-0">
             {/* Summary Cards */}
             <div className="grid gap-3 sm:gap-4 md:gap-5 lg:gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3">
               <Card className="shadow-soft md:min-h-[130px] lg:min-h-[150px]">
@@ -360,10 +400,29 @@ const MyLoans = () => {
             {/* Loans Table */}
             <Card className="shadow-soft">
               <CardHeader className="px-4 sm:px-6 py-4 sm:py-6">
-                <CardTitle className="text-lg sm:text-xl md:text-2xl">Detalle de Préstamos</CardTitle>
-                <CardDescription className="text-xs sm:text-sm">
-                  Gestiona y consulta el estado de todos tus préstamos
-                </CardDescription>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <CardTitle className="text-lg sm:text-xl md:text-2xl">Detalle de Préstamos</CardTitle>
+                    <CardDescription className="text-xs sm:text-sm">
+                      Gestiona y consulta el estado de todos tus préstamos
+                    </CardDescription>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Label className="text-xs sm:text-sm">Estado</Label>
+                    <select
+                      className="border rounded-md px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm"
+                      value={statusFilter}
+                      onChange={(e) => setStatusFilter(e.target.value)}
+                    >
+                      <option value="all">Todos</option>
+                      {statusOptions.map((status) => (
+                        <option key={status} value={status}>
+                          {getStatusLabel(status)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
               </CardHeader>
               <CardContent className="px-2 sm:px-4 md:px-6 pb-4 sm:pb-6">
                 <div className="overflow-x-auto -mx-2 sm:mx-0">
@@ -382,9 +441,9 @@ const MyLoans = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {(isLoadingLoans ? [] : loansData).map((loan) => (
+                    {(isLoadingLoans ? [] : filteredLoans).map((loan) => (
                       <TableRow key={loan.id}>
-                        <TableCell className="font-medium text-xs sm:text-sm whitespace-nowrap">{loan.id}</TableCell>
+                        <TableCell className="font-medium text-xs sm:text-sm whitespace-nowrap">{loan.loan_number ?? loan.id}</TableCell>
                         <TableCell className="text-xs sm:text-sm whitespace-nowrap">${loan.amount.toLocaleString()}</TableCell>
                         <TableCell className="text-xs sm:text-sm whitespace-nowrap hidden md:table-cell">{loan.rate}%</TableCell>
                         <TableCell className="text-xs sm:text-sm whitespace-nowrap hidden lg:table-cell">{loan.term}m</TableCell>
@@ -407,13 +466,13 @@ const MyLoans = () => {
                               <Eye className="h-3 w-3 sm:mr-1" />
                               <span className="hidden sm:inline">Ver</span>
                             </Button>
-                            {(loan.status === 'pending' || loan.status === 'under_review' || loan.status === 'approved') && (
+                            {(loan.status === 'pending' || loan.status === 'under_review' || loan.status === 'approved' || loan.status === 'signed') && (
                               <Button
                                 size="sm"
                                 className="text-xs whitespace-nowrap"
                                 onClick={() => {
                                   try { localStorage.setItem('resume_loan_id', String(loan.id)); } catch { }
-                                  const step = (loan.status === 'approved') ? 5 : 4;
+                                  const step = (loan.status === 'approved') ? 5 : (loan.status === 'signed' ? 6 : 4);
                                   navigate('/loan-process', { state: { resumeLoanId: loan.id, resumeStep: step } });
                                 }}
                               >
@@ -456,7 +515,7 @@ const MyLoans = () => {
                     >
                       {loansData.map((loan) => (
                           <option key={loan.id} value={loan.id}>
-                            {loan.id} - ${loan.amount.toLocaleString()}
+                            {loan.loan_number ?? loan.id} - ${loan.amount.toLocaleString()}
                           </option>
                         ))}
                     </select>
@@ -527,7 +586,7 @@ const MyLoans = () => {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label>ID del Préstamo</Label>
-                    <p className="font-semibold">{selectedLoan.id}</p>
+                    <p className="font-semibold">{selectedLoan.loan_number ?? selectedLoan.id}</p>
                   </div>
                   <div>
                     <Label>Estado</Label>

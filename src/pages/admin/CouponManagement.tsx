@@ -97,80 +97,80 @@ const CouponManagement = () => {
       <div className="min-h-screen flex w-full">
         <AppSidebar />
         <main className="flex-1">
-          <header className="h-16 border-b border-border bg-card flex items-center px-6 gap-4 sticky top-0 z-10">
+          <header className="h-16 border-b border-border bg-card flex items-center px-6 gap-4 fixed md:sticky top-0 z-10 w-full md:w-auto">
             <SidebarTrigger />
             <div className="flex-1">
-              <h1 className="text-2xl font-bold">Gestión de Cupones</h1>
+              <h1 className="text-xl sm:text-2xl font-bold truncate">Gestión de Cupones</h1>
             </div>
           </header>
 
-          <div className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <p className="text-muted-foreground">Crea y administra cupones de descuento</p>
-              <Dialog open={isOpen} onOpenChange={(open) => { if (!open) { setEditing(null); setForm({ code: "", discount_percent: "", discount_amount: "", max_redemptions: "" }); } setIsOpen(open); }}>
+          <div className="p-4 sm:p-6 pt-16 sm:pt-20 md:pt-0 space-y-4 sm:space-y-6">
+            {/* Header Section */}
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex-1">
+                <h2 className="text-lg sm:text-xl font-semibold">Cupones de Descuento</h2>
+                <p className="text-xs sm:text-sm text-muted-foreground mt-1">Crea y administra cupones de descuento</p>
+              </div>
+              <Dialog open={isOpen} onOpenChange={(open) => { if (!open) { setEditing(null); setForm({ code: "", discount_percent: "", discount_amount: "", max_redemptions: "", starts_at: "", ends_at: "" }); } setIsOpen(open); }}>
                 <DialogTrigger asChild>
-                  <Button onClick={() => { setEditing(null); setForm({ code: "", discount_percent: "", discount_amount: "", max_redemptions: "" }); setIsOpen(true); }}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Nuevo Cupón
+                  <Button onClick={() => { setEditing(null); setForm({ code: "", discount_percent: "", discount_amount: "", max_redemptions: "", starts_at: "", ends_at: "" }); setIsOpen(true); }} className="text-xs sm:text-sm h-9 sm:h-10 w-fit px-3 sm:px-4 flex-shrink-0">
+                    <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                    <span className="hidden sm:inline">Nuevo Cupón</span>
+                    <span className="sm:hidden">Agregar</span>
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="sm:max-w-[520px]">
-                  <DialogHeader>
-                    <DialogTitle>{editing ? 'Editar Cupón' : 'Nuevo Cupón'}</DialogTitle>
+                <DialogContent className="max-h-screen overflow-y-auto w-[95vw] sm:w-full sm:max-w-[520px]">
+                  <DialogHeader className="mb-4">
+                    <DialogTitle className="text-lg sm:text-xl">{editing ? 'Editar Cupón' : 'Nuevo Cupón'}</DialogTitle>
                   </DialogHeader>
-                  <div className="grid gap-3 py-4">
+                  <div className="grid gap-2 sm:gap-3 py-4">
                     <div className="grid gap-2">
-                      <Label htmlFor="code">Código</Label>
-                      <Input id="code" value={form.code} onChange={(e) => setForm({...form, code: e.target.value})} />
+                      <Label htmlFor="code" className="text-xs sm:text-sm">Código *</Label>
+                      <Input id="code" value={form.code} onChange={(e) => setForm({...form, code: e.target.value})} placeholder="Ej: VERANO2024" className="text-sm" />
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-2 gap-2 sm:gap-3">
                       <div className="grid gap-2">
-                        <Label>Descuento %</Label>
+                        <Label className="text-xs sm:text-sm">Descuento %</Label>
                         <Input value={form.discount_percent} onChange={(e) => {
                           const val = e.target.value;
-                          // if percent entered, clear amount to enforce exclusivity
                           setForm((prev) => ({ ...prev, discount_percent: val, discount_amount: val ? "" : prev.discount_amount }));
-                        }} type="number" />
+                        }} type="number" placeholder="10" className="text-sm" />
                       </div>
                       <div className="grid gap-2">
-                        <Label>Descuento monto</Label>
+                        <Label className="text-xs sm:text-sm">Descuento $</Label>
                         <Input value={form.discount_amount} onChange={(e) => {
                           const val = e.target.value;
-                          // if amount entered, clear percent to enforce exclusivity
                           setForm((prev) => ({ ...prev, discount_amount: val, discount_percent: val ? "" : prev.discount_percent }));
-                        }} type="number" />
+                        }} type="number" placeholder="50" className="text-sm" />
                       </div>
                     </div>
                     <div className="grid gap-2">
-                      <Label>Máx. usos</Label>
-                      <Input value={form.max_redemptions} onChange={(e) => setForm({...form, max_redemptions: e.target.value})} type="number" />
+                      <Label className="text-xs sm:text-sm">Máx. usos</Label>
+                      <Input value={form.max_redemptions} onChange={(e) => setForm({...form, max_redemptions: e.target.value})} type="number" placeholder="Ilimitado" className="text-sm" />
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-2 gap-2 sm:gap-3">
                       <div className="grid gap-2">
-                        <Label>Empieza (fecha y hora)</Label>
-                        <Input type="datetime-local" value={form.starts_at} onChange={(e) => setForm({...form, starts_at: e.target.value})} />
+                        <Label className="text-xs sm:text-sm">Inicia</Label>
+                        <Input type="datetime-local" value={form.starts_at} onChange={(e) => setForm({...form, starts_at: e.target.value})} className="text-xs sm:text-sm" />
                       </div>
                       <div className="grid gap-2">
-                        <Label>Expira (fecha y hora)</Label>
-                        <Input type="datetime-local" value={form.ends_at} onChange={(e) => setForm({...form, ends_at: e.target.value})} />
+                        <Label className="text-xs sm:text-sm">Expira</Label>
+                        <Input type="datetime-local" value={form.ends_at} onChange={(e) => setForm({...form, ends_at: e.target.value})} className="text-xs sm:text-sm" />
                       </div>
                     </div>
                   </div>
-                  <DialogFooter>
-                    <Button variant="outline" onClick={() => { setIsOpen(false); setEditing(null); }}>Cancelar</Button>
+                  <DialogFooter className="flex gap-2 sm:gap-3 flex-col-reverse sm:flex-row">
+                    <Button variant="outline" onClick={() => { setIsOpen(false); setEditing(null); }} className="text-sm">Cancelar</Button>
                     <Button onClick={async () => {
-                      // Validate mutually-exclusive fields
                       if (form.discount_percent && form.discount_amount) {
                         return toast({ title: 'Error', description: 'Usa sólo porcentaje o monto, no ambos', variant: 'destructive' });
                       }
-                      // validate date range if both provided
                       if (form.starts_at && form.ends_at) {
                         const s = new Date(form.starts_at);
                         const e = new Date(form.ends_at);
                         if (e <= s) return toast({ title: 'Error', description: 'La fecha de expiración debe ser posterior a la de inicio', variant: 'destructive' });
                       }
                       if (editing) {
-                        // update
                         try {
                           const payload: any = { code: form.code.toUpperCase().trim() };
                           if (form.discount_percent) payload.discount_percent = Number(form.discount_percent);
@@ -196,8 +196,6 @@ const CouponManagement = () => {
                         }
                       }
                       else {
-                        // create
-                        // include date fields when creating
                         try {
                           const payload: any = { code: form.code.toUpperCase().trim(), active: true };
                           if (form.discount_percent) payload.discount_percent = Number(form.discount_percent);
@@ -216,54 +214,92 @@ const CouponManagement = () => {
                           toast({ title: 'Error', description: 'No se pudo crear el cupón', variant: 'destructive' });
                         }
                       }
-                    }}>{editing ? 'Guardar Cambios' : 'Crear Cupón'}</Button>
+                    }} className="text-sm">{editing ? 'Guardar Cambios' : 'Crear Cupón'}</Button>
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
             </div>
 
-            <div className="rounded-lg border bg-card p-4">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Código</TableHead>
-                    <TableHead>Descuento</TableHead>
-                    <TableHead>Usos</TableHead>
-                    <TableHead>Expira</TableHead>
-                    <TableHead>Activo</TableHead>
-                    <TableHead>Acciones</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {loading ? (
-                    <TableRow>
-                      <TableCell>Cargando...</TableCell>
+            {/* Table Section */}
+            <div className="rounded-lg border bg-card shadow-sm overflow-hidden">
+              <div className="overflow-x-auto -mx-4 sm:mx-0">
+                <div className="inline-block min-w-full px-4 sm:px-0">
+                  <Table className="w-full">
+                  <TableHeader>
+                    <TableRow className="hover:bg-transparent bg-gradient-to-r from-secondary/50 to-secondary/30 border-b-2">
+                      <TableHead className="text-xs sm:text-sm font-bold whitespace-nowrap px-3 sm:px-4 py-2.5 sm:py-3">Código</TableHead>
+                      <TableHead className="text-xs sm:text-sm font-bold whitespace-nowrap px-3 sm:px-4 py-2.5 sm:py-3">Descuento</TableHead>
+                      <TableHead className="text-xs sm:text-sm font-bold whitespace-nowrap px-3 sm:px-4 py-2.5 sm:py-3 text-center">Usos</TableHead>
+                      <TableHead className="text-xs sm:text-sm font-bold whitespace-nowrap px-3 sm:px-4 py-2.5 sm:py-3">Expira</TableHead>
+                      <TableHead className="text-xs sm:text-sm font-bold whitespace-nowrap px-3 sm:px-4 py-2.5 sm:py-3 text-center">Estado</TableHead>
+                      <TableHead className="text-xs sm:text-sm font-bold whitespace-nowrap px-3 sm:px-4 py-2.5 sm:py-3 text-center">Acciones</TableHead>
                     </TableRow>
-                  ) : (
-                    coupons.map((c) => (
-                      <TableRow key={c.id}>
-                        <TableCell>{c.code}</TableCell>
-                        <TableCell>{c.discount_percent ? `${c.discount_percent}%` : c.discount_amount ? `$${c.discount_amount}` : '-'}</TableCell>
-                        <TableCell>{c.max_redemptions ?? '∞'}</TableCell>
-                        <TableCell>{c.ends_at ? new Date(c.ends_at).toLocaleString() : '—'}</TableCell>
-                        <TableCell>{c.active ? 'Sí' : 'No'}</TableCell>
-                        <TableCell>
-                          <div className="flex gap-2">
-                            <Button size="icon" onClick={() => {
-                              setEditing(c);
-                              setForm({ code: c.code, discount_percent: c.discount_percent ? String(c.discount_percent) : "", discount_amount: c.discount_amount ? String(c.discount_amount) : "", max_redemptions: c.max_redemptions ? String(c.max_redemptions) : "", starts_at: toDatetimeLocal(c.starts_at), ends_at: toDatetimeLocal(c.ends_at) });
-                              setIsOpen(true);
-                            }}><Edit className="h-4 w-4" /></Button>
-                            <Button variant="destructive" size="icon" onClick={() => handleDelete(c.id)}><Trash2 className="h-4 w-4" /></Button>
-                          </div>
-                        </TableCell>
+                  </TableHeader>
+                  <TableBody>
+                    {loading ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-xs sm:text-sm text-center py-8 text-muted-foreground">Cargando cupones...</TableCell>
                       </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
+                    ) : coupons.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-xs sm:text-sm text-center py-8 text-muted-foreground">No hay cupones disponibles</TableCell>
+                      </TableRow>
+                    ) : (
+                      coupons.map((c, idx) => {
+                        const isExpired = c.ends_at && new Date(c.ends_at) < new Date();
+                        const isUnused = c.max_redemptions === 0 || c.max_redemptions === null;
+                        return (
+                        <TableRow key={c.id} className={`hover:bg-secondary/20 transition-colors ${idx % 2 === 0 ? 'bg-background' : 'bg-secondary/5'}`}>
+                          <TableCell className="font-semibold text-xs sm:text-sm whitespace-nowrap px-3 sm:px-4 py-2 sm:py-3">
+                            <span className="bg-primary/10 text-primary px-1.5 py-0.5 rounded text-xs font-mono">{c.code}</span>
+                          </TableCell>
+                          <TableCell className="text-xs sm:text-sm px-3 sm:px-4 py-2 sm:py-3">
+                            <span className="font-semibold text-primary">{c.discount_percent ? `${c.discount_percent}%` : c.discount_amount ? `$${c.discount_amount}` : '-'}</span>
+                          </TableCell>
+                          <TableCell className="text-xs sm:text-sm px-3 sm:px-4 py-2 sm:py-3 text-center">
+                            {isUnused ? (
+                              <span className="bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded text-xs font-medium">Sin usar</span>
+                            ) : (
+                              <span className="bg-secondary/30 px-1.5 py-0.5 rounded text-xs">{c.max_redemptions ?? '∞'}</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-xs sm:text-sm px-3 sm:px-4 py-2 sm:py-3 whitespace-nowrap">
+                            {c.ends_at ? (
+                              <span className={isExpired ? 'font-medium text-red-600' : ''}>
+                                {new Date(c.ends_at).toLocaleDateString('es-MX')}
+                              </span>
+                            ) : (
+                              '—'
+                            )}
+                          </TableCell>
+                          <TableCell className="text-xs sm:text-sm px-3 sm:px-4 py-2 sm:py-3 text-center">
+                            <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap ${isExpired ? 'bg-red-100 text-red-700' : c.active ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-700'}`}>
+                              {isExpired ? '✗ Expirado' : c.active ? '✓ Activo' : '○ Inactivo'}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-xs sm:text-sm px-2 sm:px-4 py-2 sm:py-3">
+                            <div className="flex gap-1 justify-center">
+                              <Button size="sm" variant="outline" onClick={() => {
+                                setEditing(c);
+                                setForm({ code: c.code, discount_percent: c.discount_percent ? String(c.discount_percent) : "", discount_amount: c.discount_amount ? String(c.discount_amount) : "", max_redemptions: c.max_redemptions ? String(c.max_redemptions) : "", starts_at: toDatetimeLocal(c.starts_at), ends_at: toDatetimeLocal(c.ends_at) });
+                                setIsOpen(true);
+                              }} className="h-7 w-7 p-0 hover:bg-blue-50" title="Editar">
+                                <Edit className="h-3 w-3" />
+                              </Button>
+                              <Button variant="destructive" size="sm" onClick={() => handleDelete(c.id)} className="h-7 w-7 p-0" title="Eliminar">
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                        );
+                      })
+                    )}
+                  </TableBody>
+                </Table>
+                </div>
+              </div>
             </div>
-
           </div>
         </main>
       </div>

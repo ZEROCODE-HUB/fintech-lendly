@@ -74,7 +74,7 @@ const ClientManagement = () => {
         const [usersRes, userMembershipsRes, plansRes] = await Promise.all([
           supabase
             .from('users')
-            .select('id, role, email, first_name, last_name, phone, address, birth_date, curp, ine_key, created_at, ine_front_url, ine_back_url, curp_url', { count: 'exact' })
+            .select('id, role, email, first_name, last_name, phone, address, birth_date, curp, ine_key, created_at, ine_front_url, ine_back_url, curp_url, avatar_url', { count: 'exact' })
             .eq('role', 'client')
             .order('created_at', { ascending: false })
             .range(from, to),
@@ -151,8 +151,32 @@ const ClientManagement = () => {
 
         console.log('[ClientManagement] mappedMemberships', mappedMemberships);
 
+        // Fetch loan counts for each user
+        const loansRes = await supabase
+          .from('loans')
+          .select('user_id, status', { count: 'exact' });
+
+        if (loansRes.error) throw loansRes.error;
+
+        const loans = loansRes.data ?? [];
+        
+        // Build a map of user_id -> { total, active }
+        const loanCountsByUser = new Map<string, { total: number; active: number }>();
+        loans.forEach((loan: any) => {
+          const userId = loan.user_id as string;
+          if (!loanCountsByUser.has(userId)) {
+            loanCountsByUser.set(userId, { total: 0, active: 0 });
+          }
+          const counts = loanCountsByUser.get(userId)!;
+          counts.total += 1;
+          if (loan.status === 'active') {
+            counts.active += 1;
+          }
+        });
+
         const mappedClients: Client[] = (users as any[]).map((u) => {
           const membership = membershipByUser.get(u.id as string);
+          const loanCounts = loanCountsByUser.get(u.id as string) ?? { total: 0, active: 0 };
           return {
             id: u.id as string,
             role: u.role === 'admin' ? 'Admin' : 'Usuario',
@@ -165,14 +189,14 @@ const ClientManagement = () => {
             registrationDate: (u.created_at || '').slice(0, 10),
             ine: u.ine_key ?? '',
             curp: u.curp ?? '',
-            photoUrl: undefined,
+            photoUrl: u.avatar_url ?? undefined,
             ineFrontUrl: u.ine_front_url ?? undefined,
             ineBackUrl: u.ine_back_url ?? undefined,
             curpUrl: u.curp_url ?? undefined,
             membership: membership?.membership ?? '',
             membershipStatus: membership?.membershipStatus ?? 'Sin membresía',
-            totalLoans: 0,
-            activeLoans: 0,
+            totalLoans: loanCounts.total,
+            activeLoans: loanCounts.active,
           };
         });
 
@@ -416,7 +440,7 @@ const ClientManagement = () => {
         <AppSidebar />
         
         <main className="flex-1 overflow-x-hidden">
-          <header className="border-b border-border bg-card sticky top-0 z-10">
+          <header className="border-b border-border bg-card fixed md:sticky top-0 z-10 w-full md:w-auto">
             <div className="flex items-center h-14 sm:h-16 px-4 sm:px-6 gap-3">
               <SidebarTrigger />
               <div className="flex-1 min-w-0">
@@ -425,7 +449,7 @@ const ClientManagement = () => {
             </div>
           </header>
 
-          <div className="p-4 sm:p-6 md:px-6 lg:p-8 space-y-4 sm:space-y-6">
+          <div className="p-4 sm:p-6 md:px-6 lg:p-8 space-y-4 sm:space-y-6 pt-16 sm:pt-20 md:pt-0">
             <Tabs defaultValue="clients" className="w-full">
               <TabsList className="grid w-full max-w-md grid-cols-2">
                 <TabsTrigger value="clients">Clientes</TabsTrigger>
@@ -436,30 +460,16 @@ const ClientManagement = () => {
               <TabsContent value="clients" className="mt-6">
                 <Card className="shadow-soft">
                   <CardHeader>
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                       <div>
-                        <CardTitle>Base de Datos de Clientes</CardTitle>
-                        <CardDescription>Información completa de todos los usuarios registrados</CardDescription>
+                        <CardTitle className="text-lg sm:text-xl">Base de Datos de Clientes</CardTitle>
+                        <CardDescription className="text-xs sm:text-sm">Información completa de todos los usuarios registrados</CardDescription>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Button onClick={() => setAddUserOpen(true)}>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Button onClick={() => setAddUserOpen(true)} className="text-sm">
                           <UserPlus className="h-4 w-4 mr-2" />
-                          Agregar Usuario
-                        </Button>
-                        <Button variant="outline" onClick={async () => {
-                          try {
-                            const { data, error } = await supabase.functions.invoke('create-user', {
-                              body: { email: `test-invoke+${Date.now()}@example.com`, first_name: 'InvokeTest' },
-                            });
-                            console.log('[TestEdge] data:', data, 'error:', error);
-                            if (error) throw error;
-                            alert('Test invoke done - ver consola');
-                          } catch (err) {
-                            console.error('[TestEdge] invoke error', err);
-                            alert('Invoke error: ' + (err?.message || String(err)));
-                          }
-                        }}>
-                          Test Edge
+                          <span className="hidden sm:inline">Agregar Usuario</span>
+                          <span className="sm:hidden">Agregar</span>
                         </Button>
                       </div>
                     </div>
@@ -483,25 +493,25 @@ const ClientManagement = () => {
                       onExport={handleExportClients}
                     />
                     
-                    <div className="overflow-x-auto">
-                      <Table>
+                    <div className="overflow-x-auto border rounded-lg -mx-4 sm:mx-0">
+                      <Table className="min-w-full">
                         <TableHeader>
-                          <TableRow>
-                            {isColumnVisible(clientColumns, "id") && <TableHead>ID</TableHead>}
-                            {isColumnVisible(clientColumns, "role") && <TableHead>Rol</TableHead>}
-                            {isColumnVisible(clientColumns, "firstName") && <TableHead>Nombres</TableHead>}
-                            {isColumnVisible(clientColumns, "lastName") && <TableHead>Apellidos</TableHead>}
-                            {isColumnVisible(clientColumns, "email") && <TableHead>Email</TableHead>}
-                            {isColumnVisible(clientColumns, "phone") && <TableHead>Teléfono</TableHead>}
-                            {isColumnVisible(clientColumns, "address") && <TableHead>Dirección</TableHead>}
-                            {isColumnVisible(clientColumns, "birthDate") && <TableHead>F. Nac.</TableHead>}
-                            {isColumnVisible(clientColumns, "registrationDate") && <TableHead>F. Reg.</TableHead>}
-                            {isColumnVisible(clientColumns, "ine") && <TableHead>INE</TableHead>}
-                            {isColumnVisible(clientColumns, "curp") && <TableHead>CURP</TableHead>}
-                            {isColumnVisible(clientColumns, "membership") && <TableHead>Membresía</TableHead>}
-                            {isColumnVisible(clientColumns, "membershipStatus") && <TableHead>Est. Memb.</TableHead>}
-                            {isColumnVisible(clientColumns, "loans") && <TableHead>Préstamos</TableHead>}
-                            <TableHead>Acciones</TableHead>
+                          <TableRow className="hover:bg-transparent">
+                            {isColumnVisible(clientColumns, "id") && <TableHead className="text-xs sm:text-sm whitespace-nowrap">ID</TableHead>}
+                            {isColumnVisible(clientColumns, "role") && <TableHead className="text-xs sm:text-sm whitespace-nowrap">Rol</TableHead>}
+                            {isColumnVisible(clientColumns, "firstName") && <TableHead className="text-xs sm:text-sm whitespace-nowrap">Nombres</TableHead>}
+                            {isColumnVisible(clientColumns, "lastName") && <TableHead className="text-xs sm:text-sm whitespace-nowrap">Apellidos</TableHead>}
+                            {isColumnVisible(clientColumns, "email") && <TableHead className="text-xs sm:text-sm whitespace-nowrap">Email</TableHead>}
+                            {isColumnVisible(clientColumns, "phone") && <TableHead className="text-xs sm:text-sm whitespace-nowrap">Teléfono</TableHead>}
+                            {isColumnVisible(clientColumns, "address") && <TableHead className="text-xs sm:text-sm whitespace-nowrap">Dirección</TableHead>}
+                            {isColumnVisible(clientColumns, "birthDate") && <TableHead className="text-xs sm:text-sm whitespace-nowrap">F. Nac.</TableHead>}
+                            {isColumnVisible(clientColumns, "registrationDate") && <TableHead className="text-xs sm:text-sm whitespace-nowrap">F. Reg.</TableHead>}
+                            {isColumnVisible(clientColumns, "ine") && <TableHead className="text-xs sm:text-sm whitespace-nowrap">INE</TableHead>}
+                            {isColumnVisible(clientColumns, "curp") && <TableHead className="text-xs sm:text-sm whitespace-nowrap">CURP</TableHead>}
+                            {isColumnVisible(clientColumns, "membership") && <TableHead className="text-xs sm:text-sm whitespace-nowrap">Membresía</TableHead>}
+                            {isColumnVisible(clientColumns, "membershipStatus") && <TableHead className="text-xs sm:text-sm whitespace-nowrap">Est. Memb.</TableHead>}
+                            {isColumnVisible(clientColumns, "loans") && <TableHead className="text-xs sm:text-sm whitespace-nowrap">Préstamos</TableHead>}
+                            <TableHead className="text-xs sm:text-sm whitespace-nowrap">Acciones</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -588,35 +598,35 @@ const ClientManagement = () => {
                           {!loadingClients && filteredClients.map((client) => (
                             <TableRow key={client.id}>
                               {isColumnVisible(clientColumns, "id") && (
-                                <TableCell className="font-medium">
+                                <TableCell className="font-medium text-xs sm:text-sm whitespace-nowrap">
                                   {String(client.id).split("-")[0]}
                                 </TableCell>
                               )}
-                              {isColumnVisible(clientColumns, "role") && <TableCell><Badge variant="outline">{client.role}</Badge></TableCell>}
-                              {isColumnVisible(clientColumns, "firstName") && <TableCell className="font-semibold">{client.firstName}</TableCell>}
-                              {isColumnVisible(clientColumns, "lastName") && <TableCell>{client.lastName}</TableCell>}
-                              {isColumnVisible(clientColumns, "email") && <TableCell>{client.email}</TableCell>}
-                              {isColumnVisible(clientColumns, "phone") && <TableCell>{client.phone}</TableCell>}
-                              {isColumnVisible(clientColumns, "address") && <TableCell className="max-w-[150px] truncate">{client.address}</TableCell>}
-                              {isColumnVisible(clientColumns, "birthDate") && <TableCell>{client.birthDate}</TableCell>}
-                              {isColumnVisible(clientColumns, "registrationDate") && <TableCell>{client.registrationDate}</TableCell>}
+                              {isColumnVisible(clientColumns, "role") && <TableCell className="text-xs sm:text-sm"><Badge variant="outline" className="text-xs">{client.role}</Badge></TableCell>}
+                              {isColumnVisible(clientColumns, "firstName") && <TableCell className="font-semibold text-xs sm:text-sm">{client.firstName}</TableCell>}
+                              {isColumnVisible(clientColumns, "lastName") && <TableCell className="text-xs sm:text-sm">{client.lastName}</TableCell>}
+                              {isColumnVisible(clientColumns, "email") && <TableCell className="text-xs sm:text-sm truncate">{client.email}</TableCell>}
+                              {isColumnVisible(clientColumns, "phone") && <TableCell className="text-xs sm:text-sm whitespace-nowrap">{client.phone}</TableCell>}
+                              {isColumnVisible(clientColumns, "address") && <TableCell className="max-w-[100px] sm:max-w-[150px] truncate text-xs sm:text-sm">{client.address}</TableCell>}
+                              {isColumnVisible(clientColumns, "birthDate") && <TableCell className="text-xs sm:text-sm whitespace-nowrap">{client.birthDate}</TableCell>}
+                              {isColumnVisible(clientColumns, "registrationDate") && <TableCell className="text-xs sm:text-sm whitespace-nowrap">{client.registrationDate}</TableCell>}
                               {isColumnVisible(clientColumns, "ine") && <TableCell className="font-mono text-xs">{client.ine}</TableCell>}
                               {isColumnVisible(clientColumns, "curp") && <TableCell className="font-mono text-xs">{client.curp}</TableCell>}
-                              {isColumnVisible(clientColumns, "membership") && <TableCell>{getMembershipBadge(client.membership)}</TableCell>}
-                              {isColumnVisible(clientColumns, "membershipStatus") && <TableCell>{getStatusBadge(client.membershipStatus)}</TableCell>}
+                              {isColumnVisible(clientColumns, "membership") && <TableCell className="text-xs sm:text-sm">{getMembershipBadge(client.membership)}</TableCell>}
+                              {isColumnVisible(clientColumns, "membershipStatus") && <TableCell className="text-xs sm:text-sm">{getStatusBadge(client.membershipStatus)}</TableCell>}
                               {isColumnVisible(clientColumns, "loans") && (
-                                <TableCell>
-                                  <div className="text-sm">
+                                <TableCell className="text-xs sm:text-sm">
+                                  <div>
                                     <p>Total: {client.totalLoans}</p>
-                                    <p className="text-muted-foreground">Activos: {client.activeLoans}</p>
+                                    <p className="text-muted-foreground text-xs">Activos: {client.activeLoans}</p>
                                   </div>
                                 </TableCell>
                               )}
-                              <TableCell>
+                              <TableCell className="text-xs sm:text-sm">
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
                                     <Button variant="ghost" size="sm">
-                                      <MoreHorizontal className="h-4 w-4" />
+                                      <MoreHorizontal className="h-3 w-3 sm:h-4 sm:w-4" />
                                     </Button>
                                   </DropdownMenuTrigger>
                                   <DropdownMenuContent align="end">
@@ -642,114 +652,121 @@ const ClientManagement = () => {
                     </div>
 
                     {/* Pagination & page size */}
-                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mt-4">
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <span>Mostrar</span>
-                        <Select
-                          value={String(clientPageSize)}
-                          onValueChange={(value) => {
-                            setClientPageSize(Number(value));
-                            setClientPage(1);
-                          }}
-                        >
-                          <SelectTrigger className="w-20 h-8">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="5">5</SelectItem>
-                            <SelectItem value="10">10</SelectItem>
-                            <SelectItem value="25">25</SelectItem>
-                            <SelectItem value="50">50</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <span>por página</span>
-                        <span className="ml-2">
+                    <div className="flex flex-col gap-6 mt-6 pt-4 border-t">
+                      {/* Page size selector and info */}
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                        <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground">
+                          <span className="hidden sm:inline">Mostrar</span>
+                          <Select
+                            value={String(clientPageSize)}
+                            onValueChange={(value) => {
+                              setClientPageSize(Number(value));
+                              setClientPage(1);
+                            }}
+                          >
+                            <SelectTrigger className="w-16 sm:w-20 h-8 text-xs sm:text-sm">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="5">5</SelectItem>
+                              <SelectItem value="10">10</SelectItem>
+                              <SelectItem value="25">25</SelectItem>
+                              <SelectItem value="50">50</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <span className="text-xs sm:text-sm">por página</span>
+                        </div>
+                        <div className="text-xs sm:text-sm font-medium text-foreground bg-secondary/50 px-3 py-1.5 rounded-md">
                           {clientTotal > 0
-                            ? `Mostrando ${(clientPage - 1) * clientPageSize + 1}-${
+                            ? `${(clientPage - 1) * clientPageSize + 1}-${
                                 (clientPage - 1) * clientPageSize + filteredClients.length
                               } de ${clientTotal}`
                             : "Sin clientes"}
-                        </span>
+                        </div>
                       </div>
 
+                      {/* Pagination controls */}
                       {clientTotal > 0 && (
-                        <Pagination>
-                          <PaginationContent>
-                            <PaginationItem>
-                              <PaginationPrevious
-                                href="#"
-                                className={clientPage === 1 ? "pointer-events-none opacity-50" : ""}
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  if (clientPage > 1) setClientPage(clientPage - 1);
-                                }}
-                              />
-                            </PaginationItem>
+                        <div className="flex justify-center sm:justify-end">
+                          <Pagination>
+                            <PaginationContent className="gap-0 sm:gap-1">
+                              <PaginationItem>
+                                <PaginationPrevious
+                                  href="#"
+                                  className={`text-xs sm:text-sm ${clientPage === 1 ? "pointer-events-none opacity-50" : "hover:bg-secondary transition-colors"}`}
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    if (clientPage > 1) setClientPage(clientPage - 1);
+                                  }}
+                                />
+                              </PaginationItem>
 
-                            {Array.from({ length: Math.max(1, Math.ceil(clientTotal / clientPageSize)) }).map(
-                              (_, index) => {
-                                const page = index + 1;
-                                const totalPages = Math.max(1, Math.ceil(clientTotal / clientPageSize));
-
-                                // Mostrar siempre primera, última, actual y vecinas, con puntos suspensivos
-                                if (
-                                  page === 1 ||
-                                  page === totalPages ||
-                                  Math.abs(page - clientPage) <= 1
-                                ) {
-                                  return (
-                                    <PaginationItem key={page}>
-                                      <PaginationLink
-                                        href="#"
-                                        isActive={page === clientPage}
-                                        onClick={(e) => {
-                                          e.preventDefault();
-                                          setClientPage(page);
-                                        }}
-                                      >
-                                        {page}
-                                      </PaginationLink>
-                                    </PaginationItem>
-                                  );
-                                }
-
-                                // Insertar elipsis una sola vez entre bloques
-                                if (page === 2 && clientPage > 3) {
-                                  return (
-                                    <PaginationItem key="start-ellipsis">
-                                      <PaginationEllipsis />
-                                    </PaginationItem>
-                                  );
-                                }
-                                if (page === totalPages - 1 && clientPage < totalPages - 2) {
-                                  return (
-                                    <PaginationItem key="end-ellipsis">
-                                      <PaginationEllipsis />
-                                    </PaginationItem>
-                                  );
-                                }
-
-                                return null;
-                              },
-                            )}
-
-                            <PaginationItem>
-                              <PaginationNext
-                                href="#"
-                                className={
-                                  clientPage >= Math.max(1, Math.ceil(clientTotal / clientPageSize))
-                                    ? "pointer-events-none opacity-50"
-                                    : ""
-                                }
-                                onClick={(e) => {
-                                  e.preventDefault();
+                              {Array.from({ length: Math.max(1, Math.ceil(clientTotal / clientPageSize)) }).map(
+                                (_, index) => {
+                                  const page = index + 1;
                                   const totalPages = Math.max(1, Math.ceil(clientTotal / clientPageSize));
-                                  if (clientPage < totalPages) setClientPage(clientPage + 1);
-                                }}
-                              />
-                            </PaginationItem>
-                          </PaginationContent>
-                        </Pagination>
+
+                                  // Mostrar siempre primera, última, actual y vecinas, con puntos suspensivos
+                                  if (
+                                    page === 1 ||
+                                    page === totalPages ||
+                                    Math.abs(page - clientPage) <= 1
+                                  ) {
+                                    return (
+                                      <PaginationItem key={page}>
+                                        <PaginationLink
+                                          href="#"
+                                          isActive={page === clientPage}
+                                          onClick={(e) => {
+                                            e.preventDefault();
+                                            setClientPage(page);
+                                          }}
+                                          className="text-xs sm:text-sm h-8 w-8"
+                                        >
+                                          {page}
+                                        </PaginationLink>
+                                      </PaginationItem>
+                                    );
+                                  }
+
+                                  // Insertar elipsis una sola vez entre bloques
+                                  if (page === 2 && clientPage > 3) {
+                                    return (
+                                      <PaginationItem key="start-ellipsis">
+                                        <PaginationEllipsis />
+                                      </PaginationItem>
+                                    );
+                                  }
+                                  if (page === totalPages - 1 && clientPage < totalPages - 2) {
+                                    return (
+                                      <PaginationItem key="end-ellipsis">
+                                        <PaginationEllipsis />
+                                      </PaginationItem>
+                                    );
+                                  }
+
+                                  return null;
+                                },
+                              )}
+
+                              <PaginationItem>
+                                <PaginationNext
+                                  href="#"
+                                  className={`text-xs sm:text-sm ${
+                                    clientPage >= Math.max(1, Math.ceil(clientTotal / clientPageSize))
+                                      ? "pointer-events-none opacity-50"
+                                      : "hover:bg-secondary transition-colors"
+                                  }`}
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    const totalPages = Math.max(1, Math.ceil(clientTotal / clientPageSize));
+                                    if (clientPage < totalPages) setClientPage(clientPage + 1);
+                                  }}
+                                />
+                              </PaginationItem>
+                            </PaginationContent>
+                          </Pagination>
+                        </div>
                       )}
                     </div>
                   </CardContent>
@@ -760,14 +777,15 @@ const ClientManagement = () => {
               <TabsContent value="memberships" className="mt-6">
                 <Card className="shadow-soft">
                   <CardHeader>
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                       <div>
-                        <CardTitle>Gestión de Membresías</CardTitle>
-                        <CardDescription>Administra las suscripciones de los clientes</CardDescription>
+                        <CardTitle className="text-lg sm:text-xl">Gestión de Membresías</CardTitle>
+                        <CardDescription className="text-xs sm:text-sm">Administra las suscripciones de los clientes</CardDescription>
                       </div>
-                      <Button onClick={() => setAddMembershipOpen(true)}>
+                      <Button onClick={() => setAddMembershipOpen(true)} className="text-sm">
                         <UserPlus className="h-4 w-4 mr-2" />
-                        Agregar Membresía
+                        <span className="hidden sm:inline">Agregar Membresía</span>
+                        <span className="sm:hidden">Agregar</span>
                       </Button>
                     </div>
                   </CardHeader>
@@ -790,37 +808,37 @@ const ClientManagement = () => {
                       onExport={handleExportMemberships}
                     />
                     
-                    <div className="overflow-x-auto">
-                      <Table>
+                    <div className="overflow-x-auto border rounded-lg -mx-4 sm:mx-0">
+                      <Table className="min-w-full">
                         <TableHeader>
-                          <TableRow>
-                            {isColumnVisible(membershipColumns, "firstName") && <TableHead>Nombre</TableHead>}
-                            {isColumnVisible(membershipColumns, "lastName") && <TableHead>Apellidos</TableHead>}
-                            {isColumnVisible(membershipColumns, "ine") && <TableHead>INE</TableHead>}
-                            {isColumnVisible(membershipColumns, "membershipType") && <TableHead>Membresía</TableHead>}
-                            {isColumnVisible(membershipColumns, "activationDate") && <TableHead>F. Activación</TableHead>}
-                            {isColumnVisible(membershipColumns, "expirationDate") && <TableHead>F. Expiración</TableHead>}
-                            {isColumnVisible(membershipColumns, "renewalCount") && <TableHead>Conteo Renov.</TableHead>}
-                            {isColumnVisible(membershipColumns, "status") && <TableHead>Estado</TableHead>}
-                            <TableHead>Acciones</TableHead>
+                          <TableRow className="hover:bg-transparent">
+                            {isColumnVisible(membershipColumns, "firstName") && <TableHead className="text-xs sm:text-sm whitespace-nowrap">Nombre</TableHead>}
+                            {isColumnVisible(membershipColumns, "lastName") && <TableHead className="text-xs sm:text-sm whitespace-nowrap">Apellidos</TableHead>}
+                            {isColumnVisible(membershipColumns, "ine") && <TableHead className="text-xs sm:text-sm whitespace-nowrap">INE</TableHead>}
+                            {isColumnVisible(membershipColumns, "membershipType") && <TableHead className="text-xs sm:text-sm whitespace-nowrap">Membresía</TableHead>}
+                            {isColumnVisible(membershipColumns, "activationDate") && <TableHead className="text-xs sm:text-sm whitespace-nowrap">F. Activación</TableHead>}
+                            {isColumnVisible(membershipColumns, "expirationDate") && <TableHead className="text-xs sm:text-sm whitespace-nowrap">F. Expiración</TableHead>}
+                            {isColumnVisible(membershipColumns, "renewalCount") && <TableHead className="text-xs sm:text-sm whitespace-nowrap">Conteo Renov.</TableHead>}
+                            {isColumnVisible(membershipColumns, "status") && <TableHead className="text-xs sm:text-sm whitespace-nowrap">Estado</TableHead>}
+                            <TableHead className="text-xs sm:text-sm whitespace-nowrap">Acciones</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
                           {!loadingMemberships && filteredMemberships.map((membership) => (
                             <TableRow key={membership.id}>
-                              {isColumnVisible(membershipColumns, "firstName") && <TableCell className="font-semibold">{membership.firstName}</TableCell>}
-                              {isColumnVisible(membershipColumns, "lastName") && <TableCell>{membership.lastName}</TableCell>}
+                              {isColumnVisible(membershipColumns, "firstName") && <TableCell className="font-semibold text-xs sm:text-sm">{membership.firstName}</TableCell>}
+                              {isColumnVisible(membershipColumns, "lastName") && <TableCell className="text-xs sm:text-sm">{membership.lastName}</TableCell>}
                               {isColumnVisible(membershipColumns, "ine") && <TableCell className="font-mono text-xs">{membership.ine}</TableCell>}
-                              {isColumnVisible(membershipColumns, "membershipType") && <TableCell>{getMembershipBadge(membership.membershipType)}</TableCell>}
-                              {isColumnVisible(membershipColumns, "activationDate") && <TableCell>{membership.activationDate}</TableCell>}
-                              {isColumnVisible(membershipColumns, "expirationDate") && <TableCell>{membership.expirationDate}</TableCell>}
-                              {isColumnVisible(membershipColumns, "renewalCount") && <TableCell className="text-center">{membership.renewalCount}</TableCell>}
-                              {isColumnVisible(membershipColumns, "status") && <TableCell>{getStatusBadge(membership.status)}</TableCell>}
-                              <TableCell>
+                              {isColumnVisible(membershipColumns, "membershipType") && <TableCell className="text-xs sm:text-sm">{getMembershipBadge(membership.membershipType)}</TableCell>}
+                              {isColumnVisible(membershipColumns, "activationDate") && <TableCell className="text-xs sm:text-sm">{membership.activationDate}</TableCell>}
+                              {isColumnVisible(membershipColumns, "expirationDate") && <TableCell className="text-xs sm:text-sm">{membership.expirationDate}</TableCell>}
+                              {isColumnVisible(membershipColumns, "renewalCount") && <TableCell className="text-center text-xs sm:text-sm">{membership.renewalCount}</TableCell>}
+                              {isColumnVisible(membershipColumns, "status") && <TableCell className="text-xs sm:text-sm">{getStatusBadge(membership.status)}</TableCell>}
+                              <TableCell className="text-xs sm:text-sm">
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
                                     <Button variant="ghost" size="sm">
-                                      <MoreHorizontal className="h-4 w-4" />
+                                      <MoreHorizontal className="h-3 w-3 sm:h-4 sm:w-4" />
                                     </Button>
                                   </DropdownMenuTrigger>
                                   <DropdownMenuContent align="end">

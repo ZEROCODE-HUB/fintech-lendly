@@ -53,7 +53,7 @@ const App = () => (
           <Route path="/loan-process" element={<RequireAuth allowedRoles={["client"]}><LoanProcess /></RequireAuth>} />
           <Route path="/my-loans" element={<RequireAuth allowedRoles={["client"]}><MyLoans /></RequireAuth>} />
           <Route path="/history" element={<RequireAuth allowedRoles={["client"]}><History /></RequireAuth>} />
-          <Route path="/notifications" element={<RequireAuth allowedRoles={["client"]}><Notifications /></RequireAuth>} />
+          <Route path="/notifications" element={<RequireAuth allowedRoles={["client","admin"]}><Notifications /></RequireAuth>} />
           <Route path="/payment-methods" element={<RequireAuth allowedRoles={["client"]}><PaymentMethods /></RequireAuth>} />
           <Route path="/memberships" element={<RequireAuth allowedRoles={["client"]}><Memberships /></RequireAuth>} />
           <Route path="/membership-checkout" element={<RequireAuth allowedRoles={["client"]}><MembershipCheckout /></RequireAuth>} />

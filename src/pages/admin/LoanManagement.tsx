@@ -126,7 +126,7 @@ const LoanManagement = () => {
     try {
       const { data, error } = await supabase
         .from('loans')
-        .select('*, users(first_name,last_name,ine_key,curp,phone), loan_signatures(*), loan_disbursements(*)')
+        .select('id, loan_number, amount, installments, status, applied_at, created_at, approved_at, signed_at, disbursed_at, metadata, user_id, users(first_name,last_name,ine_key,curp,phone,email,user_memberships(membership_plans(name))), loan_signatures(*), loan_disbursements(*)')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -137,12 +137,18 @@ const LoanManagement = () => {
         const latestSignature = Array.isArray(l.loan_signatures) && l.loan_signatures.length ? l.loan_signatures[0] : null;
         const latestDisbursement = Array.isArray(l.loan_disbursements) && l.loan_disbursements.length ? l.loan_disbursements[0] : null;
 
-        const rawMembership = l.metadata?.membership;
-        const membershipVal = typeof rawMembership === 'string'
-          ? rawMembership
-          : (rawMembership && typeof rawMembership === 'object'
-            ? (rawMembership.name ?? rawMembership.title ?? String(rawMembership.membership_plan_id ?? ''))
-            : '');
+        // Get membership name from users.user_memberships join or metadata
+        let membershipVal = '';
+        if (user.user_memberships && Array.isArray(user.user_memberships) && user.user_memberships.length > 0 && user.user_memberships[0]?.membership_plans?.name) {
+          membershipVal = user.user_memberships[0].membership_plans.name;
+        } else {
+          const rawMembership = l.metadata?.membership;
+          membershipVal = typeof rawMembership === 'string'
+            ? rawMembership
+            : (rawMembership && typeof rawMembership === 'object'
+              ? (rawMembership.name ?? rawMembership.title ?? '')
+              : '');
+        }
 
         // derive payment-related fields
         const paidAmount = Number(l.metadata?.paid_amount ?? 0);
@@ -184,8 +190,10 @@ const LoanManagement = () => {
         const overdueFlag = (l.status === 'active') && nextPaymentDate && (new Date(nextPaymentDate) < now) && (paidAmount < totalAmount);
 
         return {
-          id: l.id,
+          id: l.loan_number ?? l.id,
+          uuid: l.id,
           user_id: l.user_id,
+          email: user.email ?? '',
           firstName: user.first_name ?? '',
           lastName: user.last_name ?? '',
           requestDate: l.applied_at ? new Date(l.applied_at).toISOString().slice(0,10) : (l.created_at ? new Date(l.created_at).toISOString().slice(0,10) : ''),
@@ -198,7 +206,7 @@ const LoanManagement = () => {
           preApproval: l.metadata?.pre_approval ?? (l.status === 'pending' ? 'En Revisión' : 'Aprobado'),
           isAccountVerified: l.metadata?.account_verified === true,
           signatureStatus: latestSignature ? 'Firmado' : (l.status === 'signed' ? 'Firmado' : 'Espera'),
-          contractStatus: l.status,
+          contractStatus: l.status === 'signed' ? 'Firmado' : l.status,
           disbursementStatus: latestDisbursement ? 'Desembolsado' : (l.status === 'disbursed' ? 'Desembolsado' : 'Pendiente'),
           bank: latestDisbursement?.destination_account?.bank ?? l.metadata?.bank ?? '',
           accountNumber: latestDisbursement?.destination_account?.clabe ?? l.metadata?.clabe ?? '',
@@ -274,19 +282,59 @@ const LoanManagement = () => {
   const handleApproveLoan = async () => {
     const loan = approveDialog.loan;
     if (!loan) return;
+    const loadingToast = toast({ title: 'Cargando...', description: 'Aprobando solicitud.' });
     try {
       const { error } = await supabase
         .from('loans')
         .update({ status: 'approved', approved_at: new Date().toISOString() })
-        .eq('id', loan.id);
+        .eq('id', loan.uuid ?? loan.raw?.id);
 
       if (error) throw error;
-      toast({ title: 'Aprobado', description: `La solicitud ${loan.id} pasó a estado Aprobado (firma pendiente).` });
+
+      if (loan.user_id) {
+        try {
+          await supabase.from('notifications').insert([
+            {
+              user_id: loan.user_id,
+              type: 'loan_signature_pending',
+              title: 'Firma pendiente',
+              message: 'Tienes una firma pendiente. Por favor revisa tu correo para firmar el contrato.',
+              url: '/my-loans',
+              channels: ['email'],
+            },
+          ]);
+        } catch (e) {
+          console.warn('[admin] failed to insert notification', e);
+        }
+      }
+      if (loan.email) {
+        try {
+          const resp = await fetch('https://increscendo-api.vercel.app/signnow-invite', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ recipient_email: loan.email }),
+          });
+          const data = await resp.json().catch(() => null);
+          if (!resp.ok) throw data || new Error('External function error');
+          try {
+            const updates: any = { metadata: Object.assign({}, loan.raw?.metadata || {}, { signnow_invite: data }) };
+            if (data?.docId) updates.id_document = data.docId;
+            await supabase.from('loans').update(updates).eq('id', loan.uuid ?? loan.raw?.id);
+          } catch (e) {
+            console.error('[admin] failed to save signnow_invite metadata', e);
+          }
+          toast({ title: 'Contrato enviado', description: 'Se envió la invitación de firma por correo.' });
+        } catch (e) {
+          console.error('[admin] signnow invite error', e);
+          toast({ title: 'Error', description: 'No se pudo enviar la invitación de firma.', variant: 'destructive' });
+        }
+      }
+      loadingToast.update({ title: 'Aprobado', description: `La solicitud ${loan.id} pasó a estado Aprobado (firma pendiente).` });
       setApproveDialog({ open: false, loan: null });
       await loadLoans();
     } catch (err) {
       console.error('Error aprobando solicitud', err);
-      toast({ title: 'Error', description: 'No se pudo aprobar la solicitud.' });
+      loadingToast.update({ title: 'Error', description: 'No se pudo aprobar la solicitud.', variant: 'destructive' });
     }
   };
 
@@ -297,7 +345,7 @@ const LoanManagement = () => {
       const { error } = await supabase
         .from('loans')
         .update({ status: 'cancelled', cancelled_at: new Date().toISOString() })
-        .eq('id', loan.id);
+        .eq('id', loan.uuid ?? loan.raw?.id);
 
       if (error) throw error;
       toast({ title: 'Rechazado', description: `La solicitud ${loan.id} ha sido rechazada.`, variant: 'destructive' });
@@ -319,7 +367,7 @@ const LoanManagement = () => {
       if (file) {
         const userId = loan.user_id || 'unknown';
         const ext = file.name.split('.').pop() || 'pdf';
-        const objectName = `voucher-${loan.id}-${Date.now()}.${ext}`;
+        const objectName = `voucher-${loan.uuid ?? loan.raw?.id}-${Date.now()}.${ext}`;
         const path = `${userId}/${objectName}`;
 
         const { error: uploadError } = await supabase.storage.from('documents').upload(path, file, { upsert: true });
@@ -331,7 +379,7 @@ const LoanManagement = () => {
 
       // insert loan_disbursement record
       const disbursementPayload: any = {
-        loan_id: loan.id,
+        loan_id: loan.uuid ?? loan.raw?.id,
         amount: loan.amount,
         destination_account: { bank: loan.bank, clabe: loan.accountNumber },
       };
@@ -342,7 +390,7 @@ const LoanManagement = () => {
       if (publicUrl) {
         const uploader = authService.getCurrentUser();
         const docPayload = {
-          loan_id: loan.id,
+          loan_id: loan.uuid ?? loan.raw?.id,
           type: 'voucher',
           uploader_id: uploader?.id ?? null,
           file_url: publicUrl,
@@ -354,7 +402,7 @@ const LoanManagement = () => {
       }
 
       // update loan status to active and set disbursed_at
-      const { error: loanErr } = await supabase.from('loans').update({ status: 'active', disbursed_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq('id', loan.id);
+      const { error: loanErr } = await supabase.from('loans').update({ status: 'active', disbursed_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq('id', loan.uuid ?? loan.raw?.id);
       if (loanErr) throw loanErr;
 
       toast({ title: 'Desembolso confirmado', description: 'El préstamo se marcó como activo y el voucher fue subido.' });
@@ -395,7 +443,7 @@ const LoanManagement = () => {
         <AppSidebar />
         
         <main className="flex-1 overflow-x-hidden">
-          <header className="border-b border-border bg-card sticky top-0 z-10">
+          <header className="border-b border-border bg-card fixed md:sticky top-0 z-10 w-full md:w-auto">
             <div className="flex items-center h-14 sm:h-16 px-4 sm:px-6 gap-3">
               <SidebarTrigger />
               <div className="flex-1 min-w-0">
@@ -456,10 +504,11 @@ const LoanManagement = () => {
                         <TableBody>
                           {pendingLoansData.filter(l => 
                             l.firstName.toLowerCase().includes(pendingSearch.toLowerCase()) ||
-                            l.lastName.toLowerCase().includes(pendingSearch.toLowerCase())
+                            l.lastName.toLowerCase().includes(pendingSearch.toLowerCase()) ||
+                            String(l.id).toLowerCase().includes(pendingSearch.toLowerCase())
                           ).map((loan) => (
                             <TableRow key={loan.id}>
-                              {isColumnVisible(pendingColumns, 'id') && <TableCell className="font-medium">{loan.id}</TableCell>}
+                              {isColumnVisible(pendingColumns, 'id') && <TableCell className="font-medium whitespace-nowrap">{loan.id}</TableCell>}
                               {isColumnVisible(pendingColumns, 'firstName') && <TableCell>{loan.firstName}</TableCell>}
                               {isColumnVisible(pendingColumns, 'lastName') && <TableCell>{loan.lastName}</TableCell>}
                               {isColumnVisible(pendingColumns, 'requestDate') && <TableCell>{loan.requestDate}</TableCell>}
@@ -558,10 +607,11 @@ const LoanManagement = () => {
                         <TableBody>
                           {contractLoansData.filter(l => 
                             l.firstName.toLowerCase().includes(contractSearch.toLowerCase()) ||
-                            l.lastName.toLowerCase().includes(contractSearch.toLowerCase())
+                            l.lastName.toLowerCase().includes(contractSearch.toLowerCase()) ||
+                            String(l.id).toLowerCase().includes(contractSearch.toLowerCase())
                           ).map((loan) => (
                             <TableRow key={loan.id}>
-                              {isColumnVisible(contractColumns, 'id') && <TableCell className="font-medium">{loan.id}</TableCell>}
+                              {isColumnVisible(contractColumns, 'id') && <TableCell className="font-medium whitespace-nowrap">{loan.id}</TableCell>}
                               {isColumnVisible(contractColumns, 'firstName') && <TableCell>{loan.firstName}</TableCell>}
                               {isColumnVisible(contractColumns, 'lastName') && <TableCell>{loan.lastName}</TableCell>}
                               {isColumnVisible(contractColumns, 'requestDate') && <TableCell>{loan.requestDate}</TableCell>}
@@ -641,10 +691,11 @@ const LoanManagement = () => {
                         <TableBody>
                           {disbursementLoansData.filter(l => 
                             l.firstName.toLowerCase().includes(disbursementSearch.toLowerCase()) ||
-                            l.lastName.toLowerCase().includes(disbursementSearch.toLowerCase())
+                            l.lastName.toLowerCase().includes(disbursementSearch.toLowerCase()) ||
+                            String(l.id).toLowerCase().includes(disbursementSearch.toLowerCase())
                           ).map((loan) => (
                             <TableRow key={loan.id}>
-                              {isColumnVisible(disbursementColumns, 'id') && <TableCell className="font-medium">{loan.id}</TableCell>}
+                              {isColumnVisible(disbursementColumns, 'id') && <TableCell className="font-medium whitespace-nowrap">{loan.id}</TableCell>}
                               {isColumnVisible(disbursementColumns, 'firstName') && <TableCell>{loan.firstName}</TableCell>}
                               {isColumnVisible(disbursementColumns, 'lastName') && <TableCell>{loan.lastName}</TableCell>}
                               {isColumnVisible(disbursementColumns, 'requestDate') && <TableCell>{loan.requestDate}</TableCell>}
@@ -723,10 +774,11 @@ const LoanManagement = () => {
                         <TableBody>
                           {activeLoansData.filter(l => 
                             l.firstName.toLowerCase().includes(activeSearch.toLowerCase()) ||
-                            l.lastName.toLowerCase().includes(activeSearch.toLowerCase())
+                            l.lastName.toLowerCase().includes(activeSearch.toLowerCase()) ||
+                            String(l.id).toLowerCase().includes(activeSearch.toLowerCase())
                           ).map((loan) => (
                             <TableRow key={loan.id}>
-                              {isColumnVisible(activeColumns, 'id') && <TableCell className="font-medium">{loan.id}</TableCell>}
+                              {isColumnVisible(activeColumns, 'id') && <TableCell className="font-medium whitespace-nowrap">{loan.id}</TableCell>}
                               {isColumnVisible(activeColumns, 'firstName') && <TableCell>{loan.firstName}</TableCell>}
                               {isColumnVisible(activeColumns, 'lastName') && <TableCell>{loan.lastName}</TableCell>}
                               {isColumnVisible(activeColumns, 'requestDate') && <TableCell>{loan.requestDate}</TableCell>}
@@ -812,10 +864,11 @@ const LoanManagement = () => {
                         <TableBody>
                           {overdueLoansData.filter(l => 
                             l.firstName.toLowerCase().includes(overdueSearch.toLowerCase()) ||
-                            l.lastName.toLowerCase().includes(overdueSearch.toLowerCase())
+                            l.lastName.toLowerCase().includes(overdueSearch.toLowerCase()) ||
+                            String(l.id).toLowerCase().includes(overdueSearch.toLowerCase())
                           ).map((loan) => (
                             <TableRow key={loan.id}>
-                              {isColumnVisible(overdueColumns, 'id') && <TableCell className="font-medium">{loan.id}</TableCell>}
+                              {isColumnVisible(overdueColumns, 'id') && <TableCell className="font-medium whitespace-nowrap">{loan.id}</TableCell>}
                               {isColumnVisible(overdueColumns, 'firstName') && <TableCell>{loan.firstName}</TableCell>}
                               {isColumnVisible(overdueColumns, 'lastName') && <TableCell>{loan.lastName}</TableCell>}
                               {isColumnVisible(overdueColumns, 'requestDate') && <TableCell>{loan.requestDate}</TableCell>}
@@ -896,10 +949,11 @@ const LoanManagement = () => {
                         <TableBody>
                           {historyLoansData.filter(l => 
                             l.firstName.toLowerCase().includes(historySearch.toLowerCase()) ||
-                            l.lastName.toLowerCase().includes(historySearch.toLowerCase())
+                            l.lastName.toLowerCase().includes(historySearch.toLowerCase()) ||
+                            String(l.id).toLowerCase().includes(historySearch.toLowerCase())
                           ).map((loan) => (
                             <TableRow key={loan.id}>
-                              {isColumnVisible(historyColumns, 'id') && <TableCell className="font-medium">{loan.id}</TableCell>}
+                              {isColumnVisible(historyColumns, 'id') && <TableCell className="font-medium whitespace-nowrap">{loan.id}</TableCell>}
                               {isColumnVisible(historyColumns, 'firstName') && <TableCell>{loan.firstName}</TableCell>}
                               {isColumnVisible(historyColumns, 'lastName') && <TableCell>{loan.lastName}</TableCell>}
                               {isColumnVisible(historyColumns, 'requestDate') && <TableCell>{loan.requestDate}</TableCell>}

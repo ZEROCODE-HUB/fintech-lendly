@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
+import { useCountUp } from "@/hooks/use-count-up";
+import { AnimatedNumber } from "@/components/AnimatedNumber";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
@@ -279,7 +281,7 @@ const AdminDashboard = () => {
         <AppSidebar />
         
         <main className="flex-1 overflow-x-hidden">
-          <header className="border-b border-border bg-card sticky top-0 z-10">
+          <header className="border-b border-border bg-card fixed md:sticky top-0 z-10 w-full md:w-auto">
             <div className="flex items-center h-14 sm:h-16 px-4 sm:px-6 gap-3">
               <SidebarTrigger />
               <div className="flex-1 min-w-0">
@@ -288,7 +290,7 @@ const AdminDashboard = () => {
             </div>
           </header>
 
-          <div className="p-4 sm:p-6 md:px-6 lg:p-8 space-y-4 sm:space-y-6">
+          <div className="p-4 sm:p-6 md:px-6 lg:p-8 space-y-4 sm:space-y-6 pt-16 sm:pt-20 md:pt-0">
             {/* KPI Cards Grid */}
             <div className="grid gap-3 sm:gap-4 md:gap-5 lg:gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3">
               <Card variant="elevated" className="animate-fade-in-up [animation-delay:0ms] hover:-translate-y-1">
@@ -301,7 +303,9 @@ const AdminDashboard = () => {
                   </div>
                 </CardHeader>
                 <CardContent className="p-3 sm:p-4 md:p-6 pt-0">
-                  <div className="text-xl sm:text-2xl md:text-3xl font-bold">{stats.totalClients}</div>
+                  <div className="text-xl sm:text-2xl md:text-3xl font-bold">
+                    <AnimatedNumber value={stats.totalClients} duration={800} delay={0} />
+                  </div>
                   <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 sm:mt-2">
                     <span className="inline-flex items-center text-success font-medium">
                       <TrendingUp className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-1" />
@@ -322,7 +326,9 @@ const AdminDashboard = () => {
                   </div>
                 </CardHeader>
                 <CardContent className="p-3 sm:p-4 md:p-6 pt-0">
-                  <div className="text-xl sm:text-2xl md:text-3xl font-bold">{stats.activeLoans}</div>
+                  <div className="text-xl sm:text-2xl md:text-3xl font-bold">
+                    <AnimatedNumber value={stats.activeLoans} duration={800} delay={50} />
+                  </div>
                   <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 sm:mt-2">
                     Cartera saludable
                   </p>
@@ -339,7 +345,9 @@ const AdminDashboard = () => {
                   </div>
                 </CardHeader>
                 <CardContent className="p-3 sm:p-4 md:p-6 pt-0">
-                  <div className="text-xl sm:text-2xl md:text-3xl font-bold">{stats.pendingRequests}</div>
+                  <div className="text-xl sm:text-2xl md:text-3xl font-bold">
+                    <AnimatedNumber value={stats.pendingRequests} duration={800} delay={100} />
+                  </div>
                   <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 sm:mt-2">
                     Requieren atención
                   </p>
@@ -356,7 +364,14 @@ const AdminDashboard = () => {
                   </div>
                 </CardHeader>
                 <CardContent className="p-3 sm:p-4 md:p-6 pt-0">
-                  <div className="text-lg sm:text-xl md:text-2xl font-bold">{formatCurrency(stats.totalDisbursed)}</div>
+                  <div className="text-lg sm:text-xl md:text-2xl font-bold">
+                    <AnimatedNumber 
+                      value={stats.totalDisbursed} 
+                      duration={800} 
+                      delay={150}
+                      formatter={formatCurrency}
+                    />
+                  </div>
                   <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 sm:mt-2">
                     En el último semestre
                   </p>
@@ -373,7 +388,9 @@ const AdminDashboard = () => {
                   </div>
                 </CardHeader>
                 <CardContent className="p-3 sm:p-4 md:p-6 pt-0">
-                  <div className="text-xl sm:text-2xl md:text-3xl font-bold">{stats.overdueLoans}</div>
+                  <div className="text-xl sm:text-2xl md:text-3xl font-bold">
+                    <AnimatedNumber value={stats.overdueLoans} duration={800} delay={200} />
+                  </div>
                   <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 sm:mt-2">
                     Atención requerida
                   </p>
@@ -390,7 +407,14 @@ const AdminDashboard = () => {
                   </div>
                 </CardHeader>
                 <CardContent className="p-3 sm:p-4 md:p-6 pt-0">
-                  <div className="text-lg sm:text-xl md:text-2xl font-bold">{formatCurrency(stats.pendingDisbursement)}</div>
+                  <div className="text-lg sm:text-xl md:text-2xl font-bold">
+                    <AnimatedNumber 
+                      value={stats.pendingDisbursement} 
+                      duration={800} 
+                      delay={250}
+                      formatter={formatCurrency}
+                    />
+                  </div>
                   <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 sm:mt-2">
                     <FileText className="inline h-2.5 w-2.5 sm:h-3 sm:w-3 mr-1" />
                     Pendiente + Pend. Firma

@@ -75,14 +75,16 @@ const Auth = () => {
             console.log('[Auth] users table lookup result for login', { userId: user.id, profileRow, profileErr });
             const role = (profileRow as any)?.role ?? 'client';
             console.log('[Auth] resolved role for user after login', { userId: user.id, role });
-            const name = (profileRow as any)?.first_name || (profileRow as any)?.last_name ? `${(profileRow as any)?.first_name || ''} ${(profileRow as any)?.last_name || ''}`.trim() : (user.user_metadata?.full_name || user.user_metadata?.name || user.email || 'Usuario');
+            const firstName = (profileRow as any)?.first_name ?? '';
+            const lastName = (profileRow as any)?.last_name ?? '';
+            const name = firstName || lastName ? `${firstName} ${lastName}`.trim() : (user.user_metadata?.full_name || user.user_metadata?.name || user.email || 'Usuario');
             const avatar = (profileRow as any)?.avatar_url ?? null;
-            const profile = { id: user.id, email: user.email ?? null, name, role, avatar };
+            const profile = { id: user.id, email: user.email ?? null, name, firstName, lastName, role, avatar };
             localStorage.setItem('increscendo_user', JSON.stringify(profile));
             console.log('[Auth] stored local profile after login', profile);
           } catch (fetchRoleErr) {
             console.warn('[Auth] failed to fetch role from users table, falling back to client', fetchRoleErr);
-            const profile = { id: user.id, email: user.email ?? null, name: (user.user_metadata?.full_name || user.user_metadata?.name || user.email || 'Usuario'), role: 'client', avatar: null };
+            const profile = { id: user.id, email: user.email ?? null, name: (user.user_metadata?.full_name || user.user_metadata?.name || user.email || 'Usuario'), firstName: '', lastName: '', role: 'client', avatar: null };
             localStorage.setItem('increscendo_user', JSON.stringify(profile));
             console.log('[Auth] stored fallback profile with role=client', profile);
           }
@@ -179,9 +181,9 @@ const Auth = () => {
           </div>
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-4 sm:mb-6 md:mb-8">
-              <TabsTrigger value="login" className="text-xs sm:text-sm">Iniciar Sesión</TabsTrigger>
-              <TabsTrigger value="register" className="text-xs sm:text-sm">Registrarse</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-2 mb-4 sm:mb-6 md:mb-8 bg-muted/30">
+              <TabsTrigger value="login" className="text-xs sm:text-sm data-[state=active]:bg-white data-[state=active]:shadow-sm">Iniciar Sesión</TabsTrigger>
+              <TabsTrigger value="register" className="text-xs sm:text-sm data-[state=active]:bg-white data-[state=active]:shadow-sm">Registrarse</TabsTrigger>
             </TabsList>
 
             {/* Login Tab */}
@@ -224,42 +226,28 @@ const Auth = () => {
                     </Button>
                   </form>
 
-                  {/* Test Access Buttons */}
                   <Separator className="my-4" />
+                  
                   <div className="space-y-2">
-                    <p className="text-xs text-muted-foreground text-center">Acceso rápido (solo testing)</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          localStorage.setItem('testUserRole', 'client');
-                          localStorage.setItem('testUserEmail', 'cliente@test.com');
-                          toast({
-                            title: "Acceso Cliente",
-                            description: "Ingresando como usuario cliente",
-                          });
-                          navigate('/service-selection');
-                        }}
-                      >
-                        Cliente Test
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          localStorage.setItem('testUserRole', 'admin');
-                          localStorage.setItem('testUserEmail', 'admin@gmail.com');
-                          toast({
-                            title: "Acceso Admin",
-                            description: "Ingresando como administrador",
-                          });
-                          navigate('/admin/dashboard');
-                        }}
-                      >
-                        Admin Test
-                      </Button>
-                    </div>
+                    <p className="text-xs text-muted-foreground text-center">O continúa con</p>
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      size="lg"
+                      onClick={() => {
+                        toast({
+                          title: "Prointipago",
+                          description: "Redirigiendo a Prointipago...",
+                        });
+                        // Aquí puedes agregar la lógica de integración con Prointipago
+                      }}
+                    >
+                      Iniciar con Prointipago
+                    </Button>
+                  </div>
+
+                  <div className="text-center mt-4">
+                    <p className="text-[10px] text-muted-foreground/60">v1.0.1</p>
                   </div>
                 </CardContent>
               </Card>
@@ -373,7 +361,7 @@ const Auth = () => {
                               console.log('[Auth] profile row created', created);
                               // persist local profile so app UI treats user as logged in
                               try {
-                                const profile = { id: finalUserId, email: regEmail, name: `${firstName} ${lastName}`, role: 'client', avatar: (created?.avatar_url ?? null) };
+                                const profile = { id: finalUserId, email: regEmail, name: `${firstName} ${lastName}`, firstName, lastName, role: 'client', avatar: (created?.avatar_url ?? null) };
                                 localStorage.setItem('increscendo_user', JSON.stringify(profile));
                                 console.log('[Auth] stored local profile after signup', profile);
                               } catch (storeErr) {

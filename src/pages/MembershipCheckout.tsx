@@ -288,18 +288,14 @@ const MembershipCheckout = () => {
         <AppSidebar />
         
         <main className="flex-1">
-          <header className="h-16 border-b border-border bg-card flex items-center px-6 gap-4 sticky top-0 z-10">
+          <header className="h-16 border-b border-border bg-card flex items-center px-4 sm:px-6 gap-4 fixed md:sticky top-0 z-10 w-full md:w-auto">
             <SidebarTrigger />
-            <Button variant="ghost" size="sm" onClick={handleBack} className="gap-2">
-              <ArrowLeft className="h-4 w-4" />
-              Volver
-            </Button>
             <div className="flex-1">
-              <h1 className="text-2xl font-bold">Checkout Membresía</h1>
+              <h1 className="text-lg sm:text-2xl font-bold">Checkout Membresía</h1>
             </div>
           </header>
 
-          <div className="p-6 max-w-3xl mx-auto space-y-6">
+          <div className="p-4 sm:p-6 max-w-3xl mx-auto space-y-4 sm:space-y-6 pt-20 md:pt-6">
             {/* Order Summary */}
             <Card className="shadow-medium">
               <CardHeader>
@@ -489,20 +485,32 @@ const MembershipCheckout = () => {
                   </div>
                 </div>
 
-                <Button 
-                  className="w-full mt-6" 
-                  size="lg"
-                  onClick={handleProceedToPayment}
-                  disabled={!termsAccepted}
-                >
-                  Proceder al Pago
-                </Button>
-                
                 {!termsAccepted && (
-                  <p className="text-xs text-muted-foreground text-center mt-2">
+                  <p className="text-xs text-muted-foreground text-center mt-4 p-2 bg-muted/50 rounded-lg">
                     Acepta los Términos y Condiciones para habilitar el botón de pago
                   </p>
                 )}
+
+                <div className="space-y-3 mt-6">
+                  <Button 
+                    className="w-full" 
+                    size="lg"
+                    onClick={handleProceedToPayment}
+                    disabled={!termsAccepted}
+                  >
+                    Proceder al Pago
+                  </Button>
+                  
+                  <Button 
+                    variant="outline" 
+                    className="w-full gap-2" 
+                    size="lg"
+                    onClick={handleBack}
+                  >
+                    <ArrowLeft className="h-4 w-4" />
+                    Volver
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           </div>
@@ -511,7 +519,7 @@ const MembershipCheckout = () => {
 
       {/* Terms and Conditions Modal */}
       <Dialog open={termsModalOpen} onOpenChange={setTermsModalOpen}>
-        <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
+        <DialogContent className="max-w-[calc(100%-2rem)] md:max-w-2xl max-h-[85vh] flex flex-col rounded-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-xl">
               <FileText className="h-5 w-5 text-primary" />
