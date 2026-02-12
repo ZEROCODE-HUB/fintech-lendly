@@ -89,9 +89,9 @@ const Index = () => {
               <a href="#features" className="text-muted-foreground hover:text-foreground transition-colors">Características</a>
               <a href="#about" className="text-muted-foreground hover:text-foreground transition-colors">Nosotros</a>
               <a href="#contact" className="text-muted-foreground hover:text-foreground transition-colors">Contacto</a>
-              <Button onClick={handleAccess} variant="default">
+              {/* <Button onClick={handleAccess} variant="default">
                 Acceder
-              </Button>
+              </Button> */}
             </nav>
 
             {/* Mobile Menu Button */}
@@ -134,13 +134,13 @@ const Index = () => {
               >
                 Contacto
               </a>
-              <Button
+              {/* <Button
                 onClick={() => { navigate("/auth"); setMobileMenuOpen(false); }}
                 variant="default"
                 className="w-full mt-2"
               >
                 Acceder
-              </Button>
+              </Button> */}
             </nav>
           </div>
         )}
