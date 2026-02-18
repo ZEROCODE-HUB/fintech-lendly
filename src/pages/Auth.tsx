@@ -235,14 +235,19 @@ const Auth = () => {
                       className="w-full"
                       size="lg"
                       onClick={() => {
-                        toast({
-                          title: "Prointipago",
-                          description: "Redirigiendo a Prointipago...",
-                        });
-                        // Aquí puedes agregar la lógica de integración con Prointipago
+                        // Abrir página SSO de Prontipagos en nueva ventana
+                        const width = 500;
+                        const height = 700;
+                        const left = (window.screen.width - width) / 2;
+                        const top = (window.screen.height - height) / 2;
+                        window.open(
+                          '/prontipagos-sso',
+                          'ProntipagosSSO',
+                          `width=${width},height=${height},left=${left},top=${top},toolbar=no,location=no,status=no,menubar=no,scrollbars=yes,resizable=yes`
+                        );
                       }}
                     >
-                      Iniciar con Prointipago
+                      Iniciar con Prontipago
                     </Button>
                   </div>
 

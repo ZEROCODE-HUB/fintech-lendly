@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Eye, CheckCircle, XCircle, CheckCircle2, Edit, MoreHorizontal, Send, FileText, DollarSign, Bell, TrendingDown, RefreshCw, Calendar } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import PaymentScheduleModal from '@/components/admin/loans/modals/PaymentScheduleModal';
 import { useToast } from "@/hooks/use-toast";
 
@@ -120,118 +121,348 @@ const LoanManagement = () => {
   const [activeLoansData, setActiveLoansData] = useState<any[]>([]);
   const [overdueLoansData, setOverdueLoansData] = useState<any[]>([]);
   const [historyLoansData, setHistoryLoansData] = useState<any[]>([]);
+  // Per-tab loading and pagination
+  const [activeTab, setActiveTab] = useState<string>('pending');
+  const pageSize = 5;
 
-  // Load loans from Supabase and categorize by status
-  const loadLoans = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('loans')
-        .select('id, loan_number, amount, installments, status, applied_at, created_at, approved_at, signed_at, disbursed_at, metadata, user_id, users(first_name,last_name,ine_key,curp,phone,email,user_memberships(membership_plans(name))), loan_signatures(*), loan_disbursements(*)')
-        .order('created_at', { ascending: false });
+  const [pendingPage, setPendingPage] = useState(1);
+  const [pendingTotal, setPendingTotal] = useState(0);
+  const [pendingLoading, setPendingLoading] = useState(false);
 
-      if (error) throw error;
-      if (!data) return;
+  const [contractPage, setContractPage] = useState(1);
+  const [contractTotal, setContractTotal] = useState(0);
+  const [contractLoading, setContractLoading] = useState(false);
 
-      const mapped = (data as any[]).map((l) => {
-        const user = l.users ?? {};
-        const latestSignature = Array.isArray(l.loan_signatures) && l.loan_signatures.length ? l.loan_signatures[0] : null;
-        const latestDisbursement = Array.isArray(l.loan_disbursements) && l.loan_disbursements.length ? l.loan_disbursements[0] : null;
+  const [disbursementPage, setDisbursementPage] = useState(1);
+  const [disbursementTotal, setDisbursementTotal] = useState(0);
+  const [disbursementLoading, setDisbursementLoading] = useState(false);
 
-        // Get membership name from users.user_memberships join or metadata
-        let membershipVal = '';
-        if (user.user_memberships && Array.isArray(user.user_memberships) && user.user_memberships.length > 0 && user.user_memberships[0]?.membership_plans?.name) {
-          membershipVal = user.user_memberships[0].membership_plans.name;
-        } else {
-          const rawMembership = l.metadata?.membership;
-          membershipVal = typeof rawMembership === 'string'
-            ? rawMembership
-            : (rawMembership && typeof rawMembership === 'object'
-              ? (rawMembership.name ?? rawMembership.title ?? '')
-              : '');
-        }
+  const [activePage, setActivePage] = useState(1);
+  const [activeTotal, setActiveTotal] = useState(0);
+  const [activeLoading, setActiveLoading] = useState(false);
 
-        // derive payment-related fields
-        const paidAmount = Number(l.metadata?.paid_amount ?? 0);
-        const amt = Number(l.amount ?? 0);
-        const term = Number(l.installments ?? l.metadata?.installments ?? 12);
-        const installmentAmount = term > 0 ? Math.round(amt / term) : amt;
-        const paidInstallments = installmentAmount > 0 ? Math.floor(paidAmount / installmentAmount) : 0;
-        const lastPaymentDate = l.metadata?.last_payment_date ? (new Date(l.metadata.last_payment_date)).toISOString().slice(0,10) : '';
+  const [overduePage, setOverduePage] = useState(1);
+  const [overdueTotal, setOverdueTotal] = useState(0);
+  const [overdueLoading, setOverdueLoading] = useState(false);
 
-        // friendly status: Al día / Atrasado / Liquidado (basic heuristics)
-        let friendlyStatus = '';
-        if (l.status === 'closed') friendlyStatus = 'Liquidado';
-        else if (l.status === 'active') {
-          if (l.metadata?.overdue === true) friendlyStatus = 'Atrasado';
-          else friendlyStatus = 'Al día';
-        } else {
-          friendlyStatus = l.status ?? '';
-        }
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyTotal, setHistoryTotal] = useState(0);
+  const [historyLoading, setHistoryLoading] = useState(false);
 
-        // compute next payment date and overdue flag
-        const approvedDateForNext = l.approved_at ? new Date(l.approved_at) : (l.applied_at ? new Date(l.applied_at) : (l.created_at ? new Date(l.created_at) : null));
-        let nextPaymentDate = '';
-        if (l.metadata?.next_payment_date) {
-          try { nextPaymentDate = new Date(l.metadata.next_payment_date).toISOString().slice(0,10); } catch { nextPaymentDate = ''; }
-        } else if (approvedDateForNext) {
-          const termCount = Number(l.installments ?? l.metadata?.installments ?? 12);
-          const amtVal = Number(l.amount ?? 0);
-          const installmentAmount = termCount > 0 ? Math.round(amtVal / termCount) : amtVal;
-          const paidAmt = Number(l.metadata?.paid_amount ?? 0);
-          const paidInst = installmentAmount > 0 ? Math.floor(paidAmt / installmentAmount) : 0;
-          const nextInst = paidInst + 1;
-          const d = new Date(approvedDateForNext);
-          d.setMonth(d.getMonth() + nextInst);
-          nextPaymentDate = d.toISOString().slice(0,10);
-        }
+  const mapLoan = (l: any) => {
+    const user = l.users ?? {};
+    const latestSignature = Array.isArray(l.loan_signatures) && l.loan_signatures.length ? l.loan_signatures[0] : null;
+    const latestDisbursement = Array.isArray(l.loan_disbursements) && l.loan_disbursements.length ? l.loan_disbursements[0] : null;
 
-        const now = new Date();
-        const totalAmount = Number(l.amount ?? 0);
-        const overdueFlag = (l.status === 'active') && nextPaymentDate && (new Date(nextPaymentDate) < now) && (paidAmount < totalAmount);
+    let membershipVal = '';
+    if (user.user_memberships && Array.isArray(user.user_memberships) && user.user_memberships.length > 0 && user.user_memberships[0]?.membership_plans?.name) {
+      membershipVal = user.user_memberships[0].membership_plans.name;
+    } else {
+      const rawMembership = l.metadata?.membership;
+      membershipVal = typeof rawMembership === 'string'
+        ? rawMembership
+        : (rawMembership && typeof rawMembership === 'object'
+          ? (rawMembership.name ?? rawMembership.title ?? '')
+          : '');
+    }
 
-        return {
-          id: l.loan_number ?? l.id,
-          uuid: l.id,
-          user_id: l.user_id,
-          email: user.email ?? '',
-          firstName: user.first_name ?? '',
-          lastName: user.last_name ?? '',
-          requestDate: l.applied_at ? new Date(l.applied_at).toISOString().slice(0,10) : (l.created_at ? new Date(l.created_at).toISOString().slice(0,10) : ''),
-          amount: l.amount,
-          installments: l.installments,
-          paidInstallments,
-          membership: membershipVal,
-          ineNumber: user.ine_key ?? l.metadata?.ine_key ?? '',
-          curpNumber: user.curp ?? l.metadata?.curp ?? '',
-          preApproval: l.metadata?.pre_approval ?? (l.status === 'pending' ? 'En Revisión' : 'Aprobado'),
-          isAccountVerified: l.metadata?.account_verified === true,
-          signatureStatus: latestSignature ? 'Firmado' : (l.status === 'signed' ? 'Firmado' : 'Espera'),
-          contractStatus: l.status === 'signed' ? 'Firmado' : l.status,
-          disbursementStatus: latestDisbursement ? 'Desembolsado' : (l.status === 'disbursed' ? 'Desembolsado' : 'Pendiente'),
-          bank: latestDisbursement?.destination_account?.bank ?? l.metadata?.bank ?? '',
-          accountNumber: latestDisbursement?.destination_account?.clabe ?? l.metadata?.clabe ?? '',
-          lastPaymentDate,
-          nextPaymentDate,
-          overdue: overdueFlag,
-          status: friendlyStatus,
-          raw: l,
-        };
-      });
+    const paidAmount = Number(l.metadata?.paid_amount ?? 0);
+    const amt = Number(l.amount ?? 0);
+    const term = Number(l.installments ?? l.metadata?.installments ?? 12);
+    const installmentAmount = term > 0 ? Math.round(amt / term) : amt;
+    const paidInstallments = installmentAmount > 0 ? Math.floor(paidAmount / installmentAmount) : 0;
+    const lastPaymentDate = l.metadata?.last_payment_date ? (new Date(l.metadata.last_payment_date)).toISOString().slice(0,10) : '';
 
-      setPendingLoansData(mapped.filter(m => m.raw.status === 'pending' || m.raw.status === 'under_review'));
-      setContractLoansData(mapped.filter(m => m.raw.status === 'approved' || m.raw.status === 'signed'));
-      setDisbursementLoansData(mapped.filter(m => m.raw.status === 'signed' || m.raw.status === 'disbursed'));
-      setActiveLoansData(mapped.filter(m => m.raw.status === 'active' && !m.overdue));
-      setOverdueLoansData(mapped.filter(m => m.raw.status === 'active' && m.overdue));
-      setHistoryLoansData(mapped.filter(m => m.raw.status === 'closed' || m.raw.status === 'cancelled'));
-    } catch (err) {
-      console.error('Error loading loans', err);
-      toast({ title: 'Error', description: 'No se pudieron cargar las solicitudes desde Supabase.' });
+    let friendlyStatus = '';
+    if (l.status === 'closed') friendlyStatus = 'Liquidado';
+    else if (l.status === 'active') {
+      if (l.metadata?.overdue === true) friendlyStatus = 'Atrasado';
+      else friendlyStatus = 'Al día';
+    } else if (l.status === 'cancelled') {
+      friendlyStatus = 'Rechazado';
+    } else {
+      friendlyStatus = l.status ?? '';
+    }
+
+    const approvedDateForNext = l.approved_at ? new Date(l.approved_at) : (l.applied_at ? new Date(l.applied_at) : (l.created_at ? new Date(l.created_at) : null));
+    let nextPaymentDate = '';
+    if (l.metadata?.next_payment_date) {
+      try { nextPaymentDate = new Date(l.metadata.next_payment_date).toISOString().slice(0,10); } catch { nextPaymentDate = ''; }
+    } else if (approvedDateForNext) {
+      const termCount = Number(l.installments ?? l.metadata?.installments ?? 12);
+      const amtVal = Number(l.amount ?? 0);
+      const installmentAmount = termCount > 0 ? Math.round(amtVal / termCount) : amtVal;
+      const paidAmt = Number(l.metadata?.paid_amount ?? 0);
+      const paidInst = installmentAmount > 0 ? Math.floor(paidAmt / installmentAmount) : 0;
+      const nextInst = paidInst + 1;
+      const d = new Date(approvedDateForNext);
+      d.setMonth(d.getMonth() + nextInst);
+      nextPaymentDate = d.toISOString().slice(0,10);
+    }
+
+    const now = new Date();
+    const totalAmount = Number(l.amount ?? 0);
+    const overdueFlag = (l.status === 'active') && nextPaymentDate && (new Date(nextPaymentDate) < now) && (paidAmount < totalAmount);
+
+    return {
+      id: l.loan_number ?? l.id,
+      uuid: l.id,
+      user_id: l.user_id,
+      email: user.email ?? '',
+      firstName: user.first_name ?? '',
+      lastName: user.last_name ?? '',
+      requestDate: l.applied_at ? new Date(l.applied_at).toISOString().slice(0,10) : (l.created_at ? new Date(l.created_at).toISOString().slice(0,10) : ''),
+      amount: l.amount,
+      installments: l.installments,
+      paidInstallments,
+      membership: membershipVal,
+      ineNumber: user.ine_key ?? l.metadata?.ine_key ?? '',
+      curpNumber: user.curp ?? l.metadata?.curp ?? '',
+      preApproval: l.metadata?.pre_approval ?? (l.status === 'pending' ? 'En Revisión' : 'Aprobado'),
+      isAccountVerified: l.metadata?.account_verified === true,
+      signatureStatus: latestSignature ? 'Firmado' : (l.status === 'signed' ? 'Firmado' : 'Espera'),
+      contractStatus: l.status === 'signed' ? 'Firmado' : l.status,
+      disbursementStatus: latestDisbursement ? 'Desembolsado' : (l.status === 'disbursed' ? 'Desembolsado' : 'Pendiente'),
+      bank: latestDisbursement?.destination_account?.bank ?? l.metadata?.bank ?? '',
+      accountNumber: latestDisbursement?.destination_account?.clabe ?? l.metadata?.clabe ?? '',
+      lastPaymentDate,
+      nextPaymentDate,
+      overdue: overdueFlag,
+      status: friendlyStatus,
+      raw: l,
+    };
+  };
+
+  const renderSkeletonRows = (columns: ColumnConfig[]) => {
+    const visibleCols = columns.filter(c => c.visible).length || 6;
+    return Array.from({ length: pageSize }).map((_, i) => (
+      <TableRow key={`skel-${i}`}>
+        <TableCell colSpan={visibleCols}>
+          <div className="py-2"><Skeleton className="h-6 w-full" /></div>
+        </TableCell>
+      </TableRow>
+    ));
+  };
+
+  const renderPagination = (page: number, total: number, onPageChange: (p: number) => void) => {
+    const totalPages = Math.max(1, Math.ceil(total / pageSize));
+    if (totalPages <= 1) return null;
+
+    const pagesSet = new Set<number>();
+    pagesSet.add(1);
+    pagesSet.add(totalPages);
+    for (let p = page - 1; p <= page + 1; p++) {
+      if (p > 1 && p < totalPages) pagesSet.add(p);
+    }
+    // ensure nearby second/penultimate pages for nicer UX
+    if (2 < totalPages) pagesSet.add(2);
+    if (totalPages - 1 > 1) pagesSet.add(totalPages - 1);
+
+    const pages = Array.from(pagesSet).sort((a, b) => a - b);
+
+    const nodes: any[] = [];
+    nodes.push(
+      <Button key="first" size="sm" variant="ghost" onClick={() => onPageChange(1)} disabled={page <= 1} className="!p-2">
+        ‹
+      </Button>
+    );
+    nodes.push(
+      <Button key="prev" size="sm" variant="ghost" onClick={() => onPageChange(Math.max(1, page - 1))} disabled={page <= 1} className="!p-2">
+        ←
+      </Button>
+    );
+
+    let lastShown = 0;
+    pages.forEach((p) => {
+      if (lastShown && p - lastShown > 1) {
+        nodes.push(<div key={`ell-${p}`} className="px-2 text-muted-foreground">…</div>);
+      }
+      lastShown = p;
+
+      nodes.push(
+        <Button
+          key={`p-${p}`}
+          size="sm"
+          onClick={() => onPageChange(p)}
+          className={`px-3 py-1 rounded-md ${p === page ? 'bg-primary text-primary-foreground shadow-md' : 'bg-transparent text-muted-foreground hover:bg-muted/50'}`}
+        >
+          {p}
+        </Button>
+      );
+    });
+
+    nodes.push(
+      <Button key="next" size="sm" variant="ghost" onClick={() => onPageChange(Math.min(totalPages, page + 1))} disabled={page >= totalPages} className="!p-2">
+        →
+      </Button>
+    );
+    nodes.push(
+      <Button key="last" size="sm" variant="ghost" onClick={() => onPageChange(totalPages)} disabled={page >= totalPages} className="!p-2">
+        ›
+      </Button>
+    );
+
+    return (
+      <div className="bg-card/70 px-3 py-2 rounded-lg shadow-sm flex items-center gap-3">
+        {nodes}
+      </div>
+    );
+  };
+
+  const reloadCurrentTab = async () => {
+    switch (activeTab) {
+      case 'pending': return await loadPending(pendingPage);
+      case 'contract': return await loadContract(contractPage);
+      case 'disbursement': return await loadDisbursement(disbursementPage);
+      case 'active': return await loadActive(activePage);
+      case 'overdue': return await loadOverdue(overduePage);
+      case 'history': return await loadHistory(historyPage);
+      default: return;
     }
   };
 
-  // load once
-  useEffect(() => { loadLoans(); }, []);
+  const loadPending = async (page = 1) => {
+    setPendingLoading(true);
+    try {
+      const from = (page - 1) * pageSize;
+      const to = from + pageSize - 1;
+      const { data, error, count } = await supabase
+        .from('loans')
+        .select('id, loan_number, amount, installments, status, applied_at, created_at, approved_at, signed_at, disbursed_at, metadata, user_id, users(first_name,last_name,ine_key,curp,phone,email,user_memberships(membership_plans(name))), loan_signatures(*), loan_disbursements(*)', { count: 'exact' })
+        .in('status', ['pending', 'under_review', 'cancelled'])
+        .order('created_at', { ascending: false })
+        .range(from, to);
+
+      if (error) throw error;
+      const mapped = (data || []).map(mapLoan);
+      setPendingLoansData(mapped);
+      setPendingTotal(count || mapped.length);
+      setPendingPage(page);
+    } catch (err) {
+      console.error('Error loading pending loans', err);
+      toast({ title: 'Error', description: 'No se pudieron cargar las solicitudes pendientes.' });
+    } finally { setPendingLoading(false); }
+  };
+
+  const loadContract = async (page = 1) => {
+    setContractLoading(true);
+    try {
+      const from = (page - 1) * pageSize;
+      const to = from + pageSize - 1;
+      const { data, error, count } = await supabase
+        .from('loans')
+        .select('id, loan_number, amount, installments, status, applied_at, created_at, approved_at, signed_at, disbursed_at, metadata, user_id, users(first_name,last_name,ine_key,curp,phone,email,user_memberships(membership_plans(name))), loan_signatures(*), loan_disbursements(*)', { count: 'exact' })
+        .in('status', ['approved', 'signed'])
+        .order('created_at', { ascending: false })
+        .range(from, to);
+
+      if (error) throw error;
+      const mapped = (data || []).map(mapLoan);
+      setContractLoansData(mapped);
+      setContractTotal(count || mapped.length);
+      setContractPage(page);
+    } catch (err) {
+      console.error('Error loading contract loans', err);
+      toast({ title: 'Error', description: 'No se pudieron cargar las firmas.' });
+    } finally { setContractLoading(false); }
+  };
+
+  const loadDisbursement = async (page = 1) => {
+    setDisbursementLoading(true);
+    try {
+      const from = (page - 1) * pageSize;
+      const to = from + pageSize - 1;
+      const { data, error, count } = await supabase
+        .from('loans')
+        .select('id, loan_number, amount, installments, status, applied_at, created_at, approved_at, signed_at, disbursed_at, metadata, user_id, users(first_name,last_name,ine_key,curp,phone,email,user_memberships(membership_plans(name))), loan_signatures(*), loan_disbursements(*)', { count: 'exact' })
+        .in('status', ['signed', 'disbursed'])
+        .order('created_at', { ascending: false })
+        .range(from, to);
+
+      if (error) throw error;
+      const mapped = (data || []).map(mapLoan);
+      setDisbursementLoansData(mapped);
+      setDisbursementTotal(count || mapped.length);
+      setDisbursementPage(page);
+    } catch (err) {
+      console.error('Error loading disbursement loans', err);
+      toast({ title: 'Error', description: 'No se pudieron cargar los desembolsos.' });
+    } finally { setDisbursementLoading(false); }
+  };
+
+  const loadActive = async (page = 1) => {
+    setActiveLoading(true);
+    try {
+      const from = (page - 1) * pageSize;
+      const to = from + pageSize - 1;
+      const { data, error, count } = await supabase
+        .from('loans')
+        .select('id, loan_number, amount, installments, status, applied_at, created_at, approved_at, signed_at, disbursed_at, metadata, user_id, users(first_name,last_name,ine_key,curp,phone,email,user_memberships(membership_plans(name))), loan_signatures(*), loan_disbursements(*)', { count: 'exact' })
+        .eq('status', 'active')
+        .order('created_at', { ascending: false })
+        .range(from, to);
+
+      if (error) throw error;
+      const mapped = (data || []).map(mapLoan);
+      setActiveLoansData(mapped.filter(m => !m.overdue));
+      setActiveTotal(count || mapped.length);
+      setActivePage(page);
+    } catch (err) {
+      console.error('Error loading active loans', err);
+      toast({ title: 'Error', description: 'No se pudieron cargar los préstamos activos.' });
+    } finally { setActiveLoading(false); }
+  };
+
+  const loadOverdue = async (page = 1) => {
+    setOverdueLoading(true);
+    try {
+      // fetch active loans and filter overdue client-side (metadata-driven)
+      const from = (page - 1) * pageSize;
+      const to = from + pageSize - 1;
+      const { data, error } = await supabase
+        .from('loans')
+        .select('id, loan_number, amount, installments, status, applied_at, created_at, approved_at, signed_at, disbursed_at, metadata, user_id, users(first_name,last_name,ine_key,curp,phone,email,user_memberships(membership_plans(name))), loan_signatures(*), loan_disbursements(*)')
+        .eq('status', 'active')
+        .order('created_at', { ascending: false })
+        .range(from, to);
+
+      if (error) throw error;
+      const mapped = (data || []).map(mapLoan);
+      const filtered = mapped.filter(m => m.overdue);
+      setOverdueLoansData(filtered);
+      setOverdueTotal(filtered.length);
+      setOverduePage(page);
+    } catch (err) {
+      console.error('Error loading overdue loans', err);
+      toast({ title: 'Error', description: 'No se pudieron cargar los préstamos atrasados.' });
+    } finally { setOverdueLoading(false); }
+  };
+
+  const loadHistory = async (page = 1) => {
+    setHistoryLoading(true);
+    try {
+      const from = (page - 1) * pageSize;
+      const to = from + pageSize - 1;
+      const { data, error, count } = await supabase
+        .from('loans')
+        .select('id, loan_number, amount, installments, status, applied_at, created_at, approved_at, signed_at, disbursed_at, metadata, user_id, users(first_name,last_name,ine_key,curp,phone,email,user_memberships(membership_plans(name))), loan_signatures(*), loan_disbursements(*)', { count: 'exact' })
+        .in('status', ['closed', 'cancelled'])
+        .order('created_at', { ascending: false })
+        .range(from, to);
+
+      if (error) throw error;
+      const mapped = (data || []).map(mapLoan);
+      setHistoryLoansData(mapped);
+      setHistoryTotal(count || mapped.length);
+      setHistoryPage(page);
+    } catch (err) {
+      console.error('Error loading history loans', err);
+      toast({ title: 'Error', description: 'No se pudo cargar el historial.' });
+    } finally { setHistoryLoading(false); }
+  };
+
+  // load default tab once
+  useEffect(() => { loadPending(1); }, []);
 
   // Filter states for each tab
   const [pendingSearch, setPendingSearch] = useState('');
@@ -331,7 +562,7 @@ const LoanManagement = () => {
       }
       loadingToast.update({ title: 'Aprobado', description: `La solicitud ${loan.id} pasó a estado Aprobado (firma pendiente).` });
       setApproveDialog({ open: false, loan: null });
-      await loadLoans();
+      await reloadCurrentTab();
     } catch (err) {
       console.error('Error aprobando solicitud', err);
       loadingToast.update({ title: 'Error', description: 'No se pudo aprobar la solicitud.', variant: 'destructive' });
@@ -350,7 +581,7 @@ const LoanManagement = () => {
       if (error) throw error;
       toast({ title: 'Rechazado', description: `La solicitud ${loan.id} ha sido rechazada.`, variant: 'destructive' });
       setRejectDialog({ open: false, loan: null });
-      await loadLoans();
+      await reloadCurrentTab();
     } catch (err) {
       console.error('Error rechazando solicitud', err);
       toast({ title: 'Error', description: 'No se pudo rechazar la solicitud.' });
@@ -407,7 +638,7 @@ const LoanManagement = () => {
 
       toast({ title: 'Desembolso confirmado', description: 'El préstamo se marcó como activo y el voucher fue subido.' });
       setConfirmDisbursementModal({ open: false, loan: null });
-      await loadLoans();
+      await reloadCurrentTab();
     } catch (err) {
       console.error('Error confirmando desembolso', err);
       toast({ title: 'Error', description: 'No se pudo confirmar el desembolso.', variant: 'destructive' });
@@ -416,21 +647,22 @@ const LoanManagement = () => {
 
   const getSignatureStatusBadge = (status: string) => {
     switch (status) {
-      case 'Firmado': return <Badge className="bg-success/20 text-success border-success">{status}</Badge>;
-      case 'Espera': return <Badge className="bg-warning/20 text-warning border-warning">{status}</Badge>;
-      case 'Error': return <Badge className="bg-danger/20 text-danger border-danger">{status}</Badge>;
-      default: return <Badge variant="outline">{status}</Badge>;
+      case 'Firmado': return <Badge className="bg-success/20 text-success border-success whitespace-nowrap">{status}</Badge>;
+      case 'Espera': return <Badge className="bg-warning/20 text-warning border-warning whitespace-nowrap">{status}</Badge>;
+      case 'Error': return <Badge className="bg-danger/20 text-danger border-danger whitespace-nowrap">{status}</Badge>;
+      default: return <Badge variant="outline" className="whitespace-nowrap">{status}</Badge>;
     }
   };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'Al día': return <Badge className="bg-success/20 text-success border-success">{status}</Badge>;
-      case 'Atrasado': return <Badge className="bg-warning/20 text-warning border-warning">{status}</Badge>;
-      case 'Urgente': return <Badge className="bg-danger/20 text-danger border-danger">{status}</Badge>;
-      case 'Liquidado': return <Badge className="bg-success/20 text-success border-success">{status}</Badge>;
-      case 'Cartera Vendida': return <Badge className="bg-muted text-muted-foreground">{status}</Badge>;
-      default: return <Badge variant="outline">{status}</Badge>;
+      case 'Al día': return <Badge className="bg-success/20 text-success border-success whitespace-nowrap">{status}</Badge>;
+      case 'Atrasado': return <Badge className="bg-warning/20 text-warning border-warning whitespace-nowrap">{status}</Badge>;
+      case 'Urgente': return <Badge className="bg-danger/20 text-danger border-danger whitespace-nowrap">{status}</Badge>;
+      case 'Liquidado': return <Badge className="bg-success/20 text-success border-success whitespace-nowrap">{status}</Badge>;
+      case 'Cartera Vendida': return <Badge className="bg-muted text-muted-foreground whitespace-nowrap">{status}</Badge>;
+      case 'Rechazado': return <Badge className="bg-danger/20 text-danger border-danger whitespace-nowrap">{status}</Badge>;
+      default: return <Badge variant="outline" className="whitespace-nowrap">{status}</Badge>;
     }
   };
 
@@ -453,7 +685,18 @@ const LoanManagement = () => {
           </header>
 
           <div className="p-4 sm:p-6 md:px-6 lg:p-8">
-            <Tabs defaultValue="pending" className="w-full">
+            <Tabs value={activeTab} onValueChange={(v) => {
+              setActiveTab(v);
+              switch (v) {
+                case 'pending': loadPending(1); break;
+                case 'contract': loadContract(1); break;
+                case 'disbursement': loadDisbursement(1); break;
+                case 'active': loadActive(1); break;
+                case 'overdue': loadOverdue(1); break;
+                case 'history': loadHistory(1); break;
+                default: break;
+              }
+            }} className="w-full">
               <div className="overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0 mb-4 sm:mb-6">
                 <TabsList className="inline-flex w-auto min-w-full sm:grid sm:w-full sm:max-w-4xl sm:grid-cols-6">
                   <TabsTrigger value="pending" className="text-xs sm:text-sm whitespace-nowrap">Pendiente</TabsTrigger>
@@ -502,7 +745,8 @@ const LoanManagement = () => {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {pendingLoansData.filter(l => 
+                          {pendingLoading ? renderSkeletonRows(pendingColumns) : (
+                          pendingLoansData.filter(l => 
                             l.firstName.toLowerCase().includes(pendingSearch.toLowerCase()) ||
                             l.lastName.toLowerCase().includes(pendingSearch.toLowerCase()) ||
                             String(l.id).toLowerCase().includes(pendingSearch.toLowerCase())
@@ -538,11 +782,15 @@ const LoanManagement = () => {
                                   </Button>
                                 </TableCell>
                               )}
-                              {isColumnVisible(pendingColumns, 'preApproval') && (
-                                <TableCell>
-                                  <Badge variant="outline" className="bg-warning/10 text-warning border-warning">{loan.preApproval}</Badge>
-                                </TableCell>
-                              )}
+                            {isColumnVisible(pendingColumns, 'preApproval') && (
+                              <TableCell>
+                                {loan?.raw?.status === 'cancelled' || loan?.status === 'Rechazado' ? (
+                                  getStatusBadge('Rechazado')
+                                ) : (
+                                  <Badge variant="outline" className="bg-warning/10 text-warning border-warning whitespace-nowrap">{loan.preApproval}</Badge>
+                                )}
+                              </TableCell>
+                            )}
                               {isColumnVisible(pendingColumns, 'actions') && (
                                 <TableCell>
                                   <div className="flex gap-1">
@@ -559,9 +807,15 @@ const LoanManagement = () => {
                                 </TableCell>
                               )}
                             </TableRow>
-                          ))}
+                          )) )}
                         </TableBody>
                       </Table>
+                    </div>
+                    <div className="flex items-center justify-between mt-4">
+                      <div className="text-sm text-muted-foreground">Mostrando {(pendingPage-1)*pageSize+1} - {Math.min(pendingPage*pageSize, pendingTotal)} de {pendingTotal}</div>
+                      <div className="flex items-center gap-2">
+                        {renderPagination(pendingPage, pendingTotal, (p) => loadPending(p))}
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -605,7 +859,8 @@ const LoanManagement = () => {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {contractLoansData.filter(l => 
+                          {contractLoading ? renderSkeletonRows(contractColumns) : (
+                          contractLoansData.filter(l => 
                             l.firstName.toLowerCase().includes(contractSearch.toLowerCase()) ||
                             l.lastName.toLowerCase().includes(contractSearch.toLowerCase()) ||
                             String(l.id).toLowerCase().includes(contractSearch.toLowerCase())
@@ -643,9 +898,15 @@ const LoanManagement = () => {
                                 </TableCell>
                               )}
                             </TableRow>
-                          ))}
+                          )) )}
                         </TableBody>
                       </Table>
+                    </div>
+                    <div className="flex items-center justify-between mt-4">
+                      <div className="text-sm text-muted-foreground">Mostrando {(contractPage-1)*pageSize+1} - {Math.min(contractPage*pageSize, contractTotal)} de {contractTotal}</div>
+                      <div className="flex items-center gap-2">
+                        {renderPagination(contractPage, contractTotal, (p) => loadContract(p))}
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -689,7 +950,8 @@ const LoanManagement = () => {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {disbursementLoansData.filter(l => 
+                          {disbursementLoading ? renderSkeletonRows(disbursementColumns) : (
+                          disbursementLoansData.filter(l => 
                             l.firstName.toLowerCase().includes(disbursementSearch.toLowerCase()) ||
                             l.lastName.toLowerCase().includes(disbursementSearch.toLowerCase()) ||
                             String(l.id).toLowerCase().includes(disbursementSearch.toLowerCase())
@@ -728,9 +990,15 @@ const LoanManagement = () => {
                                 </TableCell>
                               )}
                             </TableRow>
-                          ))}
+                          )) )}
                         </TableBody>
                       </Table>
+                    </div>
+                    <div className="flex items-center justify-between mt-4">
+                      <div className="text-sm text-muted-foreground">Mostrando {(disbursementPage-1)*pageSize+1} - {Math.min(disbursementPage*pageSize, disbursementTotal)} de {disbursementTotal}</div>
+                      <div className="flex items-center gap-2">
+                        {renderPagination(disbursementPage, disbursementTotal, (p) => loadDisbursement(p))}
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -772,7 +1040,8 @@ const LoanManagement = () => {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {activeLoansData.filter(l => 
+                          {activeLoading ? renderSkeletonRows(activeColumns) : (
+                          activeLoansData.filter(l => 
                             l.firstName.toLowerCase().includes(activeSearch.toLowerCase()) ||
                             l.lastName.toLowerCase().includes(activeSearch.toLowerCase()) ||
                             String(l.id).toLowerCase().includes(activeSearch.toLowerCase())
@@ -818,9 +1087,15 @@ const LoanManagement = () => {
                                 </TableCell>
                               )}
                             </TableRow>
-                          ))}
+                          )) )}
                         </TableBody>
                       </Table>
+                    </div>
+                    <div className="flex items-center justify-between mt-4">
+                      <div className="text-sm text-muted-foreground">Mostrando {(activePage-1)*pageSize+1} - {Math.min(activePage*pageSize, activeTotal)} de {activeTotal}</div>
+                      <div className="flex items-center gap-2">
+                        {renderPagination(activePage, activeTotal, (p) => loadActive(p))}
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -862,7 +1137,8 @@ const LoanManagement = () => {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {overdueLoansData.filter(l => 
+                          {overdueLoading ? renderSkeletonRows(overdueColumns) : (
+                          overdueLoansData.filter(l => 
                             l.firstName.toLowerCase().includes(overdueSearch.toLowerCase()) ||
                             l.lastName.toLowerCase().includes(overdueSearch.toLowerCase()) ||
                             String(l.id).toLowerCase().includes(overdueSearch.toLowerCase())
@@ -904,9 +1180,15 @@ const LoanManagement = () => {
                                 </TableCell>
                               )}
                             </TableRow>
-                          ))}
+                          )) )}
                         </TableBody>
                       </Table>
+                    </div>
+                    <div className="flex items-center justify-between mt-4">
+                      <div className="text-sm text-muted-foreground">Mostrando {(overduePage-1)*pageSize+1} - {Math.min(overduePage*pageSize, overdueTotal)} de {overdueTotal}</div>
+                      <div className="flex items-center gap-2">
+                        {renderPagination(overduePage, overdueTotal, (p) => loadOverdue(p))}
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -947,7 +1229,8 @@ const LoanManagement = () => {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {historyLoansData.filter(l => 
+                          {historyLoading ? renderSkeletonRows(historyColumns) : (
+                          historyLoansData.filter(l => 
                             l.firstName.toLowerCase().includes(historySearch.toLowerCase()) ||
                             l.lastName.toLowerCase().includes(historySearch.toLowerCase()) ||
                             String(l.id).toLowerCase().includes(historySearch.toLowerCase())
@@ -964,9 +1247,15 @@ const LoanManagement = () => {
                               {isColumnVisible(historyColumns, 'lastPaymentDate') && <TableCell>{loan.lastPaymentDate}</TableCell>}
                               {isColumnVisible(historyColumns, 'status') && <TableCell>{getStatusBadge(loan.status)}</TableCell>}
                             </TableRow>
-                          ))}
+                          )) )}
                         </TableBody>
                       </Table>
+                    </div>
+                    <div className="flex items-center justify-between mt-4">
+                      <div className="text-sm text-muted-foreground">Mostrando {(historyPage-1)*pageSize+1} - {Math.min(historyPage*pageSize, historyTotal)} de {historyTotal}</div>
+                      <div className="flex items-center gap-2">
+                        {renderPagination(historyPage, historyTotal, (p) => loadHistory(p))}
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
