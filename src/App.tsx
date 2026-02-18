@@ -35,6 +35,7 @@ import TipsSeguridad from "./pages/TipsSeguridad";
 import BolsaTrabajo from "./pages/BolsaTrabajo";
 import CentroAyuda from "./pages/CentroAyuda";
 import Contacto from "./pages/Contacto";
+import ProntipagosSSO from "./pages/ProntipagosSSO";
 
 const queryClient = new QueryClient();
 
@@ -75,6 +76,7 @@ const App = () => (
           <Route path="/bolsa-trabajo" element={<BolsaTrabajo />} />
           <Route path="/centro-ayuda" element={<CentroAyuda />} />
           <Route path="/contacto" element={<Contacto />} />
+          <Route path="/prontipagos-sso" element={<ProntipagosSSO />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
