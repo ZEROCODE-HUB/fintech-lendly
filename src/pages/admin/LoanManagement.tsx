@@ -490,6 +490,7 @@ const LoanManagement = () => {
   const [historyColumns, setHistoryColumns] = useState(defaultHistoryColumns);
 
   // Modal states
+  const [detailsModal, setDetailsModal] = useState<{ open: boolean; loan: any | null }>({ open: false, loan: null });
   const [ineCurpModal, setIneCurpModal] = useState<{ open: boolean; loan: PendingLoan | null; type: 'ine' | 'curp' }>({ open: false, loan: null, type: 'ine' });
   const [modifyModal, setModifyModal] = useState<{ open: boolean; loan: PendingLoan | null }>({ open: false, loan: null });
   const [approveDialog, setApproveDialog] = useState<{ open: boolean; loan: PendingLoan | null }>({ open: false, loan: null });
@@ -645,6 +646,34 @@ const LoanManagement = () => {
     }
   };
 
+  const handleSendReminder = async () => {
+    const loan = reminderModal.loan as any;
+    if (!loan?.user_id) {
+      toast({ title: 'Error', description: 'No se encontro el usuario para enviar recordatorio.' });
+      return;
+    }
+    try {
+      const title = 'Recordatorio de pago';
+      const message = 'Te recordamos que tu proxima cuota esta por vencer. Revisa tu calendario de pagos en tu cuenta.';
+      const { error } = await supabase.from('notifications').insert([
+        {
+          user_id: loan.user_id,
+          type: 'loan_payment_reminder',
+          title,
+          message,
+          url: '/my-loans',
+          channels: ['email'],
+        },
+      ]);
+      if (error) throw error;
+      toast({ title: 'Recordatorio enviado', description: 'La notificacion fue enviada al usuario.' });
+      setReminderModal({ open: false, loan: null });
+    } catch (err) {
+      console.error('Error enviando recordatorio', err);
+      toast({ title: 'Error', description: 'No se pudo enviar el recordatorio.' });
+    }
+  };
+
   const getSignatureStatusBadge = (status: string) => {
     switch (status) {
       case 'Firmado': return <Badge className="bg-success/20 text-success border-success whitespace-nowrap">{status}</Badge>;
@@ -794,6 +823,9 @@ const LoanManagement = () => {
                               {isColumnVisible(pendingColumns, 'actions') && (
                                 <TableCell>
                                   <div className="flex gap-1">
+                                    <Button size="sm" variant="ghost" onClick={() => setDetailsModal({ open: true, loan })} title="Ver detalles">
+                                      <Eye className="h-4 w-4" />
+                                    </Button>
                                     <Button size="sm" variant="ghost" onClick={() => setModifyModal({ open: true, loan })} title="Modificar">
                                       <Edit className="h-4 w-4" />
                                     </Button>
@@ -1281,6 +1313,133 @@ const LoanManagement = () => {
           onSend={() => toast({ title: "Enviado", description: "La propuesta ha sido enviada al cliente." })}
         />
 
+        <AlertDialog open={detailsModal.open} onOpenChange={(open) => setDetailsModal(prev => ({ ...prev, open }))}>
+          <AlertDialogContent className="max-w-3xl">
+            <AlertDialogHeader>
+              <AlertDialogTitle>Detalle de solicitud</AlertDialogTitle>
+              <AlertDialogDescription>
+                Informacion general y datos capturados por el cliente.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            {(() => {
+              const loan = detailsModal.loan as any;
+              const md = loan?.raw?.metadata ?? {};
+              const personal = md.personalData ?? {};
+              const deposit = md.depositData ?? {};
+              const disbursement = md.disbursementData ?? {};
+              const membership = md.membership ?? {};
+              return (
+                <div className="space-y-5">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="rounded-lg border border-border bg-muted/30 p-3">
+                      <p className="text-[11px] text-muted-foreground">Solicitud</p>
+                      <p className="text-sm font-medium">{loan?.id ?? '-'}</p>
+                    </div>
+                    <div className="rounded-lg border border-border bg-muted/30 p-3">
+                      <p className="text-[11px] text-muted-foreground">Monto</p>
+                      <p className="text-sm font-medium">${Number(loan?.amount ?? 0).toLocaleString()} MXN</p>
+                    </div>
+                    <div className="rounded-lg border border-border bg-muted/30 p-3">
+                      <p className="text-[11px] text-muted-foreground">Plazo</p>
+                      <p className="text-sm font-medium">{loan?.installments ?? '-'} cuotas</p>
+                    </div>
+                  </div>
+
+                  <div>
+                    <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2">Datos personales</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="rounded-lg border border-border bg-muted/30 p-3">
+                        <p className="text-[11px] text-muted-foreground">Nombre</p>
+                        <p className="text-sm font-medium">{`${personal.firstName ?? ''} ${personal.lastName ?? ''}`.trim() || '-'}</p>
+                      </div>
+                      <div className="rounded-lg border border-border bg-muted/30 p-3">
+                        <p className="text-[11px] text-muted-foreground">Telefono</p>
+                        <p className="text-sm font-medium">{personal.phone || '-'}</p>
+                      </div>
+                      <div className="rounded-lg border border-border bg-muted/30 p-3">
+                        <p className="text-[11px] text-muted-foreground">Direccion</p>
+                        <p className="text-sm font-medium">{personal.address || '-'}</p>
+                      </div>
+                      <div className="rounded-lg border border-border bg-muted/30 p-3">
+                        <p className="text-[11px] text-muted-foreground">Fecha de nacimiento</p>
+                        <p className="text-sm font-medium">{personal.birthDate || '-'}</p>
+                      </div>
+                      <div className="rounded-lg border border-border bg-muted/30 p-3">
+                        <p className="text-[11px] text-muted-foreground">INE</p>
+                        <p className="text-sm font-medium">{personal.ineKey || loan?.ineNumber || '-'}</p>
+                      </div>
+                      <div className="rounded-lg border border-border bg-muted/30 p-3">
+                        <p className="text-[11px] text-muted-foreground">CURP</p>
+                        <p className="text-sm font-medium">{personal.curp || loan?.curpNumber || '-'}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2">Cuenta bancaria</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="rounded-lg border border-border bg-muted/30 p-3">
+                        <p className="text-[11px] text-muted-foreground">Banco</p>
+                        <p className="text-sm font-medium">{deposit.bank || '-'}</p>
+                      </div>
+                      <div className="rounded-lg border border-border bg-muted/30 p-3">
+                        <p className="text-[11px] text-muted-foreground">CLABE</p>
+                        <p className="text-sm font-medium">{deposit.clabe || '-'}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2">Cuenta de desembolso</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="rounded-lg border border-border bg-muted/30 p-3">
+                        <p className="text-[11px] text-muted-foreground">Banco</p>
+                        <p className="text-sm font-medium">{disbursement.bank || '-'}</p>
+                      </div>
+                      <div className="rounded-lg border border-border bg-muted/30 p-3">
+                        <p className="text-[11px] text-muted-foreground">CLABE</p>
+                        <p className="text-sm font-medium">{disbursement.clabe || '-'}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2">Membresia</p>
+                    <div className="rounded-lg border border-border bg-muted/30 p-3">
+                      <p className="text-[11px] text-muted-foreground">Detalle</p>
+                      <p className="text-sm font-medium">
+                        {membership?.name || membership?.title || membership?.membership_plan_id || loan?.membership || '-'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cerrar</AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-danger hover:bg-danger/90"
+                onClick={() => {
+                  const loan = detailsModal.loan as any;
+                  setDetailsModal({ open: false, loan: null });
+                  setRejectDialog({ open: true, loan });
+                }}
+              >
+                Rechazar
+              </AlertDialogAction>
+              <AlertDialogAction
+                onClick={() => {
+                  const loan = detailsModal.loan as any;
+                  setDetailsModal({ open: false, loan: null });
+                  setApproveDialog({ open: true, loan });
+                }}
+              >
+                Aprobar
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
         <AlertDialog open={approveDialog.open} onOpenChange={(open) => setApproveDialog(prev => ({ ...prev, open }))}>
           <AlertDialogContent>
             <AlertDialogHeader>
@@ -1348,7 +1507,7 @@ const LoanManagement = () => {
           open={reminderModal.open}
           onOpenChange={(open) => setReminderModal(prev => ({ ...prev, open }))}
           loan={reminderModal.loan}
-          onConfirm={() => toast({ title: "Recordatorio enviado", description: "Se envió el recordatorio de pago al cliente." })}
+          onConfirm={handleSendReminder}
         />
 
         <SellPortfolioModal

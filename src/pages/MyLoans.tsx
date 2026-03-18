@@ -83,7 +83,7 @@ const MyLoans = () => {
       case 'active': return 'Activo';
       case 'paid': return 'Pagado';
       case 'approved': return 'Aprobado';
-      case 'signed': return 'Reembolso';
+      case 'signed': return 'Desembolso';
       case 'cancelled': return 'Rechazado';
       case 'rejected': return 'Rechazado';
       case 'pending': return 'Pendiente';
@@ -319,7 +319,7 @@ const MyLoans = () => {
       return <Badge className="bg-primary/20 text-primary border-primary">Pagado</Badge>;
     }
     if (status === 'signed') {
-      return <Badge className="bg-warning/20 text-warning border-warning">Reembolso</Badge>;
+      return <Badge className="bg-warning/20 text-warning border-warning">Desembolso</Badge>;
     }
     if (status === 'approved') {
       return <Badge className="bg-blue-500/20 text-blue-600 border-blue-300">Aprobado</Badge>;
@@ -434,7 +434,7 @@ const MyLoans = () => {
                       <TableHead className="text-xs sm:text-sm whitespace-nowrap hidden md:table-cell">Tasa</TableHead>
                       <TableHead className="text-xs sm:text-sm whitespace-nowrap hidden lg:table-cell">Plazo</TableHead>
                       <TableHead className="text-xs sm:text-sm whitespace-nowrap hidden sm:table-cell">Pagado</TableHead>
-                      <TableHead className="text-xs sm:text-sm whitespace-nowrap">Restante</TableHead>
+                      <TableHead className="text-xs sm:text-sm whitespace-nowrap">Saldo</TableHead>
                       <TableHead className="text-xs sm:text-sm whitespace-nowrap hidden xl:table-cell">Próximo Pago</TableHead>
                       <TableHead className="text-xs sm:text-sm whitespace-nowrap">Estado</TableHead>
                       <TableHead className="text-xs sm:text-sm whitespace-nowrap">Acciones</TableHead>
