@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -33,6 +34,8 @@ import { useToast } from "@/hooks/use-toast";
 import { authService } from "@/utils/auth";
 import { supabase } from '@/lib/supabase';
 import { Skeleton } from '@/components/ui/skeleton';
+
+const CONEKTA_PLANS_ENDPOINT = 'https://increscendo-api.vercel.app/conekta-plans';
 
 type Plan = {
   id: string;
@@ -72,7 +75,8 @@ const MembershipManagement = () => {
     cost: '',
     targetAudience: '',
     interestRate: '42',
-    renewalPeriod: 'Anual',
+    frequency: '1',
+    interval: 'month',
     benefits: ''
   });
 
@@ -126,10 +130,28 @@ const MembershipManagement = () => {
       cost: '',
       targetAudience: '',
       interestRate: '42',
-      renewalPeriod: 'Anual',
+      frequency: '1',
+      interval: 'month',
       benefits: ''
     });
     setEditingMembership(null);
+  };
+
+  const parseRenewalPeriod = (renewalPeriod: string) => {
+    const value = renewalPeriod.toLowerCase();
+
+    if (value.includes('sem')) return { frequency: '1', interval: 'week' };
+    if (value.includes('an') || value.includes('365')) return { frequency: '1', interval: 'year' };
+
+    const dayMatch = value.match(/(\d+)\s*d/);
+    if (dayMatch?.[1]) {
+      const days = Number(dayMatch[1]);
+      if (days % 365 === 0) return { frequency: String(days / 365), interval: 'year' };
+      if (days % 30 === 0) return { frequency: String(days / 30), interval: 'month' };
+      if (days % 7 === 0) return { frequency: String(days / 7), interval: 'week' };
+    }
+
+    return { frequency: '1', interval: 'month' };
   };
 
   const handleCreateOpen = () => {
@@ -138,12 +160,14 @@ const MembershipManagement = () => {
   };
 
   const handleEditOpen = (membership: Membership) => {
+    const parsedRenewal = parseRenewalPeriod(membership.renewalPeriod);
     setFormData({
       title: membership.title,
       cost: membership.cost.toString(),
       targetAudience: membership.targetAudience,
       interestRate: membership.interestRate.toString(),
-      renewalPeriod: membership.renewalPeriod,
+      frequency: parsedRenewal.frequency,
+      interval: parsedRenewal.interval,
       benefits: membership.benefits.join(', ')
     });
     setEditingMembership(membership);
@@ -161,29 +185,85 @@ const MembershipManagement = () => {
     }
 
     const benefitsArray = formData.benefits.split(',').map(b => b.trim()).filter(b => b);
+    const frequency = Number(formData.frequency || '1');
+
+    if (!Number.isFinite(frequency) || frequency <= 0) {
+      toast({
+        title: "Error",
+        description: "La frecuencia debe ser mayor a 0",
+        variant: "destructive"
+      });
+      return;
+    }
+
     try {
       if (editingMembership) {
         // update plan in DB
-        const duration_days = formData.renewalPeriod.toLowerCase().includes('anual') ? 365 : 30;
+        const duration_days = formData.interval === 'year'
+          ? 365 * frequency
+          : formData.interval === 'week'
+            ? 7 * frequency
+            : 30 * frequency;
         const features = { benefits: benefitsArray, interestRate: Number(formData.interestRate), targetAudience: formData.targetAudience };
         const { error } = await supabase.from('membership_plans').update({ name: formData.title, price: Number(formData.cost), currency: 'MXN', duration_days, features }).eq('id', editingMembership.id);
         if (error) throw error;
         toast({ title: 'Membresía actualizada', description: `${formData.title} actualizada` });
       } else {
-        // create new plan
-        const slug = formData.title.toLowerCase().replace(/\s+/g, '-');
-        const duration_days = formData.renewalPeriod.toLowerCase().includes('anual') ? 365 : 30;
-        const features = { benefits: benefitsArray, interestRate: Number(formData.interestRate), targetAudience: formData.targetAudience };
-        const { data, error } = await supabase.from('membership_plans').insert([{ name: formData.title, slug, description: formData.targetAudience, price: Number(formData.cost), currency: 'MXN', duration_days, features }]).select().single();
-        if (error) throw error;
+        // create new plan through external API instead of Supabase
+        const payload = {
+          name: formData.title,
+          amount: Number(formData.cost),
+          currency: 'MXN',
+          interval: formData.interval,
+          frequency,
+          description: formData.targetAudience,
+          features: {
+            benefits: benefitsArray,
+            interestRate: Number(formData.interestRate),
+            targetAudience: formData.targetAudience,
+          },
+          active: true,
+        };
+
+        const response = await fetch(CONEKTA_PLANS_ENDPOINT, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+
+        if (!response.ok) {
+          const rawError = await response.text();
+          throw new Error(rawError || `Error HTTP ${response.status}`);
+        }
+
+        const createdPlan = await response.json().catch(() => null);
+
+        // Keep UI responsive even if plans list is still sourced from Supabase.
+        setMemberships((prev) => [
+          {
+            id: createdPlan?.id || `remote-${Date.now()}`,
+            title: formData.title,
+            cost: Number(formData.cost),
+            currency: 'MXN',
+            targetAudience: formData.targetAudience,
+            interestRate: Number(formData.interestRate),
+            renewalPeriod: `${frequency} ${formData.interval}`,
+            benefits: benefitsArray,
+            isActive: true,
+          },
+          ...prev,
+        ]);
+
         toast({ title: 'Membresía creada', description: `${formData.title} creada` });
       }
-      await fetchPlans();
+      if (editingMembership) {
+        await fetchPlans();
+      }
       setIsCreateOpen(false);
       resetForm();
     } catch (err) {
       console.error('[MembershipManagement] submit error', err);
-      toast({ title: 'Error', description: 'Operación falló', variant: 'destructive' });
+      toast({ title: 'Error', description: err instanceof Error ? err.message : 'Operación falló', variant: 'destructive' });
     }
   };
 
@@ -274,6 +354,33 @@ const MembershipManagement = () => {
                             placeholder="42"
                             className="text-sm"
                           />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 sm:gap-4">
+                        <div className="grid gap-2">
+                          <Label htmlFor="frequency" className="text-xs sm:text-sm">Frecuencia *</Label>
+                          <Input
+                            id="frequency"
+                            type="number"
+                            min={1}
+                            value={formData.frequency}
+                            onChange={(e) => setFormData({ ...formData, frequency: e.target.value })}
+                            placeholder="1"
+                            className="text-sm"
+                          />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="interval" className="text-xs sm:text-sm">Intervalo *</Label>
+                          <Select value={formData.interval} onValueChange={(value) => setFormData({ ...formData, interval: value })}>
+                            <SelectTrigger id="interval" className="text-sm">
+                              <SelectValue placeholder="Selecciona" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="week">Semana</SelectItem>
+                              <SelectItem value="month">Mes</SelectItem>
+                              <SelectItem value="year">Año</SelectItem>
+                            </SelectContent>
+                          </Select>
                         </div>
                       </div>
                       <div className="grid gap-2">

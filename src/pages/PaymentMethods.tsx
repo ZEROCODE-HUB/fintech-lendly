@@ -14,31 +14,142 @@ import { CreditCard, Building2, Plus, Edit, Trash2, CheckCircle, Star } from "lu
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
 
+type ConektaTokenResponse = {
+  id: string;
+};
+
+type ConektaErrorResponse = {
+  message?: string;
+  message_to_purchaser?: string;
+};
+
+type ConektaCardPayload = {
+  card: {
+    number: string;
+    name: string;
+    exp_year: string;
+    exp_month: string;
+    cvc: string;
+  };
+};
+
+type ConektaSDK = {
+  setPublicKey: (key: string) => void;
+  setLanguage: (language: string) => void;
+  Token: {
+    create: (
+      payload: ConektaCardPayload,
+      successHandler: (token: ConektaTokenResponse) => void,
+      errorHandler: (error: ConektaErrorResponse) => void
+    ) => void;
+  };
+};
+
+declare global {
+  interface Window {
+    Conekta?: ConektaSDK;
+  }
+}
+
+const CONEKTA_SCRIPT_ID = "conekta-js-sdk";
+const CONEKTA_SCRIPT_URL = "https://cdn.conekta.io/js/latest/conekta.js";
+const MAX_CARD_DIGITS = 19;
+const MAX_CARD_INPUT_LENGTH = 23;
+const MAX_CVV_LENGTH = 4;
+const MAX_CARDHOLDER_LENGTH = 80;
+
+const DEFAULT_TEST_CARD = {
+  cardNumber: "4242 4242 4242 4242",
+  expiry: "12/30",
+  cvv: "123",
+  cardholder: "Tarjeta Prueba",
+};
+
 const PaymentMethods = () => {
   const { toast } = useToast();
+  const conektaPublicKey = (import.meta.env.VITE_CONEKTA_PUBLIC_KEY ?? "").trim();
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedMethod, setSelectedMethod] = useState<any>(null);
   const [methodType, setMethodType] = useState<"card" | "bank">("card");
   const [isLoading, setIsLoading] = useState(true);
+  const [isTokenizingCard, setIsTokenizingCard] = useState(false);
+  const [isConektaReady, setIsConektaReady] = useState(false);
   const [paymentMethods, setPaymentMethods] = useState<any[]>([]);
   
   // Form states for adding/editing
   const [formData, setFormData] = useState({
-    cardNumber: "",
-    expiry: "",
-    cvv: "",
-    cardholder: "",
+    cardNumber: DEFAULT_TEST_CARD.cardNumber,
+    expiry: DEFAULT_TEST_CARD.expiry,
+    cvv: DEFAULT_TEST_CARD.cvv,
+    cardholder: DEFAULT_TEST_CARD.cardholder,
     bankName: "",
     clabe: "",
     accountHolder: "",
   });
 
+  const openAddDialog = () => {
+    setSelectedMethod(null);
+    setMethodType("card");
+    setFormData({
+      cardNumber: DEFAULT_TEST_CARD.cardNumber,
+      expiry: DEFAULT_TEST_CARD.expiry,
+      cvv: DEFAULT_TEST_CARD.cvv,
+      cardholder: DEFAULT_TEST_CARD.cardholder,
+      bankName: "",
+      clabe: "",
+      accountHolder: "",
+    });
+    setAddDialogOpen(true);
+  };
+
   // Load payment methods on mount
   useEffect(() => {
     loadPaymentMethods();
   }, []);
+
+  useEffect(() => {
+    if (!conektaPublicKey) {
+      return;
+    }
+
+    if (window.Conekta) {
+      window.Conekta.setPublicKey(conektaPublicKey);
+      window.Conekta.setLanguage("es");
+      setIsConektaReady(true);
+      return;
+    }
+
+    const existingScript = document.getElementById(CONEKTA_SCRIPT_ID) as HTMLScriptElement | null;
+    if (existingScript) {
+      existingScript.addEventListener("load", () => {
+        if (window.Conekta) {
+          window.Conekta.setPublicKey(conektaPublicKey);
+          window.Conekta.setLanguage("es");
+          setIsConektaReady(true);
+        }
+      });
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.id = CONEKTA_SCRIPT_ID;
+    script.src = CONEKTA_SCRIPT_URL;
+    script.async = true;
+    script.onload = () => {
+      if (window.Conekta) {
+        window.Conekta.setPublicKey(conektaPublicKey);
+        window.Conekta.setLanguage("es");
+        setIsConektaReady(true);
+      }
+    };
+    document.body.appendChild(script);
+
+    return () => {
+      script.onload = null;
+    };
+  }, [conektaPublicKey]);
 
   const loadPaymentMethods = async () => {
     try {
@@ -133,10 +244,28 @@ const PaymentMethods = () => {
       if (!user) throw new Error('No user logged in');
 
       if (methodType === 'card') {
-        if (!formData.cardNumber || !formData.expiry || !formData.cardholder) {
+        if (!formData.cardNumber || !formData.expiry || !formData.cardholder || !formData.cvv) {
           toast({
             title: "Error",
             description: "Por favor completa todos los campos requeridos",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        if (!conektaPublicKey) {
+          toast({
+            title: "Configuracion Incompleta",
+            description: "Falta configurar VITE_CONEKTA_PUBLIC_KEY",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        if (!isConektaReady || !window.Conekta) {
+          toast({
+            title: "Servicio No Disponible",
+            description: "No se pudo inicializar Conekta. Intenta de nuevo en unos segundos.",
             variant: "destructive",
           });
           return;
@@ -151,20 +280,71 @@ const PaymentMethods = () => {
           return;
         }
 
-        const lastFour = formData.cardNumber.slice(-4);
-        const { error } = await supabase
-          .from('payment_methods')
-          .insert({
-            user_id: user.id,
-            type: 'card',
-            card_type: 'Visa', // TODO: detect card type
-            last_four: lastFour,
-            expiry: formData.expiry,
-            holder_name: formData.cardholder,
-            token: `tok_card_${lastFour}`,
-          });
+        const cardNumber = formData.cardNumber.replace(/\s+/g, "");
+        const [expMonthRaw, expYearRaw] = formData.expiry.split("/");
+        const expMonth = expMonthRaw?.trim() || "";
+        const expYear = expYearRaw?.trim() || "";
+        const cvv = formData.cvv.trim();
 
-        if (error) throw error;
+        if (!isValidCardNumber(cardNumber)) {
+          toast({
+            title: "Error",
+            description: "El numero de tarjeta no tiene un formato valido",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        if (!/^\d{3,4}$/.test(cvv)) {
+          toast({
+            title: "Error",
+            description: "El CVV debe tener 3 o 4 digitos",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        setIsTokenizingCard(true);
+
+        const maskedKey = conektaPublicKey ? `${conektaPublicKey.slice(0, 7)}***${conektaPublicKey.slice(-4)}` : "missing";
+        console.log("[Conekta] Iniciando tokenizacion", {
+          origin: window.location.origin,
+          key: maskedKey,
+          cardType: detectCardType(cardNumber),
+        });
+
+        // Security note: tokenize only with Conekta.js in the browser.
+        // Do not send raw PAN/CVV to backend or call Conekta /tokens from server without PCI scope.
+        const token = await new Promise<ConektaTokenResponse>((resolve, reject) => {
+          window.Conekta!.Token.create(
+            {
+              card: {
+                number: cardNumber,
+                name: formData.cardholder.trim(),
+                exp_year: expYear,
+                exp_month: expMonth,
+                cvc: cvv,
+              },
+            },
+            (tokenResponse) => {
+              console.log("[Conekta] Tokenizacion exitosa", { tokenId: tokenResponse.id });
+              resolve(tokenResponse);
+            },
+            (errorResponse) => {
+              console.error("[Conekta] Tokenizacion fallida", errorResponse);
+              const errorMessage = errorResponse.message_to_purchaser || errorResponse.message || "No se pudo tokenizar la tarjeta";
+              reject(new Error(errorMessage));
+            }
+          );
+        });
+
+        // Temporary step: tokenization-only flow for validation before backend persistence.
+        console.log("[Conekta] Token recibido (modo solo tokenizacion)", { tokenId: token.id });
+        toast({
+          title: "Tokenizacion exitosa",
+          description: "Se genero el token correctamente. Revisa la consola para ver el resultado.",
+        });
+        return;
       } else {
         if (!formData.bankName || !formData.clabe || !formData.accountHolder) {
           toast({
@@ -208,12 +388,100 @@ const PaymentMethods = () => {
       });
     } catch (err) {
       console.error('Error adding payment method:', err);
+      const errorMessage = err instanceof Error ? err.message : "No se pudo agregar el método de pago";
+      const isPotentialConekta403 = /could not be processed|connectivity issue|forbidden/i.test(errorMessage);
+
       toast({
         title: "Error",
-        description: "No se pudo agregar el método de pago",
+        description: isPotentialConekta403
+          ? "Conekta rechazo la tokenizacion (403). Verifica VITE_CONEKTA_PUBLIC_KEY, modo test/live y estado de tu cuenta en dashboard."
+          : errorMessage,
         variant: "destructive",
       });
+    } finally {
+      setIsTokenizingCard(false);
     }
+  };
+
+  const detectCardType = (cardNumber: string): string => {
+    const digits = cardNumber.replace(/\D/g, "");
+    if (/^4/.test(digits)) return "Visa";
+    if (/^(5[1-5]|2[2-7])/.test(digits)) return "Mastercard";
+    if (/^3[47]/.test(digits)) return "American Express";
+    return "Tarjeta";
+  };
+
+  const normalizeCardNumber = (value: string): string => {
+    return value.replace(/\D/g, "").slice(0, MAX_CARD_DIGITS);
+  };
+
+  const formatCardNumber = (value: string): string => {
+    const digits = normalizeCardNumber(value);
+
+    // American Express usually uses 4-6-5 grouping.
+    if (/^3[47]/.test(digits)) {
+      const parts = [digits.slice(0, 4), digits.slice(4, 10), digits.slice(10, 15)].filter(Boolean);
+      return parts.join(" ");
+    }
+
+    return digits.match(/.{1,4}/g)?.join(" ") ?? "";
+  };
+
+  const getExpectedCardLengths = (cardNumber: string): number[] => {
+    const digits = cardNumber.replace(/\D/g, "");
+
+    if (/^3[47]/.test(digits)) return [15]; // Amex
+    if (/^4/.test(digits)) return [13, 16, 19]; // Visa
+    if (/^(5[1-5]|2[2-7])/.test(digits)) return [16]; // Mastercard
+    if (/^(30[0-5]|36|38|39)/.test(digits)) return [14]; // Diners Club
+    if (/^6(?:011|5)/.test(digits)) return [16, 19]; // Discover
+
+    // Unknown issuer: allow common PAN lengths.
+    return [13, 14, 15, 16, 17, 18, 19];
+  };
+
+  const passesLuhnCheck = (cardNumber: string): boolean => {
+    const digits = cardNumber.replace(/\D/g, "");
+    let sum = 0;
+    let shouldDouble = false;
+
+    for (let i = digits.length - 1; i >= 0; i -= 1) {
+      let digit = Number(digits[i]);
+      if (Number.isNaN(digit)) return false;
+
+      if (shouldDouble) {
+        digit *= 2;
+        if (digit > 9) digit -= 9;
+      }
+
+      sum += digit;
+      shouldDouble = !shouldDouble;
+    }
+
+    return sum % 10 === 0;
+  };
+
+  const isValidCardNumber = (cardNumber: string): boolean => {
+    const digits = cardNumber.replace(/\D/g, "");
+    if (!/^\d+$/.test(digits)) return false;
+
+    const expectedLengths = getExpectedCardLengths(digits);
+    if (!expectedLengths.includes(digits.length)) return false;
+
+    return passesLuhnCheck(digits);
+  };
+
+  const handleCardNumberChange = (value: string) => {
+    setFormData({ ...formData, cardNumber: formatCardNumber(value) });
+  };
+
+  const handleCvvChange = (value: string) => {
+    const onlyDigits = value.replace(/\D/g, "").slice(0, MAX_CVV_LENGTH);
+    setFormData({ ...formData, cvv: onlyDigits });
+  };
+
+  const handleCardholderChange = (value: string) => {
+    setFormData({ ...formData, cardholder: value.slice(0, MAX_CARDHOLDER_LENGTH) });
   };
 
   const confirmEdit = async () => {
@@ -330,6 +598,9 @@ const PaymentMethods = () => {
     setFormData({...formData, expiry: formatted});
   };
 
+  const cardNumberDigits = formData.cardNumber.replace(/\D/g, "");
+  const showInvalidCardNumber = methodType === "card" && cardNumberDigits.length >= 13 && !isValidCardNumber(cardNumberDigits);
+
   const PaymentMethodSkeleton = () => (
     <Card className="shadow-soft overflow-hidden">
       <CardHeader className="px-4 sm:px-6 py-4 sm:py-6">
@@ -373,7 +644,7 @@ const PaymentMethods = () => {
             <div className="flex-1 min-w-0">
               <h1 className="text-lg sm:text-xl md:text-2xl font-bold truncate">Métodos de Pago</h1>
             </div>
-            <Button onClick={() => setAddDialogOpen(true)} size="sm" className="text-xs sm:text-sm">
+            <Button onClick={openAddDialog} size="sm" className="text-xs sm:text-sm">
               <Plus className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
               <span className="hidden sm:inline">Agregar</span>
               <span className="sm:hidden">Nuevo</span>
@@ -409,7 +680,7 @@ const PaymentMethods = () => {
                     <p className="text-muted-foreground mb-4">
                       Agrega un método de pago para facilitar tus cobros automáticos
                     </p>
-                    <Button onClick={() => setAddDialogOpen(true)}>
+                    <Button onClick={openAddDialog}>
                       <Plus className="h-4 w-4 mr-2" />
                       Agregar Método de Pago
                     </Button>
@@ -565,11 +836,16 @@ const PaymentMethods = () => {
                     <Input 
                       id="card-number" 
                       placeholder="1234 5678 9012 3456" 
-                      maxLength={19}
+                      maxLength={MAX_CARD_INPUT_LENGTH}
                       value={formData.cardNumber}
-                      onChange={(e) => setFormData({...formData, cardNumber: e.target.value})}
+                      inputMode="numeric"
+                      autoComplete="cc-number"
+                      onChange={(e) => handleCardNumberChange(e.target.value)}
                       disabled={!!selectedMethod}
                     />
+                    {showInvalidCardNumber && (
+                      <p className="text-xs text-danger mt-1">Numero de tarjeta invalido</p>
+                    )}
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
@@ -590,10 +866,12 @@ const PaymentMethods = () => {
                       <Input 
                         id="cvv" 
                         placeholder="123" 
-                        maxLength={4} 
+                        maxLength={MAX_CVV_LENGTH}
                         type="password"
+                        inputMode="numeric"
+                        autoComplete="cc-csc"
                         value={formData.cvv}
-                        onChange={(e) => setFormData({...formData, cvv: e.target.value})}
+                        onChange={(e) => handleCvvChange(e.target.value)}
                       />
                     </div>
                   </div>
@@ -602,8 +880,10 @@ const PaymentMethods = () => {
                     <Input 
                       id="cardholder" 
                       placeholder="Como aparece en la tarjeta"
+                      maxLength={MAX_CARDHOLDER_LENGTH}
+                      autoComplete="cc-name"
                       value={formData.cardholder}
-                      onChange={(e) => setFormData({...formData, cardholder: e.target.value})}
+                      onChange={(e) => handleCardholderChange(e.target.value)}
                     />
                   </div>
                 </>
@@ -657,8 +937,8 @@ const PaymentMethods = () => {
               <Button variant="outline" onClick={() => setAddDialogOpen(false)}>
                 Cancelar
               </Button>
-              <Button onClick={confirmAdd}>
-                Agregar Método
+              <Button onClick={confirmAdd} disabled={isTokenizingCard}>
+                {isTokenizingCard ? "Tokenizando..." : "Agregar Metodo"}
               </Button>
             </DialogFooter>
           </DialogContent>
