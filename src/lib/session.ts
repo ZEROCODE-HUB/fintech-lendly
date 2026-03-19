@@ -22,7 +22,17 @@ export const initAuthListener = () => {
                   if (error) throw error;
                   const role = data?.role ?? 'client';
                   console.log('[session] fetched user role from public.users', { userId, role, raw: data });
-                  const dest = role === 'admin' ? '/admin/dashboard' : '/dashboard';
+                  let dest = '/admin/dashboard';
+                  if (role !== 'admin') {
+                    const firstLoginKey = `increscendo_first_login_done_${userId ?? 'unknown'}`;
+                    const alreadyCompleted = localStorage.getItem(firstLoginKey) === '1';
+                    if (!alreadyCompleted) {
+                      localStorage.setItem(firstLoginKey, '1');
+                      dest = '/service-selection';
+                    } else {
+                      dest = '/dashboard';
+                    }
+                  }
                   console.log('[session] redirect destination based on role', { role, dest });
                   try { window.location.replace(dest); } catch { window.location.href = dest; }
                 })

@@ -7,7 +7,15 @@ const ServiceSelection = () => {
   const navigate = useNavigate();
 
   const handleServiciosClick = () => {
-    window.location.href = 'https://www.google.com';
+    const width = 500;
+    const height = 700;
+    const left = (window.screen.width - width) / 2;
+    const top = (window.screen.height - height) / 2;
+    window.open(
+      '/prontipagos-sso',
+      'ProntipagosSSO',
+      `width=${width},height=${height},left=${left},top=${top},toolbar=no,location=no,status=no,menubar=no,scrollbars=yes,resizable=yes`
+    );
   };
 
   const handlePrestamosClick = () => {

@@ -107,7 +107,18 @@ const Auth = () => {
       try {
         const stored = localStorage.getItem('increscendo_user');
         const u = stored ? JSON.parse(stored) : null;
-        if (u?.role === 'admin') navigate('/admin/dashboard'); else navigate('/dashboard');
+        if (u?.role === 'admin') {
+          navigate('/admin/dashboard');
+        } else {
+          const firstLoginKey = `increscendo_first_login_done_${u?.id ?? 'unknown'}`;
+          const alreadyCompleted = localStorage.getItem(firstLoginKey) === '1';
+          if (!alreadyCompleted) {
+            localStorage.setItem(firstLoginKey, '1');
+            navigate('/service-selection');
+          } else {
+            navigate('/dashboard');
+          }
+        }
       } catch (nErr) {
         navigate('/dashboard');
       }
@@ -225,31 +236,6 @@ const Auth = () => {
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </Button>
                   </form>
-
-                  <Separator className="my-4" />
-                  
-                  <div className="space-y-2">
-                    <p className="text-xs text-muted-foreground text-center">O continúa con</p>
-                    <Button
-                      variant="outline"
-                      className="w-full"
-                      size="lg"
-                      onClick={() => {
-                        // Abrir página SSO de Prontipagos en nueva ventana
-                        const width = 500;
-                        const height = 700;
-                        const left = (window.screen.width - width) / 2;
-                        const top = (window.screen.height - height) / 2;
-                        window.open(
-                          '/prontipagos-sso',
-                          'ProntipagosSSO',
-                          `width=${width},height=${height},left=${left},top=${top},toolbar=no,location=no,status=no,menubar=no,scrollbars=yes,resizable=yes`
-                        );
-                      }}
-                    >
-                      Iniciar con Prontipago
-                    </Button>
-                  </div>
 
                   <div className="text-center mt-4">
                     <p className="text-[10px] text-muted-foreground/60">v1.0.1</p>

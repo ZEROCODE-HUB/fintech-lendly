@@ -175,6 +175,10 @@ const LoanProcess = () => {
     curp: "",
   });
 
+  const [references, setReferences] = useState([
+    { name: "", relationship: "", phone: "" },
+  ]);
+
   // Local files (keep only client-side until user decides to upload)
   const [ineFrontFile, setIneFrontFile] = useState<File | null>(null);
   const [ineBackFile, setIneBackFile] = useState<File | null>(null);
@@ -209,6 +213,18 @@ const LoanProcess = () => {
 
   const handlePersonalDataChange = (field: string, value: string) => {
     setPersonalData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const addReference = () => {
+    setReferences(prev => [...prev, { name: "", relationship: "", phone: "" }]);
+  };
+
+  const updateReference = (index: number, field: "name" | "relationship" | "phone", value: string) => {
+    setReferences(prev => prev.map((ref, i) => (i === index ? { ...ref, [field]: value } : ref)));
+  };
+
+  const removeReference = (index: number) => {
+    setReferences(prev => (prev.length > 1 ? prev.filter((_, i) => i !== index) : prev));
   };
 
   const handleDepositDataChange = (field: string, value: string) => {
@@ -758,9 +774,6 @@ const LoanProcess = () => {
                 <p className="text-sm text-success mt-1">Expira {new Date(userMembership.expires_at).toLocaleDateString('es-MX')}</p>
               )}
             </div>
-            <div className="ml-auto">
-              <Button onClick={() => setCurrentStep(3)}>Continuar</Button>
-            </div>
           </div>
         ) : (
           <>
@@ -1035,6 +1048,65 @@ const LoanProcess = () => {
         </CardContent>
       </Card>
 
+      {/* References Section */}
+      <Card className="shadow-medium">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <User className="h-5 w-5 text-primary" />
+            Referencias personales
+          </CardTitle>
+          <CardDescription>
+            Agrega al menos una referencia de confianza.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {references.map((ref, index) => (
+            <div key={`ref-${index}`} className="rounded-xl border border-border bg-muted/20 p-4">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-sm font-medium">Referencia {index + 1}</p>
+                {references.length > 1 && (
+                  <Button variant="ghost" size="sm" onClick={() => removeReference(index)}>
+                    Quitar
+                  </Button>
+                )}
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label>Nombre completo</Label>
+                  <Input
+                    placeholder="Ej: Ana Perez"
+                    value={ref.name}
+                    onChange={(e) => updateReference(index, "name", e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Relacion</Label>
+                  <Input
+                    placeholder="Ej: Hermana, Amigo"
+                    value={ref.relationship}
+                    onChange={(e) => updateReference(index, "relationship", e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Telefono</Label>
+                  <Input
+                    placeholder="Ej: +52 55 1234 5678"
+                    value={ref.phone}
+                    onChange={(e) => updateReference(index, "phone", e.target.value)}
+                  />
+                </div>
+              </div>
+            </div>
+          ))}
+
+          <div>
+            <Button variant="outline" onClick={addReference}>
+              Agregar otra referencia
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* INE Identification */}
       <Card className="shadow-medium">
         <CardHeader>
@@ -1173,8 +1245,8 @@ const LoanProcess = () => {
           <div className="text-center space-y-4">
             <Loader2 className="h-16 w-16 text-primary animate-spin mx-auto" />
             <div>
-              <p className="text-xl font-semibold">Analizando tu perfil...</p>
-              <p className="text-muted-foreground">Esto solo tomará unos segundos</p>
+              <p className="text-xl font-semibold">Estamos revisando tu perfil...</p>
+              <p className="text-muted-foreground">Estamos validando tu información para continuar con el proceso</p>
             </div>
           </div>
         ) : isApproved ? (
@@ -1192,8 +1264,53 @@ const LoanProcess = () => {
           </div>
         ) : (
           <div className="text-center space-y-4">
-            <FileCheck className="h-16 w-16 text-primary mx-auto" />
-            <p className="text-lg">Haz clic en "Siguiente" para iniciar</p>
+            <div className="space-y-2">
+              <p className="text-xl font-semibold">Resumen de tu solicitud</p>
+              <p className="text-sm text-muted-foreground">Haz clic en "Iniciar" para confirmar y continuar con la revision.</p>
+            </div>
+            <div className="w-full max-w-2xl mx-auto">
+              <div className="text-xs uppercase tracking-wider text-muted-foreground text-left mb-3">Datos personales</div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-left">
+                <div className="rounded-lg bg-muted/40 p-3">
+                  <p className="text-[11px] text-muted-foreground">Titular</p>
+                  <p className="text-sm font-medium">
+                    {`${personalData.firstName} ${personalData.lastName}`.trim() || "Sin nombre registrado"}
+                  </p>
+                </div>
+                <div className="rounded-lg bg-muted/40 p-3">
+                  <p className="text-[11px] text-muted-foreground">Contacto</p>
+                  <p className="text-sm font-medium">{personalData.phone || "Sin telefono"}</p>
+                </div>
+                <div className="rounded-lg bg-muted/40 p-3">
+                  <p className="text-[11px] text-muted-foreground">Banco</p>
+                  <p className="text-sm font-medium">{depositData.bank || "Sin banco"}</p>
+                </div>
+                <div className="rounded-lg bg-muted/40 p-3">
+                  <p className="text-[11px] text-muted-foreground">Cuenta CLABE</p>
+                  <p className="text-sm font-medium">{depositData.clabe ? `****${depositData.clabe.slice(-4)}` : "Sin CLABE"}</p>
+                </div>
+              </div>
+
+              <div className="text-xs uppercase tracking-wider text-muted-foreground text-left mt-4 mb-3">Resumen del credito</div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-left">
+                <div className="rounded-lg bg-muted/40 p-3">
+                  <p className="text-[11px] text-muted-foreground">Monto solicitado</p>
+                  <p className="text-base font-semibold">${Number(loanAmount || 0).toLocaleString()} MXN</p>
+                </div>
+                <div className="rounded-lg bg-muted/40 p-3">
+                  <p className="text-[11px] text-muted-foreground">Plazo</p>
+                  <p className="text-base font-semibold">{loanInstallments} cuotas</p>
+                </div>
+                <div className="rounded-lg bg-muted/40 p-3">
+                  <p className="text-[11px] text-muted-foreground">Cuota estimada</p>
+                  <p className="text-base font-semibold">${monthlyPayment.toFixed(2)} MXN</p>
+                </div>
+              </div>
+
+              <div className="mt-4 text-xs text-muted-foreground">
+                Al continuar, autorizas el inicio de la revision de tu informacion.
+              </div>
+            </div>
           </div>
         )}
       </CardContent>
