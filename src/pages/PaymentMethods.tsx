@@ -338,13 +338,44 @@ const PaymentMethods = () => {
           );
         });
 
-        // Temporary step: tokenization-only flow for validation before backend persistence.
-        console.log("[Conekta] Token recibido (modo solo tokenizacion)", { tokenId: token.id });
-        toast({
-          title: "Tokenizacion exitosa",
-          description: "Se genero el token correctamente. Revisa la consola para ver el resultado.",
-        });
-        return;
+        // Enviar token al endpoint externo que añade la tarjeta
+        console.log("[Conekta] Token recibido", { tokenId: token.id });
+        try {
+          const resp = await fetch('https://increscendo-api.vercel.app/add-card', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ supabase_id: user.id, token_id: token.id }),
+          });
+
+          const json = await resp.json().catch(() => null);
+
+          if (!resp.ok || !json || json.ok !== true) {
+            console.error('[External add-card] Error', resp.status, json);
+            const msg = json?.message || 'Error al registrar la tarjeta en el servicio externo';
+            throw new Error(msg);
+          }
+
+          console.log('[External add-card] Success', json);
+          toast({
+            title: 'Tarjeta agregada',
+            description: 'La tarjeta fue agregada correctamente.',
+          });
+
+          // Cerrar modal y recargar métodos desde la base de datos
+          setAddDialogOpen(false);
+          await loadPaymentMethods();
+          return;
+        } catch (postErr) {
+          console.error('Error enviando token al servicio externo:', postErr);
+          toast({
+            title: 'Error',
+            description: (postErr instanceof Error) ? postErr.message : 'Fallo al agregar la tarjeta',
+            variant: 'destructive',
+          });
+          return;
+        }
       } else {
         if (!formData.bankName || !formData.clabe || !formData.accountHolder) {
           toast({
