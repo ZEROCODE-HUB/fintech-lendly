@@ -178,25 +178,36 @@ const PaymentMethods = () => {
     }
   };
 
-  const handleSetDefault = async (methodId: string) => {
+  const handleSetDefault = async (method: any) => {
     try {
-      const { error } = await supabase
-        .from('payment_methods')
-        .update({ is_default: true })
-        .eq('id', methodId);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('No user logged in');
 
-      if (error) throw error;
-      
-      await loadPaymentMethods();
+      // Llamada al endpoint externo para marcar la tarjeta por defecto
+      const resp = await fetch('https://increscendo-api.vercel.app/set-default-card', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: user.id, default_payment_source_id: method.token }),
+      });
+
+      const json = await resp.json().catch(() => null);
+      if (!resp.ok || !json || json.ok !== true) {
+        console.error('[External set-default-card] Error', resp.status, json);
+        const msg = json?.message || 'Error al establecer la tarjeta predeterminada';
+        throw new Error(msg);
+      }
+
       toast({
         title: "Método Predeterminado Actualizado",
         description: "Este método será usado para cobros automáticos.",
       });
+
+      await loadPaymentMethods();
     } catch (err) {
       console.error('Error updating default method:', err);
       toast({
         title: "Error",
-        description: "No se pudo actualizar el método predeterminado",
+        description: err instanceof Error ? err.message : "No se pudo actualizar el método predeterminado",
         variant: "destructive",
       });
     }
@@ -785,7 +796,7 @@ const PaymentMethods = () => {
                             variant="outline" 
                             size="sm" 
                             className="flex-1 text-xs sm:text-sm"
-                            onClick={() => handleSetDefault(method.id)}
+                            onClick={() => handleSetDefault(method)}
                           >
                             <Star className="h-3 w-3 mr-1" />
                             <span className="hidden sm:inline">Predeterminado</span>

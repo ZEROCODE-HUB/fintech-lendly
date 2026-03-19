@@ -60,6 +60,10 @@ const MembershipCheckout = () => {
   const [fiscalAddress, setFiscalAddress] = useState("");
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [termsModalOpen, setTermsModalOpen] = useState(false);
+  const [acquiring, setAcquiring] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewData, setPreviewData] = useState<any | null>(null);
+  const [cardErrorOpen, setCardErrorOpen] = useState(false);
 
   const originalPrice = Number(membership?.cost ?? membership?.price ?? 0) || 0;
   // compute discount preview (either percent or fixed amount)
@@ -136,135 +140,45 @@ const MembershipCheckout = () => {
       return;
     }
 
-    // create invoice row (pending) with metadata pointing to membership plan
+    // Call local acquire-membership endpoint and show preview or error modal
     (async () => {
       try {
         const currentUser = authService.getCurrentUser();
         if (!currentUser?.id) throw new Error('Usuario no autenticado');
 
-        const invoicePayload: any = {
-          user_id: currentUser.id,
-          coupon_id: appliedCoupon?.id ?? null,
-          amount: originalPrice,
-          discount_amount: discountAmount,
-          currency: 'MXN',
-          status: 'pending',
-          metadata: { membership_plan_id: membership.id },
-        };
-        if (requestInvoice) {
-          invoicePayload.rfc = rfc || null;
-          invoicePayload.fiscal_address = fiscalAddress || null;
-        }
+        setAcquiring(true);
+        const resp = await fetch('https://increscendo-api.vercel.app/acquire-membership', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ user_id: currentUser.id, membership_plan_id: membership.id }),
+        });
 
-        const { data: invoice, error: insertErr } = await supabase.from('invoices').insert([invoicePayload]).select().maybeSingle();
-        if (insertErr || !invoice) {
-          console.error('[MembershipCheckout] create invoice', insertErr);
-          toast({ title: 'Error', description: 'No fue posible crear la factura', variant: 'destructive' });
+        const json = await resp.json().catch(() => null);
+
+        if (!resp.ok || !json) {
+          console.error('[acquire-membership] Error', resp.status, json);
+          toast({ title: 'Error', description: 'Error al comunicarse con el servicio de membresías', variant: 'destructive' });
           return;
         }
 
-        toast({ title: 'Procesando pago...', description: 'Redirigiendo al procesador de pagos' });
-        // simulate external payment flow (replace with real provider integration)
-        setTimeout(async () => {
-          try {
-            const currentUser = authService.getCurrentUser();
-            if (!currentUser?.id) throw new Error('Usuario no autenticado');
-
-            // If coupon applied, attempt conditional consume
-            if (appliedCoupon) {
-              // fetch latest coupon row
-              const { data: latest, error: fetchErr } = await supabase.from('coupons').select('*').eq('id', appliedCoupon.id).maybeSingle();
-              if (fetchErr) throw fetchErr;
-              if (!latest) {
-                await supabase.from('invoices').update({ status: 'failed' }).eq('id', invoice.id);
-                toast({ title: 'Error', description: 'Cupón no encontrado', variant: 'destructive' });
-                return;
-              }
-
-              if (latest.max_redemptions !== null && (latest.redeemed_count || 0) >= latest.max_redemptions) {
-                await supabase.from('invoices').update({ status: 'failed' }).eq('id', invoice.id);
-                toast({ title: 'Cupón agotado', description: 'El cupón ya no tiene usos disponibles', variant: 'destructive' });
-                return;
-              }
-
-              if (latest.max_redemptions !== null) {
-                // conditional update to reduce race window
-                const { data: updated, error: updErr } = await supabase.from('coupons')
-                  .update({ redeemed_count: (latest.redeemed_count || 0) + 1 })
-                  .eq('id', appliedCoupon.id)
-                  .lt('redeemed_count', latest.max_redemptions)
-                  .select();
-                if (updErr) throw updErr;
-                if (!updated || (Array.isArray(updated) && updated.length === 0)) {
-                  await supabase.from('invoices').update({ status: 'failed' }).eq('id', invoice.id);
-                  toast({ title: 'Cupon agotado', description: 'El cupón ya no tiene usos disponibles', variant: 'destructive' });
-                  return;
-                }
-              } else {
-                const { error: updErr } = await supabase.from('coupons')
-                  .update({ redeemed_count: (latest.redeemed_count || 0) + 1 })
-                  .eq('id', appliedCoupon.id);
-                if (updErr) throw updErr;
-              }
-
-              // record redemption
-              const { error: redeemErr } = await supabase.from('coupon_redemptions').insert([{ coupon_id: appliedCoupon.id, user_id: currentUser.id, invoice_id: invoice.id }]);
-              if (redeemErr) {
-                // try to rollback decrement to the latest known value
-                await supabase.from('coupons').update({ redeemed_count: (latest.redeemed_count || 0) }).eq('id', appliedCoupon.id);
-                await supabase.from('invoices').update({ status: 'failed' }).eq('id', invoice.id);
-                toast({ title: 'Error', description: 'No fue posible registrar el uso del cupón', variant: 'destructive' });
-                return;
-              }
-            }
-
-            // Create user_membership
-            const { data: plan } = await supabase.from('membership_plans').select('*').eq('id', membership.id).maybeSingle();
-            if (plan) {
-              const duration_days = plan.duration_days ?? 30;
-              const started_at = new Date().toISOString();
-              const expires_at = new Date(Date.now() + duration_days * 24 * 60 * 60 * 1000).toISOString();
-              const { data: um, error: umErr } = await supabase.from('user_memberships').insert([{
-                user_id: currentUser.id,
-                membership_plan_id: plan.id,
-                status: 'active',
-                started_at,
-                expires_at,
-                auto_renew: false,
-                metadata: {}
-              }]).select().maybeSingle();
-              if (umErr) {
-                // attempt rollback of coupon redemption if we created it
-                try { await supabase.from('coupon_redemptions').delete().eq('invoice_id', invoice.id); } catch (e) {}
-                try { await supabase.from('coupons').update({ redeemed_count: (appliedCoupon?.redeemed_count || 0) }).eq('id', appliedCoupon?.id); } catch (e) {}
-                await supabase.from('invoices').update({ status: 'failed' }).eq('id', invoice.id);
-                toast({ title: 'Error', description: 'No fue posible crear la membresía', variant: 'destructive' });
-                return;
-              }
-
-              // attach membership id to invoice
-              await supabase.from('invoices').update({ user_membership_id: um.id }).eq('id', invoice.id);
-            }
-
-            // mark invoice paid
-            const { error: payErr } = await supabase.from('invoices').update({ status: 'paid', payment_provider: 'test', provider_payment_id: Math.random().toString(36).slice(2,10) }).eq('id', invoice.id);
-            if (payErr) {
-              await supabase.from('invoices').update({ status: 'failed' }).eq('id', invoice.id);
-              throw payErr;
-            }
-
-            toast({ title: '¡Membresía adquirida!', description: `Has adquirido ${membership.name ?? membership.title ?? ''} exitosamente` });
-            if (returnTo === '/loan-process') navigate('/loan-process', { state: { membershipAcquired: true } });
-            else navigate('/memberships');
-          } catch (err) {
-            console.error('[MembershipCheckout] finalize flow (client)', err);
-            toast({ title: 'Error', description: 'Ocurrió un error finalizando el pago', variant: 'destructive' });
-            try { await supabase.from('invoices').update({ status: 'failed' }).eq('id', invoice.id); } catch (e) {}
+        if (json.ok === true) {
+          // show preview modal with returned data
+          setPreviewData(json);
+          setPreviewOpen(true);
+        } else {
+          // handle specific known errors
+          const msg = json.message || JSON.stringify(json);
+          if (/tarjeta|no tienes tarjetas|no cards|no sources/i.test(msg)) {
+            setCardErrorOpen(true);
+          } else {
+            toast({ title: 'Error', description: msg, variant: 'destructive' });
           }
-        }, 1500);
+        }
       } catch (err) {
-        console.error('[MembershipCheckout] proceed', err);
-        toast({ title: 'Error', description: 'No fue posible iniciar el pago', variant: 'destructive' });
+        console.error('[MembershipCheckout] acquire', err);
+        toast({ title: 'Error', description: (err instanceof Error) ? err.message : 'Error al adquirir la membresía', variant: 'destructive' });
+      } finally {
+        setAcquiring(false);
       }
     })();
   };
@@ -496,9 +410,9 @@ const MembershipCheckout = () => {
                     className="w-full" 
                     size="lg"
                     onClick={handleProceedToPayment}
-                    disabled={!termsAccepted}
+                    disabled={!termsAccepted || acquiring}
                   >
-                    Proceder al Pago
+                    {acquiring ? 'Procesando...' : 'Proceder al Pago'}
                   </Button>
                   
                   <Button 
@@ -632,6 +546,109 @@ const MembershipCheckout = () => {
               <CheckCircle2 className="h-4 w-4 mr-2" />
               Aceptar Términos
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Preview Dialog: muestra resultado devuelto por /acquire-membership */}
+      <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Resumen de la Adquisición</DialogTitle>
+            <DialogDescription>Vista previa del resultado devuelto por el servicio</DialogDescription>
+          </DialogHeader>
+
+          <div className="p-4">
+            {previewData ? (
+              (() => {
+                const c = previewData.conekta ?? null;
+                const src = previewData.added_source ?? null;
+                const um = previewData.user_membership ?? null;
+
+                const format = (v?: string) => {
+                  if (!v) return '—';
+                  try { return new Date(v).toLocaleString(); } catch { return v; }
+                };
+
+                return (
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3">
+                      <CheckCircle2 className="h-6 w-6 text-success" />
+                      <div>
+                        <h3 className="text-lg font-semibold">Membresía adquirida</h3>
+                        <p className="text-sm text-muted-foreground">Compra completada correctamente</p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      <div className="space-y-1">
+                        <div className="text-muted-foreground">Subscripción</div>
+                        <div className="font-medium">{c?.id ?? '—'}</div>
+                      </div>
+                      <div className="space-y-1">
+                        <div className="text-muted-foreground">Estado</div>
+                        <div className="font-medium">{c?.status ?? (previewData.ok ? 'active' : '—')}</div>
+                      </div>
+
+                      <div className="space-y-1">
+                        <div className="text-muted-foreground">Plan</div>
+                        <div className="font-medium">{c?.plan_id ?? '—'}</div>
+                      </div>
+                      <div className="space-y-1">
+                        <div className="text-muted-foreground">Método</div>
+                        <div className="font-medium">{src ? `${src.brand ?? ''} •••• ${src.last4 ?? src.id ?? '—'}` : '—'}</div>
+                      </div>
+
+                      <div className="space-y-1">
+                        <div className="text-muted-foreground">Titular</div>
+                        <div className="font-medium">{src?.name ?? um?.cardholder ?? '—'}</div>
+                      </div>
+                      <div className="space-y-1">
+                        <div className="text-muted-foreground">Expira</div>
+                        <div className="font-medium">{(src?.exp_month && src?.exp_year) ? `${src.exp_month}/${src.exp_year}` : (um?.expires_at ? format(um.expires_at) : '—')}</div>
+                      </div>
+
+                      <div className="space-y-1 col-span-2">
+                        <div className="text-muted-foreground">Membership ID</div>
+                        <div className="font-medium">{um?.id ?? '—'}</div>
+                      </div>
+
+                      <div className="space-y-1">
+                        <div className="text-muted-foreground">Inicio</div>
+                        <div className="font-medium">{format(um?.started_at)}</div>
+                      </div>
+                      <div className="space-y-1">
+                        <div className="text-muted-foreground">Expira</div>
+                        <div className="font-medium">{format(um?.expires_at)}</div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()
+            ) : (
+              <p>No hay datos para mostrar</p>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPreviewOpen(false)}>Cerrar</Button>
+            <Button onClick={() => { setPreviewOpen(false); navigate('/memberships'); }}>Finalizar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Card error modal: muestra cuando no hay tarjetas guardadas */}
+      <Dialog open={cardErrorOpen} onOpenChange={setCardErrorOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>No tienes tarjetas guardadas</DialogTitle>
+            <DialogDescription>
+              Para adquirir una membresía necesitas una tarjeta registrada. Agrega una desde Métodos de Pago.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCardErrorOpen(false)}>Cerrar</Button>
+            <Button onClick={() => { setCardErrorOpen(false); navigate('/payment-methods'); }}>Agregar Tarjeta</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
