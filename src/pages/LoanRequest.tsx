@@ -77,17 +77,28 @@ const LoanRequest = () => {
     const schedule = [];
     let remainingBalance = principal;
     
+    // Obtener la fecha actual y comenzar desde el próximo mes
+    const today = new Date();
+    const firstPaymentDate = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+    
     for (let i = 1; i <= months; i++) {
       const interestPayment = remainingBalance * monthlyRate;
       const principalPayment = monthlyPayment - interestPayment;
       remainingBalance -= principalPayment;
       
-      const today = new Date();
-      const paymentDate = new Date(today.setMonth(today.getMonth() + i));
+      // Calcular la fecha de pago
+      const paymentDate = new Date(firstPaymentDate);
+      paymentDate.setMonth(paymentDate.getMonth() + (i - 1));
+      
+      // Formatear fecha como DD/MM/YYYY
+      const day = String(paymentDate.getDate()).padStart(2, '0');
+      const month = String(paymentDate.getMonth() + 1).padStart(2, '0');
+      const year = paymentDate.getFullYear();
+      const formattedDate = `${day}/${month}/${year}`;
       
       schedule.push({
         month: i,
-        date: paymentDate.toLocaleDateString('es-MX'),
+        date: formattedDate,
         principal: principalPayment,
         interest: interestPayment,
         total: monthlyPayment,

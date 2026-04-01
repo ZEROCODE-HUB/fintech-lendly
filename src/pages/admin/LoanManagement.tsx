@@ -22,6 +22,7 @@ import { ModifyLoanModal } from "@/components/admin/loans/modals/ModifyLoanModal
 import { ResendContractModal, AttachContractModal } from "@/components/admin/loans/modals/ContractModals";
 import { ModifyDisbursementModal, ConfirmDisbursementModal } from "@/components/admin/loans/modals/DisbursementModals";
 import { SendReminderModal, SellPortfolioModal, UpdateInstallmentsModal } from "@/components/admin/loans/modals/OverdueModals";
+import { jsPDF } from "jspdf";
 
 const defaultPendingColumns: ColumnConfig[] = [
   { key: 'id', label: 'ID Préstamo', visible: true },
@@ -110,6 +111,157 @@ const defaultHistoryColumns: ColumnConfig[] = [
   { key: 'lastPaymentDate', label: 'F. Últ. Pago', visible: true },
   { key: 'status', label: 'Estado', visible: true },
 ];
+
+type PaymentRow = {
+  installment: number;
+  date: string;
+  principal: number;
+  interest: number;
+  total: number;
+  balance: number;
+};
+
+const formatMoney = (value: number) => {
+  return new Intl.NumberFormat('es-MX', {
+    style: 'currency',
+    currency: 'MXN',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value);
+};
+
+const formatShortDate = (date: Date) => {
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = date.getFullYear();
+  return `${day}/${month}/${year}`;
+};
+
+const normalizeMonthlyRate = (annualRate: number) => {
+  if (!Number.isFinite(annualRate) || annualRate <= 0) return 0;
+  if (annualRate > 1) return annualRate / 100 / 12;
+  return annualRate / 12;
+};
+
+const calculateMonthlyPayment = (principal: number, monthlyRate: number, months: number) => {
+  if (principal <= 0 || months <= 0) return 0;
+  if (monthlyRate <= 0) return principal / months;
+  const factor = Math.pow(1 + monthlyRate, months);
+  return (principal * monthlyRate * factor) / (factor - 1);
+};
+
+const buildFrenchSchedule = (principal: number, monthlyRate: number, months: number, monthlyPayment: number, startDate: Date) => {
+  const rows: PaymentRow[] = [];
+  let remainingBalance = principal;
+
+  for (let i = 1; i <= months; i++) {
+    const interestPayment = remainingBalance * monthlyRate;
+    let principalPayment = monthlyPayment - interestPayment;
+
+    if (i === months) {
+      principalPayment = remainingBalance;
+    }
+
+    remainingBalance = Math.max(0, remainingBalance - principalPayment);
+
+    const dueDate = new Date(startDate.getFullYear(), startDate.getMonth() + (i - 1), startDate.getDate());
+    rows.push({
+      installment: i,
+      date: formatShortDate(dueDate),
+      principal: principalPayment,
+      interest: interestPayment,
+      total: monthlyPayment,
+      balance: remainingBalance,
+    });
+  }
+
+  return rows;
+};
+
+const generateLoanSchedulePdfBase64 = (loan: any) => {
+  const principal = Number(loan.amount ?? loan.raw?.amount ?? 0);
+  const months = Number(loan.installments ?? loan.raw?.installments ?? 0);
+  const storedAnnualRate = Number(loan.raw?.interest_rate ?? 0.42);
+  const monthlyRate = normalizeMonthlyRate(storedAnnualRate);
+  const monthlyPayment = Number(loan.raw?.monthly_payment ?? calculateMonthlyPayment(principal, monthlyRate, months));
+  const firstDueDate = new Date();
+  firstDueDate.setMonth(firstDueDate.getMonth() + 1);
+
+  const rows = buildFrenchSchedule(principal, monthlyRate, months, monthlyPayment, firstDueDate);
+  const totalToPay = Number(loan.raw?.total_to_pay ?? monthlyPayment * months);
+
+  const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const left = 36;
+  const right = pageWidth - 36;
+  const tableTop = 142;
+  const rowHeight = 16;
+  const colX = [left, 84, 152, 256, 348, 438, 528];
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(12);
+  doc.text('Cronograma de Pagos', left, 42);
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Cliente: ${loan.firstName ?? ''} ${loan.lastName ?? ''}`.trim(), left, 58);
+  doc.text(`Solicitud: ${loan.id ?? ''}`, left, 72);
+  doc.text(`Monto: ${formatMoney(principal)}`, left, 86);
+  doc.text(`TNA: ${(storedAnnualRate > 1 ? storedAnnualRate : storedAnnualRate * 100).toFixed(2)}%`, 220, 86);
+  doc.text(`Tasa mensual: ${(monthlyRate * 100).toFixed(4)}%`, 220, 100);
+  doc.text(`Pagos: ${months}`, 420, 86);
+  doc.text(`Pago mensual: ${formatMoney(monthlyPayment)}`, 420, 100);
+  doc.text(`Total a pagar: ${formatMoney(totalToPay)}`, 420, 114);
+
+  doc.setDrawColor(190, 190, 190);
+  doc.line(left, tableTop - 12, right, tableTop - 12);
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8);
+  doc.text('CUOTA', colX[0], tableTop);
+  doc.text('FECHA', colX[1], tableTop);
+  doc.text('CAPITAL', colX[2], tableTop);
+  doc.text('INTERES', colX[3], tableTop);
+  doc.text('TOTAL', colX[4], tableTop);
+  doc.text('SALDO', colX[5], tableTop);
+
+  doc.setFont('helvetica', 'normal');
+  let y = tableTop + 14;
+
+  rows.forEach((r) => {
+    if (y > pageHeight - 96) {
+      doc.addPage();
+      y = 48;
+      doc.setFont('helvetica', 'bold');
+      doc.text('CUOTA', colX[0], y);
+      doc.text('FECHA', colX[1], y);
+      doc.text('CAPITAL', colX[2], y);
+      doc.text('INTERES', colX[3], y);
+      doc.text('TOTAL', colX[4], y);
+      doc.text('SALDO', colX[5], y);
+      doc.setFont('helvetica', 'normal');
+      y += 14;
+    }
+
+    doc.setFontSize(8);
+    doc.text(String(r.installment), colX[0], y);
+    doc.text(r.date, colX[1], y);
+    doc.text(formatMoney(r.principal), colX[2], y, { align: 'left' });
+    doc.text(formatMoney(r.interest), colX[3], y, { align: 'left' });
+    doc.text(formatMoney(r.total), colX[4], y, { align: 'left' });
+    doc.text(formatMoney(r.balance), colX[5], y, { align: 'left' });
+    y += rowHeight;
+  });
+
+  const signatureY = Math.max(y + 28, pageHeight - 96);
+  doc.setDrawColor(60, 60, 60);
+  doc.line(left + 8, signatureY, 230, signatureY);
+  doc.setFontSize(8);
+  doc.text('Firma del cliente', left + 8, signatureY + 14);
+
+  const dataUri = doc.output('datauristring');
+  return dataUri.split(',')[1] ?? '';
+};
 
 const LoanManagement = () => {
   const { toast } = useToast();
@@ -328,7 +480,7 @@ const LoanManagement = () => {
       const to = from + pageSize - 1;
       const { data, error, count } = await supabase
         .from('loans')
-        .select('id, loan_number, amount, installments, status, applied_at, created_at, approved_at, signed_at, disbursed_at, metadata, user_id, users(first_name,last_name,ine_key,curp,phone,email,user_memberships(membership_plans(name))), loan_signatures(*), loan_disbursements(*)', { count: 'exact' })
+        .select('id, loan_number, amount, installments, monthly_payment, interest_rate, total_to_pay, status, applied_at, created_at, approved_at, signed_at, disbursed_at, metadata, user_id, users(first_name,last_name,ine_key,curp,phone,email,user_memberships(membership_plans(name))), loan_signatures(*), loan_disbursements(*)', { count: 'exact' })
         .in('status', ['pending', 'under_review', 'cancelled'])
         .order('created_at', { ascending: false })
         .range(from, to);
@@ -351,7 +503,7 @@ const LoanManagement = () => {
       const to = from + pageSize - 1;
       const { data, error, count } = await supabase
         .from('loans')
-        .select('id, loan_number, amount, installments, status, applied_at, created_at, approved_at, signed_at, disbursed_at, metadata, user_id, users(first_name,last_name,ine_key,curp,phone,email,user_memberships(membership_plans(name))), loan_signatures(*), loan_disbursements(*)', { count: 'exact' })
+        .select('id, loan_number, amount, installments, monthly_payment, interest_rate, total_to_pay, status, applied_at, created_at, approved_at, signed_at, disbursed_at, metadata, user_id, users(first_name,last_name,ine_key,curp,phone,email,user_memberships(membership_plans(name))), loan_signatures(*), loan_disbursements(*)', { count: 'exact' })
         .in('status', ['approved', 'signed'])
         .order('created_at', { ascending: false })
         .range(from, to);
@@ -374,7 +526,7 @@ const LoanManagement = () => {
       const to = from + pageSize - 1;
       const { data, error, count } = await supabase
         .from('loans')
-        .select('id, loan_number, amount, installments, status, applied_at, created_at, approved_at, signed_at, disbursed_at, metadata, user_id, users(first_name,last_name,ine_key,curp,phone,email,user_memberships(membership_plans(name))), loan_signatures(*), loan_disbursements(*)', { count: 'exact' })
+        .select('id, loan_number, amount, installments, monthly_payment, interest_rate, total_to_pay, status, applied_at, created_at, approved_at, signed_at, disbursed_at, metadata, user_id, users(first_name,last_name,ine_key,curp,phone,email,user_memberships(membership_plans(name))), loan_signatures(*), loan_disbursements(*)', { count: 'exact' })
         .in('status', ['signed', 'disbursed'])
         .order('created_at', { ascending: false })
         .range(from, to);
@@ -397,7 +549,7 @@ const LoanManagement = () => {
       const to = from + pageSize - 1;
       const { data, error, count } = await supabase
         .from('loans')
-        .select('id, loan_number, amount, installments, status, applied_at, created_at, approved_at, signed_at, disbursed_at, metadata, user_id, users(first_name,last_name,ine_key,curp,phone,email,user_memberships(membership_plans(name))), loan_signatures(*), loan_disbursements(*)', { count: 'exact' })
+        .select('id, loan_number, amount, installments, monthly_payment, interest_rate, total_to_pay, status, applied_at, created_at, approved_at, signed_at, disbursed_at, metadata, user_id, users(first_name,last_name,ine_key,curp,phone,email,user_memberships(membership_plans(name))), loan_signatures(*), loan_disbursements(*)', { count: 'exact' })
         .eq('status', 'active')
         .order('created_at', { ascending: false })
         .range(from, to);
@@ -421,7 +573,7 @@ const LoanManagement = () => {
       const to = from + pageSize - 1;
       const { data, error } = await supabase
         .from('loans')
-        .select('id, loan_number, amount, installments, status, applied_at, created_at, approved_at, signed_at, disbursed_at, metadata, user_id, users(first_name,last_name,ine_key,curp,phone,email,user_memberships(membership_plans(name))), loan_signatures(*), loan_disbursements(*)')
+        .select('id, loan_number, amount, installments, monthly_payment, interest_rate, total_to_pay, status, applied_at, created_at, approved_at, signed_at, disbursed_at, metadata, user_id, users(first_name,last_name,ine_key,curp,phone,email,user_memberships(membership_plans(name))), loan_signatures(*), loan_disbursements(*)')
         .eq('status', 'active')
         .order('created_at', { ascending: false })
         .range(from, to);
@@ -445,7 +597,7 @@ const LoanManagement = () => {
       const to = from + pageSize - 1;
       const { data, error, count } = await supabase
         .from('loans')
-        .select('id, loan_number, amount, installments, status, applied_at, created_at, approved_at, signed_at, disbursed_at, metadata, user_id, users(first_name,last_name,ine_key,curp,phone,email,user_memberships(membership_plans(name))), loan_signatures(*), loan_disbursements(*)', { count: 'exact' })
+        .select('id, loan_number, amount, installments, monthly_payment, interest_rate, total_to_pay, status, applied_at, created_at, approved_at, signed_at, disbursed_at, metadata, user_id, users(first_name,last_name,ine_key,curp,phone,email,user_memberships(membership_plans(name))), loan_signatures(*), loan_disbursements(*)', { count: 'exact' })
         .in('status', ['closed', 'cancelled'])
         .order('created_at', { ascending: false })
         .range(from, to);
@@ -541,10 +693,16 @@ const LoanManagement = () => {
       }
       if (loan.email) {
         try {
+          const optionalPdfBase64 = generateLoanSchedulePdfBase64(loan);
+          const optionalPdfName = `cronograma-${loan.id ?? loan.uuid ?? 'prestamo'}.pdf`;
           const resp = await fetch('https://increscendo-api.vercel.app/signnow-invite', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ recipient_email: loan.email }),
+            body: JSON.stringify({
+              recipient_email: loan.email,
+              optional_pdf_base64: optionalPdfBase64,
+              optional_pdf_name: optionalPdfName,
+            }),
           });
           const data = await resp.json().catch(() => null);
           if (!resp.ok) throw data || new Error('External function error');
