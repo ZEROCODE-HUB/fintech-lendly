@@ -163,11 +163,11 @@ const TerminosCondiciones = () => {
       <h3 className="text-xl font-semibold text-foreground mt-8 mb-4">(L) VIGENCIA DE LOS "TÉRMINOS Y CONDICIONES"</h3>
 
       <p className="text-justify">
-        LOS PRESENTES "TÉRMINOS Y CONDICIONES", SURTEN EFECTOS Y SON APLICABLES A PARTIR DE LAS CONTRATACIONES DE MEMBRESÍAS HECHAS POR EL "USUARIO Y/O CLIENTE" A PARTIR DEL 01 DE ABRIL DE 2025.
+        LOS PRESENTES "TÉRMINOS Y CONDICIONES", SURTEN EFECTOS Y SON APLICABLES A PARTIR DE LAS CONTRATACIONES DE MEMBRESÍAS HECHAS POR EL "USUARIO Y/O CLIENTE" A PARTIR DEL 01 DE ABRIL DE 2026.
       </p>
 
       <p className="text-sm text-muted-foreground mt-10">
-        <strong>Fecha última actualización:</strong> Abril 30, 2025
+        <strong>Fecha última actualización:</strong> Abril 01, 2026
       </p>
     </LegalPageLayout>
   );
