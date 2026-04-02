@@ -71,7 +71,7 @@ const PoliticasPrivacidad = () => {
       </p>
 
       <p className="text-sm text-muted-foreground mt-10">
-        <strong>Fecha última actualización:</strong> Agosto 01 2024
+        <strong>Fecha última actualización:</strong> Abril 01 2026
       </p>
     </LegalPageLayout>
   );

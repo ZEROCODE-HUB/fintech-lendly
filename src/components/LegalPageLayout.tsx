@@ -22,12 +22,12 @@ const LegalPageLayout = ({ title, children }: LegalPageLayoutProps) => {
               <img src={logoHorizontal} alt="Increscendo Fintech" className="h-10 sm:h-12 w-auto" />
             </Link>
             <nav className="hidden md:flex items-center gap-6">
-              <Link to="/#features" className="text-muted-foreground hover:text-foreground transition-colors">Características</Link>
-              <Link to="/#about" className="text-muted-foreground hover:text-foreground transition-colors">Nosotros</Link>
+              {/* <Link to="/#features" className="text-muted-foreground hover:text-foreground transition-colors">Características</Link> */}
+              {/* <Link to="/#about" className="text-muted-foreground hover:text-foreground transition-colors">Nosotros</Link> */}
               <Link to="/#contact" className="text-muted-foreground hover:text-foreground transition-colors">Contacto</Link>
-              <Button onClick={() => navigate("/auth")} variant="default">
+              {/* <Button onClick={() => navigate("/auth")} variant="default">
                 Acceder
-              </Button>
+              </Button> */}
             </nav>
           </div>
         </div>
@@ -78,6 +78,8 @@ const LegalPageLayout = ({ title, children }: LegalPageLayoutProps) => {
                 <li><Link to="/#features" className="hover:text-primary transition-colors">Pagos</Link></li>
                 <li><Link to="/#features" className="hover:text-primary transition-colors">Recargas</Link></li>
                 <li><Link to="/#features" className="hover:text-primary transition-colors">Monederos</Link></li>
+                <li><Link to="/#features" className="hover:text-primary transition-colors">Tiempo aire</Link></li>
+             
               </ul>
             </div>
             
@@ -97,7 +99,6 @@ const LegalPageLayout = ({ title, children }: LegalPageLayoutProps) => {
               <h4 className="font-semibold mb-4">Soporte</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
                 <li><Link to="/centro-ayuda" className="hover:text-primary transition-colors">Centro de Ayuda</Link></li>
-                <li><Link to="/contacto" className="hover:text-primary transition-colors">Contacto</Link></li>
               </ul>
             </div>
           </div>
@@ -110,7 +111,7 @@ const LegalPageLayout = ({ title, children }: LegalPageLayoutProps) => {
           </div>
           
           <div className="pt-8 border-t border-border text-center text-sm text-muted-foreground">
-            <p>&copy; 2024 Increscendo Fintech. Todos los derechos reservados.</p>
+            <p>&copy; {new Date().getFullYear()} Increscendo Fintech. Todos los derechos reservados.</p>
           </div>
         </div>
       </footer>

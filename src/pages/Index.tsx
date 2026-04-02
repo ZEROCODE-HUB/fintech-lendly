@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useNavigate, Link } from "react-router-dom";
-import { ArrowRight, Shield, Zap, BarChart3, TrendingUp, Users, Clock, Menu, X } from "lucide-react";
+import { ArrowRight, Shield, Zap, BarChart3, TrendingUp, Users, Clock, Wallet, Smartphone, Facebook, Instagram, Menu, X } from "lucide-react";
 import heroImage from "@/assets/hero-landing.jpg";
 import logoHorizontal from "@/assets/logo-horizontal.jpg";
 import { supabase } from "@/lib/supabase";
@@ -86,9 +86,11 @@ const Index = () => {
 
             {/* Desktop Navigation */}
             <nav className="hidden md:flex items-center gap-6">
-              <a href="#features" className="text-muted-foreground hover:text-foreground transition-colors">Características</a>
+              <a href="#contact" className="text-muted-foreground hover:text-foreground transition-colors">Contacto</a> 
+
+              {/* <a href="#features" className="text-muted-foreground hover:text-foreground transition-colors">Características</a>
               <a href="#about" className="text-muted-foreground hover:text-foreground transition-colors">Nosotros</a>
-              <a href="#contact" className="text-muted-foreground hover:text-foreground transition-colors">Contacto</a>
+              <a href="#contact" className="text-muted-foreground hover:text-foreground transition-colors">Contacto</a> */}
               {/* <Button onClick={handleAccess} variant="default">
                 Acceder
               </Button> */}
@@ -113,7 +115,7 @@ const Index = () => {
         {mobileMenuOpen && (
           <div className="md:hidden bg-card border-t border-border">
             <nav className="flex flex-col px-4 py-4 space-y-3">
-              <a
+              {/* <a
                 href="#features"
                 className="text-muted-foreground hover:text-foreground transition-colors py-2"
                 onClick={() => setMobileMenuOpen(false)}
@@ -133,7 +135,7 @@ const Index = () => {
                 onClick={() => setMobileMenuOpen(false)}
               >
                 Contacto
-              </a>
+              </a> */}
               {/* <Button
                 onClick={() => { navigate("/auth"); setMobileMenuOpen(false); }}
                 variant="default"
@@ -154,8 +156,7 @@ const Index = () => {
               Increscendo <span className="text-primary">Fintech</span>
             </h1>
             <p className="text-base sm:text-lg md:text-xl text-muted-foreground">
-              Digitaliza tus operaciones de préstamo con tecnología avanzada, inteligencia artificial
-              y análisis de Big Data para potenciar el crecimiento de tu negocio
+              Impulsa tu negocio con recargas, pago de servicios y préstamos de manera inteligente.
             </p>
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
               <Button size="lg" onClick={handleAccess} className="w-full sm:w-auto">
@@ -216,19 +217,19 @@ const Index = () => {
               <div className="h-14 w-14 bg-primary/20 rounded-lg flex items-center justify-center mb-6">
                 <Zap className="h-7 w-7 text-primary" />
               </div>
-              <h3 className="text-xl font-bold mb-4">Aprobación Instantánea</h3>
+              <h3 className="text-xl font-bold mb-4">Pago de servicios, fácil y rápido.</h3>
               <p className="text-muted-foreground">
-                Proceso automatizado con IA que evalúa y aprueba solicitudes en menos de 24 horas
+                Paga todos tus servicios de luz, agua, gas, teléfono, televisión de paga, impuestos estatales, telepeaje en un mismo lugar.
               </p>
             </div>
 
             <div className="bg-card p-8 rounded-lg shadow-medium hover:shadow-strong transition-all hover:-translate-y-1">
               <div className="h-14 w-14 bg-danger/20 rounded-lg flex items-center justify-center mb-6">
-                <BarChart3 className="h-7 w-7 text-danger" />
+                <Smartphone className="h-7 w-7 text-danger" />
               </div>
-              <h3 className="text-xl font-bold mb-4">Análisis Inteligente</h3>
+              <h3 className="text-xl font-bold mb-4">Recarga de tiempo aire en segundos</h3>
               <p className="text-muted-foreground">
-                Dashboard con Big Data que proporciona insights en tiempo real sobre tu portafolio financiero
+                Realiza todas las recargas de las compañías de telefonía móvil en México de manera segura.
               </p>
             </div>
 
@@ -254,11 +255,12 @@ const Index = () => {
 
             <div className="bg-card p-8 rounded-lg shadow-medium hover:shadow-strong transition-all hover:-translate-y-1">
               <div className="h-14 w-14 bg-primary/20 rounded-lg flex items-center justify-center mb-6">
-                <Clock className="h-7 w-7 text-primary" />
+                <Wallet className="h-7 w-7 text-primary" />
               </div>
-              <h3 className="text-xl font-bold mb-4">Gestión Automatizada</h3>
+              <h3 className="text-xl font-bold mb-4">Monederos de regalo digitales</h3>
               <p className="text-muted-foreground">
-                Pagos automáticos, recordatorios inteligentes y conciliación en tiempo real
+                Solicita tus códigos que se generan en nuestro sistema y te seran enviados mediante mensaje de texto SMS a su celular. 
+                Podrás canjearlos y hacer uso de ellos para generar compras en internet y/o uso de los servicios.
               </p>
             </div>
           </div>
@@ -271,15 +273,10 @@ const Index = () => {
           <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
             <div className="space-y-6">
               <h2 className="text-4xl font-bold">Tecnología de Vanguardia</h2>
-              <p className="text-lg text-muted-foreground text-justified max-w-prose">
-                En Increscendo Fintech combinamos inteligencia artificial, Big Data y las mejores
-                prácticas de la industria logística internacional para ofrecer soluciones financieras
-                que verdaderamente transforman negocios.
+              <p className="text-lg text-muted-foreground  max-w-prose">
+                 En Increscendo Fintech combinamos tecnología de punta e inteligencia artificial, con las mejores prácticas para ofrecer soluciones financieras que verdaderamente transformen tu negocio.
               </p>
-              <p className="text-lg text-muted-foreground text-justified max-w-prose">
-                Nuestra plataforma integra todos los servicios que necesitas: desde pagos y recargas
-                hasta gestión completa de préstamos con seguimiento en tiempo real.
-              </p>
+      
               <Button size="lg" variant="default" onClick={handleAccess}>
                 Comienza Tu Prueba Gratuita
                 <ArrowRight className="ml-2 h-5 w-5" />
@@ -348,6 +345,30 @@ const Index = () => {
               <p className="text-xs sm:text-sm text-muted-foreground text-justified">
                 Tecnología financiera que impulsa el crecimiento de tu negocio
               </p>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Redes Sociales</p>
+                <div className="flex items-center gap-3">
+                  <a
+                    href="https://www.facebook.com/increscendofintech/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="Facebook de Increscendo Fintech"
+                    className="h-9 w-9 rounded-full border border-border bg-background hover:bg-primary/10 hover:border-primary/30 transition-colors flex items-center justify-center"
+                  >
+                    <Facebook className="h-4 w-4 text-primary" />
+                  </a>
+                  <a
+                    href="https://www.instagram.com/increscendofintech"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="Instagram de Increscendo Fintech"
+                    className="h-9 w-9 rounded-full border border-border bg-background hover:bg-primary/10 hover:border-primary/30 transition-colors flex items-center justify-center"
+                  >
+                    <Instagram className="h-4 w-4 text-primary" />
+                  </a>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">@increscendofintech</p>
+              </div>
             </div>
 
             <div>
@@ -357,6 +378,8 @@ const Index = () => {
                 <li><a href="#features" className="hover:text-primary transition-colors">Pagos</a></li>
                 <li><a href="#features" className="hover:text-primary transition-colors">Recargas</a></li>
                 <li><a href="#features" className="hover:text-primary transition-colors">Monederos</a></li>
+                <li><a href="#features" className="hover:text-primary transition-colors">Tiempo aire</a></li>
+              
               </ul>
             </div>
 
@@ -376,7 +399,6 @@ const Index = () => {
               <h4 className="font-semibold mb-4">Soporte</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
                 <li><Link to="/centro-ayuda" className="hover:text-primary transition-colors">Centro de Ayuda</Link></li>
-                <li><Link to="/contacto" className="hover:text-primary transition-colors">Contacto</Link></li>
               </ul>
             </div>
           </div>
@@ -389,7 +411,7 @@ const Index = () => {
           </div>
 
           <div className="pt-8 border-t border-border text-center text-sm text-muted-foreground">
-            <p>&copy; 2024 Increscendo Fintech. Todos los derechos reservados.</p>
+            <p>&copy; {new Date().getFullYear()} Increscendo Fintech. Todos los derechos reservados.</p>
           </div>
         </div>
       </footer>

@@ -123,10 +123,21 @@ const Contacto = () => {
 
         {/* Contact Info */}
         <div className="space-y-8">
+          
+          <div className="p-6 bg-muted/50 rounded-lg border border-border">
+            <h3 className="font-semibold mb-2">Atención al Cliente</h3>
+            <p className="text-sm text-muted-foreground">
+              Para quejas y sugerencias relacionadas con servicios financieros, también puedes contactar a CONDUSEF al 01 800 999 8080 o visitar{" "}
+              <a href="https://www.condusef.gob.mx" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                www.condusef.gob.mx
+              </a>
+            </p>
+          </div>
           <div>
             <h2 className="text-xl font-bold mb-6">Información de Contacto</h2>
             
             <div className="space-y-6">
+              
               <div className="flex items-start gap-4">
                 <div className="h-12 w-12 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
                   <MapPin className="h-6 w-6 text-primary" />
@@ -159,9 +170,7 @@ const Contacto = () => {
                 <div>
                   <h3 className="font-semibold mb-1">Email</h3>
                   <p className="text-muted-foreground">
-                    General: <a href="mailto:info@increscendofintech.com" className="text-primary hover:underline">info@increscendofintech.com</a><br />
-                    Legal: <a href="mailto:legal@increscendofintech.com" className="text-primary hover:underline">legal@increscendofintech.com</a><br />
-                    Privacidad: <a href="mailto:privacidad@increscendofintech.com" className="text-primary hover:underline">privacidad@increscendofintech.com</a>
+                    <a href="mailto:contacto@increscendofintech.com" className="text-primary hover:underline">contacto@increscendofintech.com</a><br />
                   </p>
                 </div>
               </div>
@@ -173,23 +182,14 @@ const Contacto = () => {
                 <div>
                   <h3 className="font-semibold mb-1">Horario de Atención</h3>
                   <p className="text-muted-foreground">
-                    Lunes a Viernes: 9:00 - 18:00<br />
-                    Sábado y Domingo: Cerrado
+                    Servicio: 24/7<br />
+                    Atención a clientes: De lunes a viernes de 9:00 a 17:00 hrs
                   </p>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="p-6 bg-muted/50 rounded-lg border border-border">
-            <h3 className="font-semibold mb-2">Atención al Cliente</h3>
-            <p className="text-sm text-muted-foreground">
-              Para quejas y sugerencias relacionadas con servicios financieros, también puedes contactar a CONDUSEF al 01 800 999 8080 o visitar{" "}
-              <a href="https://www.condusef.gob.mx" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
-                www.condusef.gob.mx
-              </a>
-            </p>
-          </div>
         </div>
       </div>
     </LegalPageLayout>
