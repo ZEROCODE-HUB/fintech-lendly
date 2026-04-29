@@ -65,6 +65,11 @@ const MembershipCheckout = () => {
   const [previewData, setPreviewData] = useState<any | null>(null);
   const [cardErrorOpen, setCardErrorOpen] = useState(false);
 
+  const isMissingCardError = (value: unknown) => {
+    const text = typeof value === 'string' ? value : JSON.stringify(value ?? '');
+    return /tarjeta|card|payment\s*method|metodo\s*de\s*pago|método\s*de\s*pago|no\s*sources|no\s*cards|sin\s*tarjeta/i.test(text);
+  };
+
   const originalPrice = Number(membership?.cost ?? membership?.price ?? 0) || 0;
   // compute discount preview (either percent or fixed amount)
   const discountAmount = appliedCoupon ? (discountPercent ? Math.round((originalPrice * discountPercent) / 100) : discountFixedAmount) : 0;
@@ -157,6 +162,10 @@ const MembershipCheckout = () => {
 
         if (!resp.ok || !json) {
           console.error('[acquire-membership] Error', resp.status, json);
+          if (isMissingCardError(json) || isMissingCardError((json as any)?.message)) {
+            setCardErrorOpen(true);
+            return;
+          }
           toast({ title: 'Error', description: 'Error al comunicarse con el servicio de membresías', variant: 'destructive' });
           return;
         }
@@ -168,7 +177,7 @@ const MembershipCheckout = () => {
         } else {
           // handle specific known errors
           const msg = json.message || JSON.stringify(json);
-          if (/tarjeta|no tienes tarjetas|no cards|no sources/i.test(msg)) {
+          if (isMissingCardError(msg)) {
             setCardErrorOpen(true);
           } else {
             toast({ title: 'Error', description: msg, variant: 'destructive' });
@@ -176,7 +185,11 @@ const MembershipCheckout = () => {
         }
       } catch (err) {
         console.error('[MembershipCheckout] acquire', err);
-        toast({ title: 'Error', description: (err instanceof Error) ? err.message : 'Error al adquirir la membresía', variant: 'destructive' });
+        if (isMissingCardError(err instanceof Error ? err.message : err)) {
+          setCardErrorOpen(true);
+        } else {
+          toast({ title: 'Error', description: (err instanceof Error) ? err.message : 'Error al adquirir la membresía', variant: 'destructive' });
+        }
       } finally {
         setAcquiring(false);
       }
@@ -641,9 +654,9 @@ const MembershipCheckout = () => {
       <Dialog open={cardErrorOpen} onOpenChange={setCardErrorOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>No tienes tarjetas guardadas</DialogTitle>
+            <DialogTitle>Necesitas agregar una tarjeta</DialogTitle>
             <DialogDescription>
-              Para adquirir una membresía necesitas una tarjeta registrada. Agrega una desde Métodos de Pago.
+              Necesitas agregar una tarjeta a tu método de pago para completar la suscripción.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

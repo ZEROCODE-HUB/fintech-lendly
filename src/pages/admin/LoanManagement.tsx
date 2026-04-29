@@ -643,20 +643,20 @@ const LoanManagement = () => {
 
   // Modal states
   const [detailsModal, setDetailsModal] = useState<{ open: boolean; loan: any | null }>({ open: false, loan: null });
-  const [ineCurpModal, setIneCurpModal] = useState<{ open: boolean; loan: PendingLoan | null; type: 'ine' | 'curp' }>({ open: false, loan: null, type: 'ine' });
-  const [modifyModal, setModifyModal] = useState<{ open: boolean; loan: PendingLoan | null }>({ open: false, loan: null });
-  const [approveDialog, setApproveDialog] = useState<{ open: boolean; loan: PendingLoan | null }>({ open: false, loan: null });
-  const [rejectDialog, setRejectDialog] = useState<{ open: boolean; loan: PendingLoan | null }>({ open: false, loan: null });
+  const [ineCurpModal, setIneCurpModal] = useState<{ open: boolean; loan: any | null; type: 'ine' | 'curp' }>({ open: false, loan: null, type: 'ine' });
+  const [modifyModal, setModifyModal] = useState<{ open: boolean; loan: any | null }>({ open: false, loan: null });
+  const [approveDialog, setApproveDialog] = useState<{ open: boolean; loan: any | null }>({ open: false, loan: null });
+  const [rejectDialog, setRejectDialog] = useState<{ open: boolean; loan: any | null }>({ open: false, loan: null });
 
-  const [resendModal, setResendModal] = useState<{ open: boolean; loan: ContractLoan | null }>({ open: false, loan: null });
-  const [attachModal, setAttachModal] = useState<{ open: boolean; loan: ContractLoan | null }>({ open: false, loan: null });
+  const [resendModal, setResendModal] = useState<{ open: boolean; loan: any | null }>({ open: false, loan: null });
+  const [attachModal, setAttachModal] = useState<{ open: boolean; loan: any | null }>({ open: false, loan: null });
 
-  const [modifyDisbursementModal, setModifyDisbursementModal] = useState<{ open: boolean; loan: DisbursementLoan | null }>({ open: false, loan: null });
-  const [confirmDisbursementModal, setConfirmDisbursementModal] = useState<{ open: boolean; loan: DisbursementLoan | null }>({ open: false, loan: null });
+  const [modifyDisbursementModal, setModifyDisbursementModal] = useState<{ open: boolean; loan: any | null }>({ open: false, loan: null });
+  const [confirmDisbursementModal, setConfirmDisbursementModal] = useState<{ open: boolean; loan: any | null }>({ open: false, loan: null });
 
-  const [reminderModal, setReminderModal] = useState<{ open: boolean; loan: OverdueLoan | null }>({ open: false, loan: null });
-  const [sellPortfolioModal, setSellPortfolioModal] = useState<{ open: boolean; loan: OverdueLoan | null }>({ open: false, loan: null });
-  const [updateInstallmentsModal, setUpdateInstallmentsModal] = useState<{ open: boolean; loan: OverdueLoan | null }>({ open: false, loan: null });
+  const [reminderModal, setReminderModal] = useState<{ open: boolean; loan: any | null }>({ open: false, loan: null });
+  const [sellPortfolioModal, setSellPortfolioModal] = useState<{ open: boolean; loan: any | null }>({ open: false, loan: null });
+  const [updateInstallmentsModal, setUpdateInstallmentsModal] = useState<{ open: boolean; loan: any | null }>({ open: false, loan: null });
   const [scheduleModal, setScheduleModal] = useState<{ open: boolean; loan: any | null }>({ open: false, loan: null });
 
   const exportToExcel = () => {
@@ -719,12 +719,12 @@ const LoanManagement = () => {
           toast({ title: 'Error', description: 'No se pudo enviar la invitación de firma.', variant: 'destructive' });
         }
       }
-      loadingToast.update({ title: 'Aprobado', description: `La solicitud ${loan.id} pasó a estado Aprobado (firma pendiente).` });
+      loadingToast.update({ id: loadingToast.id, title: 'Aprobado', description: `La solicitud ${loan.id} pasó a estado Aprobado (firma pendiente).` });
       setApproveDialog({ open: false, loan: null });
       await reloadCurrentTab();
     } catch (err) {
       console.error('Error aprobando solicitud', err);
-      loadingToast.update({ title: 'Error', description: 'No se pudo aprobar la solicitud.', variant: 'destructive' });
+      loadingToast.update({ id: loadingToast.id, title: 'Error', description: 'No se pudo aprobar la solicitud.', variant: 'destructive' });
     }
   };
 

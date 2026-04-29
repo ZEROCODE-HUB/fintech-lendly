@@ -27,7 +27,6 @@ import {
   PartyPopper,
   Crown,
   Star,
-  RefreshCw,
   Building2
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -48,7 +47,173 @@ const STEPS = [
 ];
 
 const INTEREST_RATE = 0.42;
-
+const BANKS_OPTIONES=[
+  {
+    "id": "mx_afirme",
+    "name": "Banca Afirme",
+    "status": "active"
+  },
+  {
+    "id": "mx_alianza",
+    "name": "Alianza",
+    "status": "active"
+  },
+  {
+    "id": "mx_america",
+    "name": "Bank of America",
+    "status": "active"
+  },
+  {
+    "id": "mx_amex",
+    "name": "American Express Bank",
+    "status": "active"
+  },
+  {
+    "id": "mx_amigo",
+    "name": "Banco Amigo",
+    "status": "active"
+  },
+  {
+    "id": "mx_azteca",
+    "name": "Banco Azteca",
+    "status": "active"
+  },
+  {
+    "id": "mx_bajio",
+    "name": "Banco del Bajío",
+    "status": "active"
+  },
+  {
+    "id": "mx_bancoppel",
+    "name": "Bancoppel",
+    "status": "active"
+  },
+  {
+    "id": "mx_banjercito",
+    "name": "Banjercito",
+    "status": "active"
+  },
+  {
+    "id": "mx_banorte",
+    "name": "Banorte",
+    "status": "active"
+  },
+  {
+    "id": "mx_banxico",
+    "name": "Banco de Mexico",
+    "status": "active"
+  },
+  {
+    "id": "mx_bbva_bancomer",
+    "name": "BBVA",
+    "status": "active"
+  },
+  {
+    "id": "mx_ci",
+    "name": "CI Banco",
+    "status": "active"
+  },
+  {
+    "id": "mx_citi_banamex",
+    "name": "City Banamex",
+    "status": "active"
+  },
+  {
+    "id": "mx_compartamos",
+    "name": "Banco Compartamos",
+    "status": "active"
+  },
+  {
+    "id": "mx_famsa",
+    "name": "Banco Ahorro Famsa",
+    "status": "active"
+  },
+  {
+    "id": "mx_fundacion_donde",
+    "name": "Fundación Donde",
+    "status": "active"
+  },
+  {
+    "id": "mx_hsbc",
+    "name": "HSBC",
+    "status": "active"
+  },
+  {
+    "id": "mx_inbursa",
+    "name": "Banco Inbursa",
+    "status": "active"
+  },
+  {
+    "id": "mx_ing",
+    "name": "ING MX",
+    "status": "active"
+  },
+  {
+    "id": "mx_interacciones",
+    "name": "Banco Interacciones",
+    "status": "active"
+  },
+  {
+    "id": "mx_intercam",
+    "name": "Intercam Banco",
+    "status": "active"
+  },
+  {
+    "id": "mx_invex",
+    "name": "Banco Invex",
+    "status": "active"
+  },
+  {
+    "id": "mx_ixe",
+    "name": "IXE Banco",
+    "status": "active"
+  },
+  {
+    "id": "mx_mercantil_norte",
+    "name": "Banco Mercantil del Norte",
+    "status": "active"
+  },
+  {
+    "id": "mx_mifel",
+    "name": "Banco Mifel",
+    "status": "active"
+  },
+  {
+    "id": "mx_monterrey_regional",
+    "name": "Monterrey Regional",
+    "status": "active"
+  },
+  {
+    "id": "mx_multiva",
+    "name": "Banco Multiva Institución de Banca Múltiple",
+    "status": "active"
+  },
+  {
+    "id": "mx_nacional_ejercito",
+    "name": "Banco Nacional del Ejército, Fuerza Aérea y Armada",
+    "status": "active"
+  },
+  {
+    "id": "mx_regional_monterrey",
+    "name": "Banco Regional de Monterrey",
+    "status": "active"
+  },
+  {
+    "id": "mx_santander",
+    "name": "Santander",
+    "status": "active"
+  },
+  {
+    "id": "mx_scotiabank",
+    "name": "Scotia Bank",
+    "status": "active"
+  },
+  {
+    "id": "mx_scotiabank_inverlat",
+    "name": "Scotiabank Inverlat",
+    "status": "active"
+  }
+];
 const BANKS = [
   "BBVA México",
   "Santander",
@@ -240,39 +405,44 @@ const LoanProcess = () => {
         return;
       }
 
-      const membershipName = (() => {
-        if (userMembership) return userMembership;
-        if (selectedMembership) return selectedMembership;
-        return membershipPlans[0]?.name ?? null;
-      })();
-
+      // Asegúrate de tener las URLs de las imágenes cargadas en personalData
+      // Si ya tienes ineFrontUrl, ineBackUrl, curpUrl en personalData, usa eso
+      // Si no, agrega la lógica para subirlas y obtener la URL antes de este paso
       const payload = {
         user_id: user.id,
         amount: Number(loanAmount) || 0,
         installments: Number(loanInstallments) || 12,
         monthly_payment: Number(monthlyPayment) || 0,
-        interest_rate: interestRateDecimal, // Use the decimal rate from state
+        interest_rate: interestRateDecimal,
         total_to_pay: Number(totalToPay) || 0,
-        status: 'pending',
-        metadata: {
-          personalData,
-          depositData,
-          disbursementData,
-          membership: membershipName,
+        personalData: {
+          ...personalData,
+          ineFrontUrl: personalData.ineFrontUrl,
+          ineBackUrl: personalData.ineBackUrl,
+          curpUrl: personalData.curpUrl,
         },
+        depositData,
+        disbursementData,
       };
 
-      const { data, error } = await supabase.from('loans').insert([payload]).select().maybeSingle();
-      if (error || !data) {
-        console.error('create loan error', error);
-        toast({ title: 'Error', description: 'No se pudo crear la solicitud.' });
+      const response = await fetch('https://increscendo-api.vercel.app/belvo/loan-request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        toast({ title: 'Error', description: result?.message || 'No se pudo crear la solicitud.' });
         return null;
       }
+
       // clear resume marker if present
       try { localStorage.removeItem('resume_loan_id'); } catch {}
-      setCurrentLoan(data);
+      setCurrentLoan(result.loan);
       toast({ title: 'Solicitud creada', description: 'Tu solicitud quedó registrada y está en estado pendiente.' });
-      return data;
+      return result.loan;
     } catch (err) {
       console.error(err);
       toast({ title: 'Error', description: 'Ocurrió un error al crear la solicitud.' });
@@ -363,17 +533,20 @@ const LoanProcess = () => {
     const principal = parseFloat(loanAmount) || 0;
     const months = parseInt(loanInstallments) || 12;
     const monthlyRate = interestRateDecimal / 12;
-    
+
     if (principal > 0) {
       const payment = (principal * monthlyRate * Math.pow(1 + monthlyRate, months)) / (Math.pow(1 + monthlyRate, months) - 1);
       setMonthlyPayment(payment);
       setTotalToPay(payment * months);
-      toast({
-        title: "Cálculo actualizado",
-        description: "Los valores del préstamo han sido recalculados.",
-      });
+    } else {
+      setMonthlyPayment(0);
+      setTotalToPay(0);
     }
   };
+
+  useEffect(() => {
+    calculatePayment();
+  }, [loanAmount, loanInstallments, interestRateDecimal]);
 
   const handleNext = async () => {
     if (currentStep === 4 && !isApproved) {
@@ -718,11 +891,6 @@ const LoanProcess = () => {
           </div>
         </div>
 
-        <Button variant="outline" onClick={calculatePayment} className="w-full md:w-auto">
-          <RefreshCw className="h-4 w-4 mr-2" />
-          Actualizar
-        </Button>
-
         {/* Summary Display */}
         <div className="bg-gradient-to-br from-primary/10 to-accent/30 rounded-xl p-4 sm:p-5 md:p-6">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-3 md:gap-4">
@@ -969,9 +1137,9 @@ const LoanProcess = () => {
                   <SelectValue placeholder="Selecciona tu banco" />
                 </SelectTrigger>
                 <SelectContent>
-                  {BANKS.map((bank) => (
-                    <SelectItem key={bank} value={bank}>
-                      {bank}
+                  {BANKS_OPTIONES.map((bank) => (
+                    <SelectItem key={bank.id} value={bank.id}>
+                      {bank.name}
                     </SelectItem>
                   ))}
                 </SelectContent>

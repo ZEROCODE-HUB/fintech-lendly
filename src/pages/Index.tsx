@@ -12,7 +12,7 @@ const Index = () => {
 
   const handleAccess = async () => {
     try {
-      // Primero intentamos usar la sesión real de Supabase para obtener el rol actualizado
+      // Primero intentafdfddfdsmos usar la sesión real de Supabase para obtener el rol actualizado
       const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
       if (sessionError) {
         console.warn('[Index] getSession error', sessionError);
@@ -52,7 +52,7 @@ const Index = () => {
           if (role === 'admin') {
             navigate('/admin/dashboard');
           } else {
-            navigate('/dashboard');
+            navigate('/service-selection');
           }
           return;
         } catch (profileCatch) {
@@ -71,7 +71,7 @@ const Index = () => {
       return;
     }
     const userLocal = userStr ? JSON.parse(userStr) : { role: testRole };
-    if (userLocal.role === 'admin') navigate('/admin/dashboard'); else navigate('/dashboard');
+    if (userLocal.role === 'admin') navigate('/admin/dashboard'); else navigate('/service-selection');
   };
 
   return (
@@ -86,14 +86,14 @@ const Index = () => {
 
             {/* Desktop Navigation */}
             <nav className="hidden md:flex items-center gap-6">
-              <a href="#contact" className="text-muted-foreground hover:text-foreground transition-colors">Contacto</a> 
+              <a href="/contact" className="text-muted-foreground hover:text-foreground transition-colors">Contacto</a> 
 
               {/* <a href="#features" className="text-muted-foreground hover:text-foreground transition-colors">Características</a>
               <a href="#about" className="text-muted-foreground hover:text-foreground transition-colors">Nosotros</a>
               <a href="#contact" className="text-muted-foreground hover:text-foreground transition-colors">Contacto</a> */}
-              {/* <Button onClick={handleAccess} variant="default">
+              <Button onClick={handleAccess} variant="default">
                 Acceder
-              </Button> */}
+              </Button>
             </nav>
 
             {/* Mobile Menu Button */}
@@ -133,8 +133,8 @@ const Index = () => {
                 href="#contact"
                 className="text-muted-foreground hover:text-foreground transition-colors py-2"
                 onClick={() => setMobileMenuOpen(false)}
-              >
-                Contacto
+              >Contacto
+                
               </a> */}
               {/* <Button
                 onClick={() => { navigate("/auth"); setMobileMenuOpen(false); }}
@@ -237,9 +237,9 @@ const Index = () => {
               <div className="h-14 w-14 bg-accent/50 rounded-lg flex items-center justify-center mb-6">
                 <TrendingUp className="h-7 w-7 text-primary" />
               </div>
-              <h3 className="text-xl font-bold mb-4">Crecimiento Continuo</h3>
+              <h3 className="text-xl font-bold mb-4">Préstamos</h3>
               <p className="text-muted-foreground">
-                Plataforma diseñada para escalar con tu negocio y potenciar tu expansión internacional
+                Te apoyamos para adquirir un préstamo a través de nuestra plataforma automatizada con IA
               </p>
             </div>
 
@@ -303,7 +303,11 @@ const Index = () => {
                 </li>
                 <li className="flex items-start gap-3">
                   <div className="w-2 h-2 bg-accent rounded-full mt-2" />
-                  <span>Dashboard administrativo con análisis avanzado</span>
+                  <span>Link de pagos al instante </span>
+                </li>
+                 <li className="flex items-start gap-3">
+                  <div className="w-2 h-2 bg-accent rounded-full mt-2" />
+                  <span>Domicialización</span>
                 </li>
               </ul>
             </div>
@@ -316,7 +320,7 @@ const Index = () => {
         <div className="max-w-4xl mx-auto text-center space-y-4 sm:space-y-6 md:space-y-8">
           <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white px-2">¿Listo Para Transformar Tu Negocio?</h2>
           <p className="text-base sm:text-lg md:text-xl text-white/90 max-w-2xl mx-auto px-4">
-            Únete a miles de empresas que ya confían en Increscendo Fintech para
+            Únete a miles de clientes que ya confían en Increscendo Fintech para
             gestionar sus operaciones financieras con tecnología de clase mundial
           </p>
             <Button
@@ -358,7 +362,7 @@ const Index = () => {
                     <Facebook className="h-4 w-4 text-primary" />
                   </a>
                   <a
-                    href="https://www.instagram.com/increscendofintech"
+                    href="https://www.instagram.com/_increscendofintech_/"
                     target="_blank"
                     rel="noopener noreferrer"
                     aria-label="Instagram de Increscendo Fintech"
@@ -367,7 +371,6 @@ const Index = () => {
                     <Instagram className="h-4 w-4 text-primary" />
                   </a>
                 </div>
-                <p className="text-xs text-muted-foreground mt-2">@increscendofintech</p>
               </div>
             </div>
 

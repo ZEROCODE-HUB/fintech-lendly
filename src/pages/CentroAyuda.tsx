@@ -88,7 +88,7 @@ const CentroAyuda = () => {
             </div>
             <div>
               <h3 className="font-semibold mb-1">Email</h3>
-              <p className="text-white/80 text-sm">info@increscendofintech.com</p>
+              <p className="text-white/80 text-sm">contacto@increscendofintech.com</p>
             </div>
           </div>
           
@@ -98,7 +98,7 @@ const CentroAyuda = () => {
             </div>
             <div>
               <h3 className="font-semibold mb-1">Horario</h3>
-              <p className="text-white/80 text-sm">Lun - Vie: 9:00 - 18:00</p>
+              <p className="text-white/80 text-sm">Lun - Vie: 9:00 - 17:00</p>
             </div>
           </div>
         </div>
