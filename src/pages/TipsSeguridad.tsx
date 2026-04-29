@@ -135,8 +135,8 @@ const TipsSeguridad = () => {
         <div className="flex items-center gap-2 text-muted-foreground">
           <Mail className="h-4 w-4" />
           <span>Si tienes dudas contáctanos vía mail a: </span>
-          <a href="mailto:info@increscendofintech.com" className="text-primary hover:underline font-medium">
-            info@increscendofintech.com
+          <a href="mailto:contacto@increscendofintech.com" className="text-primary hover:underline font-medium">
+            contacto@increscendofintech.com
           </a>
         </div>
         <p className="mt-4 text-sm text-muted-foreground">

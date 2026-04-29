@@ -1,0 +1,73 @@
+```html
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Conekta Tokenización</title>
+
+  <!-- CDN de Conekta -->
+  <script src="https://cdn.conekta.io/js/latest/conekta.js"></script>
+</head>
+<body>
+
+  <h2>Pagar con tarjeta</h2>
+
+  <form id="payment-form">
+    <input type="text" id="card_name" placeholder="Nombre en la tarjeta" required><br><br>
+    <input type="text" id="card_number" placeholder="Número de tarjeta" required><br><br>
+    <input type="text" id="card_exp_month" placeholder="Mes (MM)" required><br><br>
+    <input type="text" id="card_exp_year" placeholder="Año (AA)" required><br><br>
+    <input type="text" id="card_cvc" placeholder="CVC" required><br><br>
+
+    <button type="submit">Tokenizar tarjeta</button>
+  </form>
+
+  <p id="result"></p>
+
+  <script>
+    Conekta.setPublicKey("key_PDSovmU92IE2IcZKH2ZFRMJ");
+    Conekta.setLanguage("es");
+
+    const form = document.getElementById("payment-form");
+    const result = document.getElementById("result");
+
+    form.addEventListener("submit", function(e) {
+      e.preventDefault();
+
+      result.innerText = "Generando token...";
+
+      Conekta.Token.create({
+        card: {
+          number: document.getElementById("card_number").value,
+          name: document.getElementById("card_name").value,
+          cvc: document.getElementById("card_cvc").value,
+          exp_month: document.getElementById("card_exp_month").value,
+          exp_year: document.getElementById("card_exp_year").value
+        }
+      },
+      function success(token) {
+        console.log("TOKEN:", token);
+        result.innerText = "Token generado: " + token.id;
+
+        // 🔥 Enviar al backend
+        fetch("/api/crear-suscripcion", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            token_id: token.id,
+            plan_id: "plan-pro"
+          })
+        });
+      },
+      function error(err) {
+        console.error(err);
+        result.innerText = err.message_to_purchaser;
+      });
+    });
+  </script>
+
+</body>
+</html>
+```
