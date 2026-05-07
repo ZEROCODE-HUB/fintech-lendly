@@ -86,7 +86,7 @@ const Index = () => {
 
             {/* Desktop Navigation */}
             <nav className="hidden md:flex items-center gap-6">
-              <a href="/contact" className="text-muted-foreground hover:text-foreground transition-colors">Contacto</a> 
+              <Link to="/contact" className="text-muted-foreground hover:text-foreground transition-colors">Contacto</Link>
 
               {/* <a href="#features" className="text-muted-foreground hover:text-foreground transition-colors">Características</a>
               <a href="#about" className="text-muted-foreground hover:text-foreground transition-colors">Nosotros</a>
@@ -259,7 +259,7 @@ const Index = () => {
               </div>
               <h3 className="text-xl font-bold mb-4">Monederos de regalo digitales</h3>
               <p className="text-muted-foreground">
-                Solicita tus códigos que se generan en nuestro sistema y te seran enviados mediante mensaje de texto SMS a su celular. 
+                Solicita tus códigos que se generan en nuestro sistema y te seran enviados mediante mensaje de texto SMS a su celular.
                 Podrás canjearlos y hacer uso de ellos para generar compras en internet y/o uso de los servicios.
               </p>
             </div>
@@ -274,9 +274,9 @@ const Index = () => {
             <div className="space-y-6">
               <h2 className="text-4xl font-bold">Tecnología de Vanguardia</h2>
               <p className="text-lg text-muted-foreground  max-w-prose">
-                 En Increscendo Fintech combinamos tecnología de punta e inteligencia artificial, con las mejores prácticas para ofrecer soluciones financieras que verdaderamente transformen tu negocio.
+                En Increscendo Fintech combinamos tecnología de punta e inteligencia artificial, con las mejores prácticas para ofrecer soluciones financieras que verdaderamente transformen tu negocio.
               </p>
-      
+
               <Button size="lg" variant="default" onClick={handleAccess}>
                 Comienza Tu Prueba Gratuita
                 <ArrowRight className="ml-2 h-5 w-5" />
@@ -305,7 +305,7 @@ const Index = () => {
                   <div className="w-2 h-2 bg-accent rounded-full mt-2" />
                   <span>Link de pagos al instante </span>
                 </li>
-                 <li className="flex items-start gap-3">
+                <li className="flex items-start gap-3">
                   <div className="w-2 h-2 bg-accent rounded-full mt-2" />
                   <span>Domicialización</span>
                 </li>
@@ -323,7 +323,7 @@ const Index = () => {
             Únete a miles de clientes que ya confían en Increscendo Fintech para
             gestionar sus operaciones financieras con tecnología de clase mundial
           </p>
-            <Button
+          <Button
             size="lg"
             variant="success"
             onClick={() => { const userStr = localStorage.getItem('increscendo_user'); const testRole = localStorage.getItem('testUserRole'); if (!userStr && !testRole) { navigate('/auth'); return; } const user = userStr ? JSON.parse(userStr) : { role: testRole }; if (user.role === 'admin') navigate('/admin/dashboard'); else navigate('/dashboard'); }}
@@ -382,7 +382,7 @@ const Index = () => {
                 <li><a href="#features" className="hover:text-primary transition-colors">Recargas</a></li>
                 <li><a href="#features" className="hover:text-primary transition-colors">Monederos</a></li>
                 <li><a href="#features" className="hover:text-primary transition-colors">Tiempo aire</a></li>
-              
+
               </ul>
             </div>
 
