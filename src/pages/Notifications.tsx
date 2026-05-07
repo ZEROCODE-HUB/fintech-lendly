@@ -47,7 +47,7 @@ const Notifications = () => {
           return;
         }
 
-        setNotifications(data ?? []);
+        setNotifications([]);
       } catch (err) {
         console.error('[Notifications] Error:', err);
       } finally {
@@ -70,7 +70,7 @@ const Notifications = () => {
     if (diffMins < 60) return `Hace ${diffMins} minuto${diffMins > 1 ? 's' : ''}`;
     if (diffHours < 24) return `Hace ${diffHours} hora${diffHours > 1 ? 's' : ''}`;
     if (diffDays < 7) return `Hace ${diffDays} día${diffDays > 1 ? 's' : ''}`;
-    
+
     return date.toLocaleDateString('es-MX');
   };
 
@@ -165,7 +165,7 @@ const Notifications = () => {
     <SidebarProvider>
       <div className="min-h-screen flex w-full">
         <AppSidebar />
-        
+
         <main className="flex-1">
           <header className="h-14 sm:h-16 border-b border-border bg-card flex items-center px-3 sm:px-4 md:px-6 gap-2 sm:gap-4 fixed md:sticky top-0 z-10 w-full md:w-auto">
             <SidebarTrigger />
@@ -208,13 +208,12 @@ const Notifications = () => {
                 ) : (
                   <div className="space-y-3 sm:space-y-4">
                     {notifications.map((notification) => (
-                      <div 
+                      <div
                         key={notification.id}
-                        className={`flex items-start gap-3 sm:gap-4 p-3 sm:p-4 rounded-lg border transition-colors ${
-                          !notification.read 
-                            ? 'bg-accent/50 border-primary/20' 
+                        className={`flex items-start gap-3 sm:gap-4 p-3 sm:p-4 rounded-lg border transition-colors ${!notification.read
+                            ? 'bg-accent/50 border-primary/20'
                             : 'bg-background border-border hover:bg-accent/30'
-                        }`}
+                          }`}
                       >
                         <div className="mt-0.5 sm:mt-1 flex-shrink-0">
                           {getIcon(notification.type)}
@@ -236,9 +235,9 @@ const Notifications = () => {
                             {notification.channels && notification.channels.length > 0 && (
                               <div className="flex gap-1 items-center">
                                 {notification.channels.map((channel) => (
-                                  <Badge 
+                                  <Badge
                                     key={channel}
-                                    variant="secondary" 
+                                    variant="secondary"
                                     className="text-[10px] sm:text-xs h-5 gap-1 flex items-center"
                                   >
                                     {getChannelIcon(channel)}
@@ -251,8 +250,8 @@ const Notifications = () => {
                         </div>
                         <div className="flex gap-2 flex-shrink-0">
                           {notification.url && (
-                            <Button 
-                              variant="outline" 
+                            <Button
+                              variant="outline"
                               size="sm"
                               onClick={() => navigate(notification.url!)}
                               title="Abrir"
@@ -262,8 +261,8 @@ const Notifications = () => {
                             </Button>
                           )}
                           {!notification.read && (
-                            <Button 
-                              variant="ghost" 
+                            <Button
+                              variant="ghost"
                               size="sm"
                               onClick={() => markAsRead(notification.id)}
                               title="Marcar como leído"
@@ -272,8 +271,8 @@ const Notifications = () => {
                               <CheckCircle className="h-4 w-4" />
                             </Button>
                           )}
-                          <Button 
-                            variant="ghost" 
+                          <Button
+                            variant="ghost"
                             size="sm"
                             onClick={() => deleteNotification(notification.id)}
                             title="Eliminar notificación"

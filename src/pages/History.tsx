@@ -6,12 +6,38 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Download, Filter, Search } from "lucide-react";
+import { Download, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Chatbot } from "@/components/Chatbot";
 import { supabase } from "@/lib/supabase";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
+
+const BELVO_API_BASE = "https://increscendo-api.vercel.app";
+
+const getPaymentRequestStatusLabel = (status?: string) => {
+  switch ((status || '').toLowerCase()) {
+    case 'initial':
+      return 'Pendiente';
+    case 'processing':
+      return 'En proceso';
+    case 'completed':
+      return 'Completado';
+    case 'failed':
+      return 'Rechazado';
+    default:
+      return status ? status.charAt(0).toUpperCase() + status.slice(1) : 'Pendiente';
+  }
+};
 
 const History = () => {
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
@@ -21,6 +47,13 @@ const History = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState("loans");
+  const [loanPage, setLoanPage] = useState(1);
+  const loanPageSize = 10;
+
+  // Load data on mount
+  useEffect(() => {
+    loadHistoryData();
+  }, []);
 
   // Load data on mount
   useEffect(() => {
@@ -55,31 +88,51 @@ const History = () => {
       setLoanHistory(mappedLoans);
 
       // Load payments from loan_events table (where event_type is 'payment')
-      const { data: payments, error: paymentsError } = await supabase
-        .from('loan_events')
-        .select(`
-          id,
-          loan_id,
-          event_type,
-          created_at,
-          metadata,
-          loans(loan_number, amount)
-        `)
-        .eq('loans.user_id', user.id)
-        .eq('event_type', 'payment')
-        .order('created_at', { ascending: false });
+      const fetchPaymentRequestsPage = async (page: number) => {
+        const response = await fetch(`${BELVO_API_BASE}/belvo/loans/payment-requests?page=${page}&limit=50`);
+        const payload = await response.json().catch(() => null);
 
-      if (paymentsError) throw paymentsError;
+        if (!response.ok) {
+          throw new Error(payload?.error || 'No se pudieron cargar las solicitudes de pago');
+        }
 
-      const mappedPayments = (payments || []).map((p: any) => ({
-        id: `PAG-${Math.random().toString(36).substr(2, 6).toUpperCase()}`,
-        loan: p.loans?.[0]?.loan_number || p.loan_id,
-        amount: Number(p.metadata?.amount || 0),
-        date: new Date(p.created_at).toISOString().split('T')[0],
-        method: p.metadata?.method || "Transferencia",
-        status: "Exitoso",
-        raw: p
-      }));
+        return payload;
+      };
+
+      const allPaymentRequests: any[] = [];
+      let currentPage = 1;
+
+      while (true) {
+        const payload = await fetchPaymentRequestsPage(currentPage);
+        const rows = Array.isArray(payload?.data) ? payload.data : [];
+        allPaymentRequests.push(...rows);
+
+        const pagination = payload?.pagination;
+        if (!pagination?.hasMore || rows.length === 0 || currentPage >= Number(pagination?.totalPages || 1)) {
+          break;
+        }
+
+        currentPage += 1;
+      }
+
+      const mappedPayments = allPaymentRequests.map((request: any) => {
+        const rawStatus = String(request.status ?? request.belvo_status ?? 'initial').toLowerCase();
+        const installmentNumber = request.installment_number ?? request.raw?.loan_information?.installmentNumber ?? null;
+        const paymentMethodId = String(request.payment_method_id ?? request.raw?.payment_method_id ?? '').trim();
+
+        return {
+          id: String(request.payment_request_id || request.reference || `${request.loan_number || request.loan_id}-${installmentNumber || 'pago'}`),
+          loan: request.loan_number || request.loan_id,
+          amount: Number(request.amount || 0),
+          date: new Date(request.created_at || request.synced_at || request.last_updated_at || new Date()).toISOString().split('T')[0],
+          method: paymentMethodId ? `Método ${paymentMethodId.slice(0, 8)}...` : 'Sin método',
+          status: getPaymentRequestStatusLabel(rawStatus),
+          installment: installmentNumber,
+          reference: request.reference || '',
+          paymentRequestId: request.payment_request_id,
+          raw: request,
+        };
+      });
 
       setPaymentHistory(mappedPayments);
     } catch (err) {
@@ -103,7 +156,7 @@ const History = () => {
       'Pendiente': { bg: 'bg-warning/20', text: 'text-warning', border: 'border-warning' },
       'Rechazado': { bg: 'bg-danger/20', text: 'text-danger', border: 'border-danger' },
     };
-    
+
     const variant = variants[status] || { bg: '', text: '', border: '' };
     return (
       <Badge className={`${variant.bg} ${variant.text} ${variant.border}`}>
@@ -123,21 +176,34 @@ const History = () => {
     payment.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
     payment.loan.toLowerCase().includes(searchTerm.toLowerCase()) ||
     payment.date.includes(searchTerm) ||
-    payment.method.toLowerCase().includes(searchTerm.toLowerCase())
+    payment.method.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    String(payment.installment ?? '').includes(searchTerm) ||
+    String(payment.reference ?? '').toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const loanTotalPages = Math.max(1, Math.ceil(filteredLoans.length / loanPageSize));
+  const paginatedLoans = filteredLoans.slice((loanPage - 1) * loanPageSize, loanPage * loanPageSize);
+
+  useEffect(() => {
+    setLoanPage(1);
+  }, [searchTerm, activeTab]);
+
+  useEffect(() => {
+    setLoanPage((currentPage) => Math.min(currentPage, loanTotalPages));
+  }, [loanTotalPages]);
 
   const handleExport = () => {
     const dataToExport = activeTab === 'loans' ? filteredLoans : filteredPayments;
-    const headers = activeTab === 'loans' 
+    const headers = activeTab === 'loans'
       ? ['ID', 'Tipo', 'Monto', 'Fecha', 'Estado']
-      : ['ID', 'Préstamo', 'Monto', 'Fecha', 'Método', 'Estado'];
-    
+      : ['ID', 'Préstamo', 'Cuota', 'Monto', 'Fecha', 'Método', 'Estado'];
+
     const csvContent = [
       headers.join(','),
-      ...dataToExport.map(item => 
+      ...dataToExport.map(item =>
         activeTab === 'loans'
           ? [item.id, item.type, item.amount, item.date, item.status].join(',')
-          : [item.id, item.loan, item.amount, item.date, item.method, item.status].join(',')
+          : [item.id, item.loan, item.installment ?? '', item.amount, item.date, item.method, item.status].join(',')
       )
     ].join('\n');
 
@@ -156,7 +222,7 @@ const History = () => {
     <SidebarProvider>
       <div className="min-h-screen flex w-full">
         <AppSidebar />
-        
+
         <main className="flex-1 overflow-x-hidden">
           <header className="border-b border-border bg-card fixed md:sticky top-0 z-10 w-full md:w-auto">
             <div className="flex items-center h-14 sm:h-16 px-4 sm:px-6 gap-3">
@@ -171,8 +237,8 @@ const History = () => {
             {/* Search */}
             <div className="relative max-w-md">
               <Search className="absolute left-3 top-2.5 sm:top-3 h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
-              <Input 
-                placeholder="Buscar en historial..." 
+              <Input
+                placeholder="Buscar en historial..."
                 className="pl-8 sm:pl-10 text-xs sm:text-sm"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -211,43 +277,123 @@ const History = () => {
                         <p className="text-muted-foreground">No hay préstamos {searchTerm ? 'que coincidan con tu búsqueda' : 'registrados'}</p>
                       </div>
                     ) : (
-                      <div className="overflow-x-auto -mx-2 sm:mx-0">
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead className="text-xs sm:text-sm whitespace-nowrap">ID</TableHead>
-                              <TableHead className="text-xs sm:text-sm whitespace-nowrap hidden sm:table-cell">Tipo</TableHead>
-                              <TableHead className="text-xs sm:text-sm whitespace-nowrap">Monto</TableHead>
-                              <TableHead className="text-xs sm:text-sm whitespace-nowrap hidden md:table-cell">Fecha</TableHead>
-                              <TableHead className="text-xs sm:text-sm whitespace-nowrap">Estado</TableHead>
-                              <TableHead className="text-xs sm:text-sm whitespace-nowrap">Acciones</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {filteredLoans.map((item) => (
-                              <TableRow key={item.loan_id}>
-                                <TableCell className="font-medium text-xs sm:text-sm whitespace-nowrap">{item.id}</TableCell>
-                                <TableCell className="text-xs sm:text-sm whitespace-nowrap hidden sm:table-cell">{item.type}</TableCell>
-                                <TableCell className="font-semibold text-xs sm:text-sm whitespace-nowrap">
-                                  ${item.amount.toLocaleString()}
-                                </TableCell>
-                                <TableCell className="text-xs sm:text-sm whitespace-nowrap hidden md:table-cell">{item.date}</TableCell>
-                                <TableCell>{getStatusBadge(item.status)}</TableCell>
-                                <TableCell>
-                                  <Button 
-                                    size="sm" 
-                                    variant="outline"
-                                    onClick={() => handleViewDetails(item, 'loan')}
-                                    className="text-xs"
-                                  >
-                                    <span className="hidden sm:inline">Ver Detalles</span>
-                                    <span className="sm:hidden">Ver</span>
-                                  </Button>
-                                </TableCell>
+                      <div className="space-y-5">
+                        <div className="overflow-x-auto -mx-2 sm:mx-0">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead className="text-xs sm:text-sm whitespace-nowrap">ID</TableHead>
+                                <TableHead className="text-xs sm:text-sm whitespace-nowrap hidden sm:table-cell">Tipo</TableHead>
+                                <TableHead className="text-xs sm:text-sm whitespace-nowrap">Monto</TableHead>
+                                <TableHead className="text-xs sm:text-sm whitespace-nowrap hidden md:table-cell">Fecha</TableHead>
+                                <TableHead className="text-xs sm:text-sm whitespace-nowrap">Estado</TableHead>
+                                <TableHead className="text-xs sm:text-sm whitespace-nowrap">Acciones</TableHead>
                               </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
+                            </TableHeader>
+                            <TableBody>
+                              {paginatedLoans.map((item) => (
+                                <TableRow key={item.loan_id}>
+                                  <TableCell className="font-medium text-xs sm:text-sm whitespace-nowrap">{item.id}</TableCell>
+                                  <TableCell className="text-xs sm:text-sm whitespace-nowrap hidden sm:table-cell">{item.type}</TableCell>
+                                  <TableCell className="font-semibold text-xs sm:text-sm whitespace-nowrap">
+                                    ${item.amount.toLocaleString()}
+                                  </TableCell>
+                                  <TableCell className="text-xs sm:text-sm whitespace-nowrap hidden md:table-cell">{item.date}</TableCell>
+                                  <TableCell>{getStatusBadge(item.status)}</TableCell>
+                                  <TableCell>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => handleViewDetails(item, 'loan')}
+                                      className="text-xs"
+                                    >
+                                      <span className="hidden sm:inline">Ver Detalles</span>
+                                      <span className="sm:hidden">Ver</span>
+                                    </Button>
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+
+                        <div className="flex flex-col gap-4 pt-2 border-t">
+                          <div className="text-xs sm:text-sm font-medium text-foreground bg-secondary/50 px-3 py-1.5 rounded-md w-fit">
+                            {filteredLoans.length > 0
+                              ? `${(loanPage - 1) * loanPageSize + 1}-${Math.min(loanPage * loanPageSize, filteredLoans.length)} de ${filteredLoans.length}`
+                              : "Sin préstamos"}
+                          </div>
+
+                          {loanTotalPages > 1 && (
+                            <div className="flex justify-center sm:justify-end">
+                              <Pagination>
+                                <PaginationContent className="gap-0 sm:gap-1">
+                                  <PaginationItem>
+                                    <PaginationPrevious
+                                      href="#"
+                                      className={`text-xs sm:text-sm ${loanPage === 1 ? "pointer-events-none opacity-50" : "hover:bg-secondary transition-colors"}`}
+                                      onClick={(event) => {
+                                        event.preventDefault();
+                                        if (loanPage > 1) setLoanPage(loanPage - 1);
+                                      }}
+                                    />
+                                  </PaginationItem>
+
+                                  {Array.from({ length: loanTotalPages }).map((_, index) => {
+                                    const page = index + 1;
+
+                                    if (page === 1 || page === loanTotalPages || Math.abs(page - loanPage) <= 1) {
+                                      return (
+                                        <PaginationItem key={page}>
+                                          <PaginationLink
+                                            href="#"
+                                            isActive={page === loanPage}
+                                            onClick={(event) => {
+                                              event.preventDefault();
+                                              setLoanPage(page);
+                                            }}
+                                            className="text-xs sm:text-sm h-8 w-8"
+                                          >
+                                            {page}
+                                          </PaginationLink>
+                                        </PaginationItem>
+                                      );
+                                    }
+
+                                    if (page === 2 && loanPage > 3) {
+                                      return (
+                                        <PaginationItem key="start-ellipsis">
+                                          <PaginationEllipsis />
+                                        </PaginationItem>
+                                      );
+                                    }
+
+                                    if (page === loanTotalPages - 1 && loanPage < loanTotalPages - 2) {
+                                      return (
+                                        <PaginationItem key="end-ellipsis">
+                                          <PaginationEllipsis />
+                                        </PaginationItem>
+                                      );
+                                    }
+
+                                    return null;
+                                  })}
+
+                                  <PaginationItem>
+                                    <PaginationNext
+                                      href="#"
+                                      className={`text-xs sm:text-sm ${loanPage >= loanTotalPages ? "pointer-events-none opacity-50" : "hover:bg-secondary transition-colors"}`}
+                                      onClick={(event) => {
+                                        event.preventDefault();
+                                        if (loanPage < loanTotalPages) setLoanPage(loanPage + 1);
+                                      }}
+                                    />
+                                  </PaginationItem>
+                                </PaginationContent>
+                              </Pagination>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     )}
                   </CardContent>
@@ -285,6 +431,7 @@ const History = () => {
                             <TableRow>
                               <TableHead className="text-xs sm:text-sm whitespace-nowrap">ID</TableHead>
                               <TableHead className="text-xs sm:text-sm whitespace-nowrap hidden md:table-cell">Préstamo</TableHead>
+                              <TableHead className="text-xs sm:text-sm whitespace-nowrap hidden sm:table-cell">Cuota</TableHead>
                               <TableHead className="text-xs sm:text-sm whitespace-nowrap">Monto</TableHead>
                               <TableHead className="text-xs sm:text-sm whitespace-nowrap hidden sm:table-cell">Fecha</TableHead>
                               <TableHead className="text-xs sm:text-sm whitespace-nowrap hidden lg:table-cell">Método</TableHead>
@@ -296,6 +443,9 @@ const History = () => {
                               <TableRow key={item.id}>
                                 <TableCell className="font-medium text-xs sm:text-sm whitespace-nowrap">{item.id}</TableCell>
                                 <TableCell className="text-xs sm:text-sm whitespace-nowrap hidden md:table-cell">{item.loan}</TableCell>
+                                <TableCell className="text-xs sm:text-sm whitespace-nowrap hidden sm:table-cell">
+                                  {item.installment ? `#${item.installment}` : 'N/A'}
+                                </TableCell>
                                 <TableCell className="font-semibold text-xs sm:text-sm whitespace-nowrap">
                                   ${item.amount.toLocaleString()}
                                 </TableCell>

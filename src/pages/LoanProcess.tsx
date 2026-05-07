@@ -9,15 +9,15 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { 
-  CheckCircle2, 
-  ArrowRight, 
-  ArrowLeft, 
-  DollarSign, 
-  CreditCard, 
-  User, 
-  FileCheck, 
-  FileSignature, 
+import {
+  CheckCircle2,
+  ArrowRight,
+  ArrowLeft,
+  DollarSign,
+  CreditCard,
+  User,
+  FileCheck,
+  FileSignature,
   Wallet,
   Upload,
   Camera,
@@ -47,185 +47,54 @@ const STEPS = [
 ];
 
 const INTEREST_RATE = 0.42;
-const BANKS_OPTIONES=[
-  {
-    "id": "mx_afirme",
-    "name": "Banca Afirme",
-    "status": "active"
-  },
-  {
-    "id": "mx_alianza",
-    "name": "Alianza",
-    "status": "active"
-  },
-  {
-    "id": "mx_america",
-    "name": "Bank of America",
-    "status": "active"
-  },
-  {
-    "id": "mx_amex",
-    "name": "American Express Bank",
-    "status": "active"
-  },
-  {
-    "id": "mx_amigo",
-    "name": "Banco Amigo",
-    "status": "active"
-  },
-  {
-    "id": "mx_azteca",
-    "name": "Banco Azteca",
-    "status": "active"
-  },
-  {
-    "id": "mx_bajio",
-    "name": "Banco del Bajío",
-    "status": "active"
-  },
-  {
-    "id": "mx_bancoppel",
-    "name": "Bancoppel",
-    "status": "active"
-  },
-  {
-    "id": "mx_banjercito",
-    "name": "Banjercito",
-    "status": "active"
-  },
-  {
-    "id": "mx_banorte",
-    "name": "Banorte",
-    "status": "active"
-  },
-  {
-    "id": "mx_banxico",
-    "name": "Banco de Mexico",
-    "status": "active"
-  },
-  {
-    "id": "mx_bbva_bancomer",
-    "name": "BBVA",
-    "status": "active"
-  },
-  {
-    "id": "mx_ci",
-    "name": "CI Banco",
-    "status": "active"
-  },
-  {
-    "id": "mx_citi_banamex",
-    "name": "City Banamex",
-    "status": "active"
-  },
-  {
-    "id": "mx_compartamos",
-    "name": "Banco Compartamos",
-    "status": "active"
-  },
-  {
-    "id": "mx_famsa",
-    "name": "Banco Ahorro Famsa",
-    "status": "active"
-  },
-  {
-    "id": "mx_fundacion_donde",
-    "name": "Fundación Donde",
-    "status": "active"
-  },
-  {
-    "id": "mx_hsbc",
-    "name": "HSBC",
-    "status": "active"
-  },
-  {
-    "id": "mx_inbursa",
-    "name": "Banco Inbursa",
-    "status": "active"
-  },
-  {
-    "id": "mx_ing",
-    "name": "ING MX",
-    "status": "active"
-  },
-  {
-    "id": "mx_interacciones",
-    "name": "Banco Interacciones",
-    "status": "active"
-  },
-  {
-    "id": "mx_intercam",
-    "name": "Intercam Banco",
-    "status": "active"
-  },
-  {
-    "id": "mx_invex",
-    "name": "Banco Invex",
-    "status": "active"
-  },
-  {
-    "id": "mx_ixe",
-    "name": "IXE Banco",
-    "status": "active"
-  },
-  {
-    "id": "mx_mercantil_norte",
-    "name": "Banco Mercantil del Norte",
-    "status": "active"
-  },
-  {
-    "id": "mx_mifel",
-    "name": "Banco Mifel",
-    "status": "active"
-  },
-  {
-    "id": "mx_monterrey_regional",
-    "name": "Monterrey Regional",
-    "status": "active"
-  },
-  {
-    "id": "mx_multiva",
-    "name": "Banco Multiva Institución de Banca Múltiple",
-    "status": "active"
-  },
-  {
-    "id": "mx_nacional_ejercito",
-    "name": "Banco Nacional del Ejército, Fuerza Aérea y Armada",
-    "status": "active"
-  },
-  {
-    "id": "mx_regional_monterrey",
-    "name": "Banco Regional de Monterrey",
-    "status": "active"
-  },
-  {
-    "id": "mx_santander",
-    "name": "Santander",
-    "status": "active"
-  },
-  {
-    "id": "mx_scotiabank",
-    "name": "Scotia Bank",
-    "status": "active"
-  },
-  {
-    "id": "mx_scotiabank_inverlat",
-    "name": "Scotiabank Inverlat",
-    "status": "active"
+const ALLOWED_INSTALLMENTS = [3, 6, 9, 12, 18, 24];
+const INSTITUTIONS_ENDPOINT = "https://increscendo-api.vercel.app/belvo/institutions";
+
+type Institution = {
+  id: string;
+  name: string;
+  status: string;
+};
+
+const DEFAULT_INSTITUTION_ID = "mx_santander";
+
+const normalizeText = (value: string) => value.trim();
+const isValidPhone = (value: string) => /^\+?[0-9\s()-]{10,}$/.test(value.trim());
+const isValidDate = (value: string) => {
+  if (!value) return false;
+  // Accept YYYY-MM-DD or common ISO-like formats. Parse as local date (avoid timezone shifts).
+  const parts = value.trim().split(/[-/]/);
+  if (parts.length < 3) return false;
+  const [y, m, d] = parts.map(p => parseInt(p, 10));
+  if (!y || !m || !d) return false;
+  // construct a date using local timezone to avoid UTC offset issues
+  const dt = new Date(y, m - 1, d);
+  if (Number.isNaN(dt.getTime())) return false;
+  // Ensure the components match (guards against parsing like new Date('2020-02-31') -> Mar 2)
+  if (dt.getFullYear() !== y || dt.getMonth() !== (m - 1) || dt.getDate() !== d) return false;
+  // Birth date must be in the past (not today or future)
+  const today = new Date();
+  // zero time portion for comparison
+  today.setHours(0, 0, 0, 0);
+  return dt.getTime() < today.getTime();
+};
+
+const isOfMinimumAge = (value: string, minAge = 18) => {
+  if (!isValidDate(value)) return false;
+  const parts = value.trim().split(/[-/]/).map(p => parseInt(p, 10));
+  const [y, m, d] = parts;
+  const birth = new Date(y, m - 1, d);
+  const today = new Date();
+  let age = today.getFullYear() - birth.getFullYear();
+  const monthDiff = today.getMonth() - birth.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+    age -= 1;
   }
-];
-const BANKS = [
-  "BBVA México",
-  "Santander",
-  "Banorte",
-  "Citibanamex",
-  "HSBC",
-  "Scotiabank",
-  "Banco Azteca",
-  "Inbursa",
-  "BanCoppel",
-  "Compartamos",
-];
+  return age >= minAge;
+};
+const isValidCurp = (value: string) => /^[A-Z0-9]{18}$/.test(value.trim().toUpperCase());
+const isValidIne = (value: string) => /^[A-Z0-9]{6,20}$/.test(value.trim().toUpperCase());
+const isValidClabe = (value: string) => /^\d{18}$/.test(value.trim());
 
 const LoanProcess = () => {
   const navigate = useNavigate();
@@ -241,6 +110,11 @@ const LoanProcess = () => {
   const pollIntervalRef = useRef<number | null>(null);
   const [membershipPlans, setMembershipPlans] = useState<any[]>([]);
   const [loadingMemberships, setLoadingMemberships] = useState<boolean>(true);
+  const [bankPaymentMethods, setBankPaymentMethods] = useState<any[]>([]);
+  const [loadingBankPaymentMethods, setLoadingBankPaymentMethods] = useState<boolean>(true);
+  const [institutions, setInstitutions] = useState<Institution[]>([]);
+  const [loadingInstitutions, setLoadingInstitutions] = useState<boolean>(true);
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 
   // Get loan data from navigation state or use defaults (guard against partial state)
   const navState: any = (location && (location.state as any)) || {};
@@ -338,6 +212,10 @@ const LoanProcess = () => {
     phone: "",
     ineKey: "",
     curp: "",
+    ineFrontUrl: "",
+    ineBackUrl: "",
+    selfieWithIneUrl: "",
+    curpUrl: "",
   });
 
   const [references, setReferences] = useState([
@@ -347,23 +225,28 @@ const LoanProcess = () => {
   // Local files (keep only client-side until user decides to upload)
   const [ineFrontFile, setIneFrontFile] = useState<File | null>(null);
   const [ineBackFile, setIneBackFile] = useState<File | null>(null);
+  const [selfieWithIneFile, setSelfieWithIneFile] = useState<File | null>(null);
   const [curpFile, setCurpFile] = useState<File | null>(null);
   const [ineFrontPreview, setIneFrontPreview] = useState<string | null>(null);
   const [ineBackPreview, setIneBackPreview] = useState<string | null>(null);
+  const [selfieWithInePreview, setSelfieWithInePreview] = useState<string | null>(null);
   const [curpPreview, setCurpPreview] = useState<string | null>(null);
 
   // Camera capture state
   const [isCameraOpen, setIsCameraOpen] = useState(false);
-  const [cameraTarget, setCameraTarget] = useState<'ineFront' | 'ineBack' | 'curp' | null>(null);
+  const [cameraTarget, setCameraTarget] = useState<'ineFront' | 'ineBack' | 'selfieWithIne' | 'curp' | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [mediaStream, setMediaStream] = useState<MediaStream | null>(null);
 
   // Deposit data for Step 3
   const [depositData, setDepositData] = useState({
-    bank: "",
+    paymentMethodId: "",
+    paymentMethodLabel: "",
+    bank: DEFAULT_INSTITUTION_ID,
     clabe: "",
   });
+  const [depositSource, setDepositSource] = useState<'saved' | 'new'>('new');
 
   // Disbursement account state
   const [useSameAccount, setUseSameAccount] = useState(true);
@@ -396,19 +279,243 @@ const LoanProcess = () => {
     setDepositData(prev => ({ ...prev, [field]: value }));
   };
 
+  const handleDepositMethodChange = (methodId: string) => {
+    const selectedMethod = bankPaymentMethods.find(method => method.id === methodId) ?? null;
+
+    if (!selectedMethod) {
+      setDepositData(prev => ({
+        ...prev,
+        paymentMethodId: "",
+        paymentMethodLabel: "",
+        bank: "",
+        clabe: "",
+      }));
+      return;
+    }
+
+    setDepositData(prev => ({
+      ...prev,
+      paymentMethodId: selectedMethod.id,
+      paymentMethodLabel: `${selectedMethod.bank_name || "Banco"} · CLABE •••• ${selectedMethod.clabe?.slice?.(-4) || selectedMethod.last_digits || "----"}`,
+      bank: selectedMethod.bank_name || "",
+      clabe: selectedMethod.clabe || selectedMethod.last_digits || "",
+    }));
+  };
+
+  const handleDepositSourceChange = (source: 'saved' | 'new') => {
+    setDepositSource(source);
+
+    if (source === 'new') {
+      setDepositData(prev => ({
+        ...prev,
+        paymentMethodId: "",
+        paymentMethodLabel: "",
+        bank: prev.bank || DEFAULT_INSTITUTION_ID,
+      }));
+    }
+  };
+
+  const validateStepOne = () => {
+    const nextErrors: Record<string, string> = {};
+    const amountValue = Number(loanAmount);
+    const installmentsValue = Number(loanInstallments);
+
+    if (!amountValue || amountValue <= 0) {
+      nextErrors.loanAmount = "Ingresa un monto mayor a 0.";
+    }
+
+    if (!ALLOWED_INSTALLMENTS.includes(installmentsValue)) {
+      nextErrors.loanInstallments = "Selecciona un plazo válido.";
+    }
+
+    return nextErrors;
+  };
+
+  const validateStepThree = () => {
+    const nextErrors: Record<string, string> = {};
+    const selectedBankMethod = bankPaymentMethods.find(method => method.id === depositData.paymentMethodId) ?? null;
+    const hasLegacyBankData = Boolean(normalizeText(depositData.bank)) && isValidClabe(depositData.clabe);
+
+    if (!normalizeText(personalData.firstName)) nextErrors.firstName = "El nombre es obligatorio.";
+    if (!normalizeText(personalData.lastName)) nextErrors.lastName = "Los apellidos son obligatorios.";
+    if (!normalizeText(personalData.address)) nextErrors.address = "La dirección es obligatoria.";
+    if (!isValidDate(personalData.birthDate)) {
+      nextErrors.birthDate = "Ingresa una fecha de nacimiento válida.";
+    } else if (!isOfMinimumAge(personalData.birthDate, 18)) {
+      nextErrors.birthDate = "Debes ser mayor de 18 años.";
+    }
+    if (!isValidPhone(personalData.phone)) nextErrors.phone = "Ingresa un teléfono válido.";
+    if (!isValidIne(personalData.ineKey)) nextErrors.ineKey = "Ingresa una clave INE válida.";
+    if (!isValidCurp(personalData.curp)) nextErrors.curp = "Ingresa una CURP válida de 18 caracteres.";
+
+    if (depositSource === 'saved') {
+      if (!selectedBankMethod && !hasLegacyBankData) {
+        nextErrors.paymentMethodId = "Selecciona un método bancario guardado.";
+      } else if (selectedBankMethod?.validation_status === 'pendiente') {
+        nextErrors.paymentMethodId = "Selecciona un banco validado desde tus métodos de pago.";
+      }
+    } else {
+      if (!normalizeText(depositData.bank)) nextErrors.bank = "Selecciona un banco.";
+      if (!isValidClabe(depositData.clabe)) nextErrors.clabe = "La CLABE debe tener 18 dígitos.";
+    }
+
+    if (depositSource === 'saved' && !isValidClabe(depositData.clabe)) {
+      nextErrors.clabe = "La CLABE debe tener 18 dígitos.";
+    }
+
+    if (!references.length) {
+      nextErrors.references = "Agrega al menos una referencia.";
+    } else {
+      references.forEach((reference, index) => {
+        if (!normalizeText(reference.name)) nextErrors[`reference-${index}-name`] = "El nombre de la referencia es obligatorio.";
+        if (!normalizeText(reference.relationship)) nextErrors[`reference-${index}-relationship`] = "Indica la relación.";
+        if (!isValidPhone(reference.phone)) nextErrors[`reference-${index}-phone`] = "Ingresa un teléfono válido.";
+      });
+    }
+
+    if (!ineFrontFile) nextErrors.ineFront = "Adjunta la parte frontal de tu INE.";
+    if (!ineBackFile) nextErrors.ineBack = "Adjunta el reverso de tu INE.";
+    if (!selfieWithIneFile) nextErrors.selfieWithIne = "Adjunta tu selfie con INE.";
+    if (!curpFile && !normalizeText(personalData.curp)) nextErrors.curpFile = "Adjunta tu CURP o completa el campo.";
+
+    if (!useSameAccount) {
+      if (!normalizeText(disbursementData.bank)) nextErrors.disbursementBank = "Selecciona un banco para el desembolso.";
+      if (!isValidClabe(disbursementData.clabe)) nextErrors.disbursementClabe = "La CLABE de desembolso debe tener 18 dígitos.";
+    }
+
+    return nextErrors;
+  };
+
+  const validateCurrentStep = () => {
+    if (currentStep === 1) return validateStepOne();
+    if (currentStep === 3) return validateStepThree();
+    return {};
+  };
+
+  // Map API error messages to Spanish user-friendly messages
+  const getErrorMessage = (errorData: any): string => {
+    // Extract the error message, prioritizing details.message
+    const detailedMessage = errorData?.details?.message || '';
+    const errorMessage = (detailedMessage || errorData?.error || errorData?.message || '').toLowerCase().trim();
+
+    // Map common errors (all keys in lowercase for case-insensitive matching)
+    const errorMap: Record<string, string> = {
+      'bank account already registered': 'Esta cuenta bancaria ya ha sido registrada. Por favor, usa otra CLABE.',
+      'invalid clabe': 'La CLABE proporcionada no es válida. Verifica los 18 dígitos.',
+      'invalid bank': 'El banco seleccionado no es válido. Por favor, selecciona otro.',
+      'user not found': 'Usuario no encontrado. Por favor, intenta de nuevo.',
+      'failed to create payment method': 'No se pudo crear el método de pago. Verifica los datos e intenta de nuevo.',
+      'failed to create client': 'No se pudo crear la solicitud. Intenta de nuevo más tarde.',
+      'payment method already exists': 'Ya existe un método de pago con estos datos.',
+      'missing required fields': 'Faltan campos requeridos. Revisa la información ingresada.',
+      'unauthorized': 'No estás autorizado para realizar esta acción.',
+      'bad request': 'Los datos enviados no son válidos. Revisa la información.',
+    };
+
+    // Check if error message matches any known pattern (case-insensitive)
+    for (const [key, spanish] of Object.entries(errorMap)) {
+      if (errorMessage.includes(key.toLowerCase())) {
+        return spanish;
+      }
+    }
+
+    // Fallback: if we have a detailed message, use it; otherwise generic
+    if (detailedMessage) {
+      return detailedMessage;
+    }
+    if (errorData?.error) {
+      return errorData.error;
+    }
+
+    return 'No se pudo crear la solicitud. Intenta de nuevo.';
+  };
+
+  // Upload file to Supabase Storage and return public URL
+  const uploadFileToStorage = async (file: File, folder: string, fileName: string): Promise<string | null> => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user?.id) throw new Error('User not authenticated');
+
+      const filePath = `${folder}/${user.id}/${fileName}`;
+      const { error: uploadError, data } = await supabase.storage
+        .from('documents')
+        .upload(filePath, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: publicUrl } = supabase.storage
+        .from('documents')
+        .getPublicUrl(filePath);
+
+      return publicUrl?.publicUrl || null;
+    } catch (err) {
+      console.error(`Error uploading ${fileName}:`, err);
+      return null;
+    }
+  };
+
+  // Save user documents and metadata to users table (called after loan is created)
+  const uploadDocumentsAfterLoanCreation = async (): Promise<boolean> => {
+    try {
+      const { authService } = await import('@/utils/auth');
+      const user = authService.getCurrentUser();
+      if (!user?.id) return false;
+
+      // Upload documents
+      const ineFileTimestamp = Date.now();
+      const ineFrontUrl = ineFrontFile ? await uploadFileToStorage(ineFrontFile, 'ine-documents', `ine_front_${ineFileTimestamp}.jpg`) : null;
+      const ineBackUrl = ineBackFile ? await uploadFileToStorage(ineBackFile, 'ine-documents', `ine_back_${ineFileTimestamp}.jpg`) : null;
+      const selfieWithIneUrl = selfieWithIneFile ? await uploadFileToStorage(selfieWithIneFile, 'ine-documents', `selfie_ine_${ineFileTimestamp}.jpg`) : null;
+      const curpUrl = curpFile ? await uploadFileToStorage(curpFile, 'curp-documents', `curp_${ineFileTimestamp}.jpg`) : null;
+
+      // Build metadata object with references
+      const updatedMetadata = {
+        references: references,
+      };
+
+      // Update users table with document URLs and metadata
+      const { error: updateError } = await supabase
+        .from('users')
+        .update({
+          ine_front_url: ineFrontUrl || undefined,
+          ine_back_url: ineBackUrl || undefined,
+          curp_url: curpUrl || undefined,
+          selfie_url: selfieWithIneUrl || undefined,
+          metadata: updatedMetadata,
+        })
+        .eq('id', user.id);
+
+      if (updateError) throw updateError;
+
+      // Update local state with uploaded URLs
+      setPersonalData(prev => ({
+        ...prev,
+        ineFrontUrl: ineFrontUrl || prev.ineFrontUrl,
+        ineBackUrl: ineBackUrl || prev.ineBackUrl,
+        selfieWithIneUrl: selfieWithIneUrl || prev.selfieWithIneUrl,
+        curpUrl: curpUrl || prev.curpUrl,
+      }));
+
+      return true;
+    } catch (err) {
+      console.error('Error uploading documents:', err);
+      toast({ title: 'Advertencia', description: 'Los documentos no pudieron subirse, pero tu solicitud fue registrada.' });
+      return false;
+    }
+  };
+
   const createLoanRecord = async () => {
     try {
       const { authService } = await import('@/utils/auth');
       const user = authService.getCurrentUser();
       if (!user?.id) {
-        toast({ title: 'Error', description: 'Usuario no autenticado.' });
+        toast({ title: 'Error', description: 'Usuario no autenticado.', variant: 'destructive' });
         return;
       }
 
-      // Asegúrate de tener las URLs de las imágenes cargadas en personalData
-      // Si ya tienes ineFrontUrl, ineBackUrl, curpUrl en personalData, usa eso
-      // Si no, agrega la lógica para subirlas y obtener la URL antes de este paso
-      const payload = {
+      // Build payload with required fields only (without document URLs)
+      const payload: any = {
         user_id: user.id,
         amount: Number(loanAmount) || 0,
         installments: Number(loanInstallments) || 12,
@@ -416,14 +523,25 @@ const LoanProcess = () => {
         interest_rate: interestRateDecimal,
         total_to_pay: Number(totalToPay) || 0,
         personalData: {
-          ...personalData,
-          ineFrontUrl: personalData.ineFrontUrl,
-          ineBackUrl: personalData.ineBackUrl,
-          curpUrl: personalData.curpUrl,
+          firstName: personalData.firstName,
+          lastName: personalData.lastName,
+          curp: personalData.curp,
+          ineKey: personalData.ineKey,
         },
-        depositData,
-        disbursementData,
+        depositData: {
+          bank: depositData.bank,
+          clabe: depositData.clabe,
+        },
+        disbursementData: {
+          bank: disbursementData.bank,
+          clabe: disbursementData.clabe,
+        },
       };
+
+      // Include paymentMethodId only if a saved payment method was selected
+      if (depositSource === 'saved' && depositData.paymentMethodId) {
+        payload.paymentMethodId = depositData.paymentMethodId;
+      }
 
       const response = await fetch('https://increscendo-api.vercel.app/belvo/loan-request', {
         method: 'POST',
@@ -434,23 +552,40 @@ const LoanProcess = () => {
       const result = await response.json();
 
       if (!response.ok || !result.success) {
-        toast({ title: 'Error', description: result?.message || 'No se pudo crear la solicitud.' });
+        const errorMessage = getErrorMessage(result);
+        toast({ title: 'Error', description: errorMessage, variant: 'destructive' });
         return null;
       }
 
-      // clear resume marker if present
-      try { localStorage.removeItem('resume_loan_id'); } catch {}
+      // Loan created successfully - now upload documents asynchronously
       setCurrentLoan(result.loan);
       toast({ title: 'Solicitud creada', description: 'Tu solicitud quedó registrada y está en estado pendiente.' });
+
+      // Upload documents in the background (don't wait)
+      uploadDocumentsAfterLoanCreation().catch(err => {
+        console.error('Error uploading documents in background:', err);
+      });
+
+      // Clear resume marker if present
+      try { localStorage.removeItem('resume_loan_id'); } catch { }
+
       return result.loan;
     } catch (err) {
       console.error(err);
-      toast({ title: 'Error', description: 'Ocurrió un error al crear la solicitud.' });
+      let errorDesc = 'Ocurrió un error al crear la solicitud.';
+
+      if (err instanceof TypeError) {
+        errorDesc = 'No se pudo conectar con el servidor. Verifica tu conexión a internet.';
+      } else if (err instanceof Error) {
+        errorDesc = err.message || errorDesc;
+      }
+
+      toast({ title: 'Error', description: errorDesc, variant: 'destructive' });
       return null;
     }
   };
 
-  const handleFileSelect = (target: 'ineFront' | 'ineBack' | 'curp', file: File) => {
+  const handleFileSelect = (target: 'ineFront' | 'ineBack' | 'selfieWithIne' | 'curp', file: File) => {
     const url = URL.createObjectURL(file);
     if (target === 'ineFront') {
       setIneFrontFile(file);
@@ -458,13 +593,16 @@ const LoanProcess = () => {
     } else if (target === 'ineBack') {
       setIneBackFile(file);
       setIneBackPreview(url);
+    } else if (target === 'selfieWithIne') {
+      setSelfieWithIneFile(file);
+      setSelfieWithInePreview(url);
     } else if (target === 'curp') {
       setCurpFile(file);
       setCurpPreview(url);
     }
   };
 
-  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>, target: 'ineFront' | 'ineBack' | 'curp') => {
+  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>, target: 'ineFront' | 'ineBack' | 'selfieWithIne' | 'curp') => {
     const file = e.target.files?.[0];
     if (file) handleFileSelect(target, file);
     e.currentTarget.value = '';
@@ -477,7 +615,7 @@ const LoanProcess = () => {
     }
   };
 
-  const openCamera = async (target: 'ineFront' | 'ineBack' | 'curp') => {
+  const openCamera = async (target: 'ineFront' | 'ineBack' | 'selfieWithIne' | 'curp') => {
     setCameraTarget(target);
     setIsCameraOpen(true);
     try {
@@ -490,7 +628,7 @@ const LoanProcess = () => {
     } catch (err) {
       setIsCameraOpen(false);
       stopCamera();
-      toast({ title: 'Error', description: 'No se pudo acceder a la cámara.' });
+      toast({ title: 'Error', description: 'No se pudo acceder a la cámara.', variant: 'destructive' });
     }
   };
 
@@ -512,7 +650,7 @@ const LoanProcess = () => {
     }, 'image/jpeg', 0.9);
   };
 
-  const removeFile = (target: 'ineFront' | 'ineBack' | 'curp') => {
+  const removeFile = (target: 'ineFront' | 'ineBack' | 'selfieWithIne' | 'curp') => {
     if (target === 'ineFront') {
       if (ineFrontPreview) URL.revokeObjectURL(ineFrontPreview);
       setIneFrontFile(null);
@@ -521,6 +659,10 @@ const LoanProcess = () => {
       if (ineBackPreview) URL.revokeObjectURL(ineBackPreview);
       setIneBackFile(null);
       setIneBackPreview(null);
+    } else if (target === 'selfieWithIne') {
+      if (selfieWithInePreview) URL.revokeObjectURL(selfieWithInePreview);
+      setSelfieWithIneFile(null);
+      setSelfieWithInePreview(null);
     } else if (target === 'curp') {
       if (curpPreview) URL.revokeObjectURL(curpPreview);
       setCurpFile(null);
@@ -548,7 +690,115 @@ const LoanProcess = () => {
     calculatePayment();
   }, [loanAmount, loanInstallments, interestRateDecimal]);
 
+  useEffect(() => {
+    const loadInstitutions = async () => {
+      try {
+        setLoadingInstitutions(true);
+        const response = await fetch(INSTITUTIONS_ENDPOINT);
+        if (!response.ok) throw new Error(`institutions status ${response.status}`);
+
+        const data = await response.json();
+        const mapped = Array.isArray(data) ? data : [];
+        const activeInstitutions = mapped.filter((item: Institution) => item?.status === 'active' && item?.name);
+        setInstitutions(activeInstitutions);
+      } catch (err) {
+        console.error('Error loading institutions:', err);
+        setInstitutions([]);
+      } finally {
+        setLoadingInstitutions(false);
+      }
+    };
+
+    loadInstitutions();
+  }, []);
+
+  useEffect(() => {
+    const loadBankPaymentMethods = async () => {
+      try {
+        setLoadingBankPaymentMethods(true);
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user?.id) return;
+
+        const { data, error } = await supabase
+          .from('payment_methods')
+          .select('id, bank_name, clabe, last_digits, validation_status, is_default, created_at')
+          .eq('user_id', user.id)
+          .eq('type', 'bank')
+          .order('is_default', { ascending: false })
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        setBankPaymentMethods(data ?? []);
+      } catch (err) {
+        console.error('Error loading bank payment methods:', err);
+      } finally {
+        setLoadingBankPaymentMethods(false);
+      }
+    };
+
+    loadBankPaymentMethods();
+  }, []);
+
+  useEffect(() => {
+    if (depositSource !== 'saved') return;
+    if (depositData.paymentMethodId || !bankPaymentMethods.length) return;
+
+    const matchedMethod = bankPaymentMethods.find(method => {
+      const methodLastDigits = method.clabe?.slice?.(-4) || method.last_digits || "";
+      const depositLastDigits = depositData.clabe?.slice?.(-4) || "";
+
+      return Boolean(depositData.bank)
+        && method.bank_name === depositData.bank
+        && (
+          method.clabe === depositData.clabe ||
+          (methodLastDigits && depositLastDigits && methodLastDigits === depositLastDigits)
+        );
+    });
+
+    if (matchedMethod) {
+      handleDepositMethodChange(matchedMethod.id);
+    }
+  }, [depositSource, bankPaymentMethods, depositData.bank, depositData.clabe, depositData.paymentMethodId]);
+
+  useEffect(() => {
+    if (depositSource === 'new' && depositData.paymentMethodId) {
+      setDepositData(prev => ({
+        ...prev,
+        paymentMethodId: '',
+        paymentMethodLabel: '',
+      }));
+    }
+  }, [depositSource, depositData.paymentMethodId]);
+
+  const bankOptions = institutions
+    .filter((institution) => institution.status === 'active')
+    .map((institution) => ({ id: institution.id, name: institution.name }));
+
+  const getInstitutionName = (institutionId: string) => {
+    const institution = institutions.find((item) => item.id === institutionId);
+    return institution?.name || institutionId;
+  };
+
   const handleNext = async () => {
+    const nextErrors = validateCurrentStep();
+    setValidationErrors(nextErrors);
+
+    if (Object.keys(nextErrors).length > 0) {
+      toast({
+        title: 'Revisa los campos',
+        description: 'Hay datos inválidos o incompletos en este paso.',
+      });
+      return;
+    }
+
+    if (currentStep === 2 && !hasMembership && !selectedMembership) {
+      toast({
+        title: 'Membresía requerida',
+        description: 'Selecciona o adquiere una membresía para continuar.',
+      });
+      return;
+    }
+
     if (currentStep === 4 && !isApproved) {
       // When user clicks "Iniciar" on step 4, create loan if needed and start polling
       if (pollIntervalRef.current) {
@@ -562,7 +812,7 @@ const LoanProcess = () => {
         if (!loan) return; // creation failed
       }
 
-        setIsAnalyzing(true);
+      setIsAnalyzing(true);
 
       const checkStatus = async () => {
         try {
@@ -614,14 +864,14 @@ const LoanProcess = () => {
               setCurrentLoan(prev => prev ? ({ ...prev, status: 'signed', signed_at: new Date().toISOString() }) : prev);
             }
             // notify other views to reload
-            try { window.dispatchEvent(new Event('reloadLoans')); } catch {}
+            try { window.dispatchEvent(new Event('reloadLoans')); } catch { }
             toast({ title: 'Firma registrada', description: 'La solicitud ha sido marcada como firmada.' });
           } catch (e) {
             console.error('Error marking loan signed', e);
-            toast({ title: 'Error', description: 'No se pudo registrar la firma.' });
+            toast({ title: 'Error', description: 'No se pudo registrar la firma.', variant: 'destructive' });
           }
         } else {
-          toast({ title: 'Error', description: 'No se encontró la solicitud para marcar como firmada.' });
+          toast({ title: 'Error', description: 'No se encontró la solicitud para marcar como firmada.', variant: 'destructive' });
         }
       }
       setCurrentStep(prev => prev + 1);
@@ -660,8 +910,8 @@ const LoanProcess = () => {
             const benefits = Array.isArray(features?.benefits)
               ? features.benefits
               : Array.isArray(p.features)
-              ? p.features
-              : [];
+                ? p.features
+                : [];
 
             let renewalPeriod = 'Anual';
             if (typeof p.duration_days === 'number') {
@@ -776,10 +1026,14 @@ const LoanProcess = () => {
           firstName: data.first_name ?? '',
           lastName: data.last_name ?? '',
           address: data.address ?? '',
-          birthDate: data.birth_date ? new Date(data.birth_date).toISOString().slice(0,10) : '',
+          birthDate: data.birth_date ? new Date(data.birth_date).toISOString().slice(0, 10) : '',
           phone: data.phone ?? '',
           ineKey: data.ine_key ?? '',
           curp: data.curp ?? '',
+          ineFrontUrl: '',
+          ineBackUrl: '',
+          selfieWithIneUrl: '',
+          curpUrl: '',
         });
       } catch (err) {
         // ignore errors (unauthenticated/demo)
@@ -797,13 +1051,12 @@ const LoanProcess = () => {
           <div key={step.id} className="flex items-center flex-1">
             <div className="flex flex-col items-center relative">
               <div
-                className={`w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center font-bold text-xs sm:text-sm md:text-base transition-all ${
-                  currentStep === step.id
-                    ? "bg-primary text-primary-foreground shadow-lg ring-2 ring-primary ring-offset-2"
-                    : currentStep > step.id
+                className={`w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center font-bold text-xs sm:text-sm md:text-base transition-all ${currentStep === step.id
+                  ? "bg-primary text-primary-foreground shadow-lg ring-2 ring-primary ring-offset-2"
+                  : currentStep > step.id
                     ? "bg-primary text-primary-foreground shadow-md"
                     : "bg-white text-muted-foreground border-2 border-muted shadow-sm"
-                }`}
+                  }`}
               >
                 {currentStep > step.id ? (
                   <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 md:h-6 md:w-6" />
@@ -817,9 +1070,8 @@ const LoanProcess = () => {
             </div>
             {index < STEPS.length - 1 && (
               <div
-                className={`flex-1 h-0.5 sm:h-1 mx-1 sm:mx-2 rounded transition-all hidden sm:block -mt-3 sm:-mt-4 ${
-                  currentStep > step.id ? "bg-primary shadow-sm" : "bg-white shadow-md border border-muted/40"
-                }`}
+                className={`flex-1 h-0.5 sm:h-1 mx-1 sm:mx-2 rounded transition-all hidden sm:block -mt-3 sm:-mt-4 ${currentStep > step.id ? "bg-primary shadow-sm" : "bg-white shadow-md border border-muted/40"
+                  }`}
               />
             )}
           </div>
@@ -835,16 +1087,16 @@ const LoanProcess = () => {
         {/* Mobile-first header layout */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           {/* Row 1: Back button - full width on mobile */}
-          <Button 
-            variant="ghost" 
-            size="sm" 
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={handleGoToSimulator}
             className="self-start text-sm font-medium text-muted-foreground hover:text-primary flex items-center gap-2 h-11 px-3 -ml-3 sm:order-2 sm:ml-0"
           >
             <ArrowLeft className="h-4 w-4" />
             <span className="sm:inline">Volver al Simulador</span>
           </Button>
-          
+
           {/* Row 2-3: Title and description */}
           <div className="space-y-1 sm:order-1">
             <CardTitle className="flex items-center gap-2 text-xl sm:text-2xl">
@@ -873,6 +1125,7 @@ const LoanProcess = () => {
                 className="pl-7 text-lg font-semibold"
               />
             </div>
+            {validationErrors.loanAmount && <p className="text-xs text-destructive">{validationErrors.loanAmount}</p>}
           </div>
           <div className="space-y-2">
             <Label htmlFor="loan-installments">Número de Cuotas</Label>
@@ -888,6 +1141,7 @@ const LoanProcess = () => {
                 ))}
               </SelectContent>
             </Select>
+            {validationErrors.loanInstallments && <p className="text-xs text-destructive">{validationErrors.loanInstallments}</p>}
           </div>
         </div>
 
@@ -1080,6 +1334,7 @@ const LoanProcess = () => {
                 value={personalData.firstName}
                 onChange={(e) => handlePersonalDataChange("firstName", e.target.value)}
               />
+              {validationErrors.firstName && <p className="text-xs text-destructive">{validationErrors.firstName}</p>}
             </div>
             <div className="space-y-2">
               <Label>Apellidos</Label>
@@ -1088,6 +1343,7 @@ const LoanProcess = () => {
                 value={personalData.lastName}
                 onChange={(e) => handlePersonalDataChange("lastName", e.target.value)}
               />
+              {validationErrors.lastName && <p className="text-xs text-destructive">{validationErrors.lastName}</p>}
             </div>
             <div className="space-y-2 md:col-span-2">
               <Label>Dirección</Label>
@@ -1096,6 +1352,7 @@ const LoanProcess = () => {
                 value={personalData.address}
                 onChange={(e) => handlePersonalDataChange("address", e.target.value)}
               />
+              {validationErrors.address && <p className="text-xs text-destructive">{validationErrors.address}</p>}
             </div>
             <div className="space-y-2">
               <Label>Fecha de Nacimiento</Label>
@@ -1104,6 +1361,7 @@ const LoanProcess = () => {
                 value={personalData.birthDate}
                 onChange={(e) => handlePersonalDataChange("birthDate", e.target.value)}
               />
+              {validationErrors.birthDate && <p className="text-xs text-destructive">{validationErrors.birthDate}</p>}
             </div>
             <div className="space-y-2">
               <Label>Teléfono</Label>
@@ -1112,6 +1370,7 @@ const LoanProcess = () => {
                 value={personalData.phone}
                 onChange={(e) => handlePersonalDataChange("phone", e.target.value)}
               />
+              {validationErrors.phone && <p className="text-xs text-destructive">{validationErrors.phone}</p>}
             </div>
           </div>
         </CardContent>
@@ -1129,22 +1388,61 @@ const LoanProcess = () => {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
+          <div className="flex items-center gap-3">
+            <Label className="text-xs text-muted-foreground">Origen de cuenta</Label>
+            <Select value={depositSource} onValueChange={(v) => handleDepositSourceChange(v as 'saved' | 'new')}>
+              <SelectTrigger className="h-9 w-[220px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="saved">Método guardado</SelectItem>
+                <SelectItem value="new">Cuenta nueva</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Banco</Label>
-              <Select value={depositData.bank} onValueChange={(v) => handleDepositDataChange("bank", v)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecciona tu banco" />
-                </SelectTrigger>
-                <SelectContent>
-                  {BANKS_OPTIONES.map((bank) => (
-                    <SelectItem key={bank.id} value={bank.id}>
-                      {bank.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {depositSource === 'saved' ? (
+              <div className="space-y-2">
+                <Label>Método bancario guardado</Label>
+                <Select value={depositData.paymentMethodId} onValueChange={handleDepositMethodChange}>
+                  <SelectTrigger>
+                    <SelectValue placeholder={loadingBankPaymentMethods ? "Cargando métodos..." : "Selecciona un banco guardado"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {bankPaymentMethods.map((method) => (
+                      <SelectItem key={method.id} value={method.id}>
+                        {method.bank_name || "Banco"} {method.validation_status === 'validada' ? "(validado)" : "(pendiente)"}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {validationErrors.paymentMethodId && <p className="text-xs text-destructive">{validationErrors.paymentMethodId}</p>}
+                {!loadingBankPaymentMethods && bankPaymentMethods.length === 0 && (
+                  <p className="text-xs text-muted-foreground">No tienes métodos bancarios guardados. Puedes capturar uno nuevo abajo.</p>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Label>Banco</Label>
+                <Select value={depositData.bank} onValueChange={(v) => handleDepositDataChange("bank", v)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder={loadingInstitutions ? "Cargando bancos..." : "Selecciona tu banco"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {bankOptions.map((bank) => (
+                      <SelectItem key={bank.id} value={bank.id}>
+                        {bank.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {validationErrors.bank && <p className="text-xs text-destructive">{validationErrors.bank}</p>}
+                {!loadingInstitutions && bankOptions.length === 0 && (
+                  <p className="text-xs text-muted-foreground">No se pudo cargar la lista de instituciones.</p>
+                )}
+              </div>
+            )}
             <div className="space-y-2">
               <Label>Cuenta CLABE</Label>
               <Input
@@ -1156,8 +1454,14 @@ const LoanProcess = () => {
                   const value = e.target.value.slice(0, 18);
                   handleDepositDataChange("clabe", value);
                 }}
+                disabled={depositSource === 'saved' && !!depositData.paymentMethodId}
               />
-              <p className="text-xs text-muted-foreground">Ingresa los 18 dígitos de tu CLABE</p>
+              <p className="text-xs text-muted-foreground">
+                {depositSource === 'saved' && depositData.paymentMethodId
+                  ? depositData.paymentMethodLabel || "CLABE cargada desde tu método bancario"
+                  : "Ingresa los 18 dígitos de tu CLABE"}
+              </p>
+              {validationErrors.clabe && <p className="text-xs text-destructive">{validationErrors.clabe}</p>}
             </div>
           </div>
 
@@ -1185,16 +1489,17 @@ const LoanProcess = () => {
                   <Label>Banco</Label>
                   <Select value={disbursementData.bank} onValueChange={(v) => handleDisbursementDataChange("bank", v)}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Selecciona tu banco" />
+                      <SelectValue placeholder={loadingInstitutions ? "Cargando bancos..." : "Selecciona tu banco"} />
                     </SelectTrigger>
                     <SelectContent>
-                      {BANKS.map((bank) => (
-                        <SelectItem key={bank} value={bank}>
-                          {bank}
+                      {bankOptions.map((bank) => (
+                        <SelectItem key={bank.id} value={bank.id}>
+                          {bank.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
+                  {validationErrors.disbursementBank && <p className="text-xs text-destructive">{validationErrors.disbursementBank}</p>}
                 </div>
                 <div className="space-y-2">
                   <Label>Cuenta CLABE</Label>
@@ -1209,6 +1514,7 @@ const LoanProcess = () => {
                     }}
                   />
                   <p className="text-xs text-muted-foreground">Ingresa los 18 dígitos de tu CLABE</p>
+                  {validationErrors.disbursementClabe && <p className="text-xs text-destructive">{validationErrors.disbursementClabe}</p>}
                 </div>
               </div>
             </div>
@@ -1221,7 +1527,7 @@ const LoanProcess = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
             <User className="h-5 w-5 text-primary" />
-            Referencias personales
+            Obligado solidario
           </CardTitle>
           <CardDescription>
             Agrega al menos una referencia de confianza.
@@ -1246,6 +1552,7 @@ const LoanProcess = () => {
                     value={ref.name}
                     onChange={(e) => updateReference(index, "name", e.target.value)}
                   />
+                  {validationErrors[`reference-${index}-name`] && <p className="text-xs text-destructive">{validationErrors[`reference-${index}-name`]}</p>}
                 </div>
                 <div className="space-y-2">
                   <Label>Relacion</Label>
@@ -1254,6 +1561,7 @@ const LoanProcess = () => {
                     value={ref.relationship}
                     onChange={(e) => updateReference(index, "relationship", e.target.value)}
                   />
+                  {validationErrors[`reference-${index}-relationship`] && <p className="text-xs text-destructive">{validationErrors[`reference-${index}-relationship`]}</p>}
                 </div>
                 <div className="space-y-2">
                   <Label>Telefono</Label>
@@ -1262,6 +1570,7 @@ const LoanProcess = () => {
                     value={ref.phone}
                     onChange={(e) => updateReference(index, "phone", e.target.value)}
                   />
+                  {validationErrors[`reference-${index}-phone`] && <p className="text-xs text-destructive">{validationErrors[`reference-${index}-phone`]}</p>}
                 </div>
               </div>
             </div>
@@ -1291,8 +1600,9 @@ const LoanProcess = () => {
               value={personalData.ineKey}
               onChange={(e) => handlePersonalDataChange("ineKey", e.target.value)}
             />
+            {validationErrors.ineKey && <p className="text-xs text-destructive">{validationErrors.ineKey}</p>}
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="border-2 border-dashed border-border rounded-xl p-6 flex flex-col items-center justify-center gap-3 bg-muted/30 hover:bg-muted/50 transition-colors">
               {ineFrontPreview ? (
                 <img src={ineFrontPreview} alt="INE Frente" className="max-h-40 object-contain rounded" />
@@ -1318,6 +1628,7 @@ const LoanProcess = () => {
                   </Button>
                 )}
               </div>
+              {validationErrors.ineFront && <p className="text-xs text-destructive text-center">{validationErrors.ineFront}</p>}
             </div>
             <div className="border-2 border-dashed border-border rounded-xl p-6 flex flex-col items-center justify-center gap-3 bg-muted/30 hover:bg-muted/50 transition-colors">
               {ineBackPreview ? (
@@ -1344,6 +1655,34 @@ const LoanProcess = () => {
                   </Button>
                 )}
               </div>
+              {validationErrors.ineBack && <p className="text-xs text-destructive text-center">{validationErrors.ineBack}</p>}
+            </div>
+            <div className="border-2 border-dashed border-border rounded-xl p-6 flex flex-col items-center justify-center gap-3 bg-muted/30 hover:bg-muted/50 transition-colors">
+              {selfieWithInePreview ? (
+                <img src={selfieWithInePreview} alt="Selfie con INE" className="max-h-40 object-contain rounded" />
+              ) : (
+                <Camera className="h-8 w-8 text-muted-foreground" />
+              )}
+              <p className="text-sm text-muted-foreground text-center">Selfie con INE</p>
+              <div className="flex gap-2">
+                <input id="selfie-ine-input" accept="image/*" type="file" className="hidden" onChange={(e) => handleFileInput(e, 'selfieWithIne')} />
+                <label htmlFor="selfie-ine-input">
+                  <Button asChild variant="outline" size="sm" className="gap-1">
+                    <span>
+                      <Upload className="h-4 w-4" /> Subir
+                    </span>
+                  </Button>
+                </label>
+                <Button variant="outline" size="sm" className="gap-1" onClick={() => openCamera('selfieWithIne')}>
+                  <Camera className="h-4 w-4" /> Cámara
+                </Button>
+                {selfieWithInePreview && (
+                  <Button variant="destructive" size="sm" className="gap-1" onClick={() => removeFile('selfieWithIne')}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+              {validationErrors.selfieWithIne && <p className="text-xs text-destructive text-center">{validationErrors.selfieWithIne}</p>}
             </div>
           </div>
         </CardContent>
@@ -1366,6 +1705,7 @@ const LoanProcess = () => {
               value={personalData.curp}
               onChange={(e) => handlePersonalDataChange("curp", e.target.value.toUpperCase())}
             />
+            {validationErrors.curp && <p className="text-xs text-destructive">{validationErrors.curp}</p>}
           </div>
           <div className="border-2 border-dashed border-border rounded-xl p-6 flex flex-col items-center justify-center gap-3 bg-muted/30 hover:bg-muted/50 transition-colors">
             {curpPreview ? (
@@ -1386,13 +1726,14 @@ const LoanProcess = () => {
               <Button variant="outline" size="sm" className="gap-2" onClick={() => openCamera('curp')}>
                 <Camera className="h-4 w-4" /> Cámara
               </Button>
-                {curpPreview && (
-                  <Button variant="destructive" size="sm" className="gap-2" onClick={() => removeFile('curp')}>
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                )}
+              {curpPreview && (
+                <Button variant="destructive" size="sm" className="gap-2" onClick={() => removeFile('curp')}>
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              )}
             </div>
             <p className="text-xs text-muted-foreground">Puedes subir PDF o tomar una foto</p>
+            {validationErrors.curpFile && <p className="text-xs text-destructive">{validationErrors.curpFile}</p>}
           </div>
         </CardContent>
       </Card>
@@ -1451,7 +1792,7 @@ const LoanProcess = () => {
                 </div>
                 <div className="rounded-lg bg-muted/40 p-3">
                   <p className="text-[11px] text-muted-foreground">Banco</p>
-                  <p className="text-sm font-medium">{depositData.bank || "Sin banco"}</p>
+                  <p className="text-sm font-medium">{depositData.bank ? getInstitutionName(depositData.bank) : "Sin banco"}</p>
                 </div>
                 <div className="rounded-lg bg-muted/40 p-3">
                   <p className="text-[11px] text-muted-foreground">Cuenta CLABE</p>
@@ -1582,7 +1923,6 @@ const LoanProcess = () => {
   };
 
   const canProceed = () => {
-    if (currentStep === 2 && !hasMembership && !selectedMembership) return false;
     if (currentStep === 4 && isAnalyzing) return false;
     return true;
   };
@@ -1591,7 +1931,7 @@ const LoanProcess = () => {
     <SidebarProvider>
       <div className="min-h-screen flex w-full">
         <AppSidebar />
-        
+
         <main className="flex-1 overflow-x-hidden">
           <header className="h-14 sm:h-16 border-b border-border bg-card flex items-center px-3 sm:px-4 md:px-6 gap-2 sm:gap-4 fixed md:sticky top-0 z-10 w-full md:w-auto">
             <SidebarTrigger />
@@ -1636,10 +1976,10 @@ const LoanProcess = () => {
                 </Button>
               )}
               {currentStep === 1 && <div />}
-              
-              <Button 
+
+              <Button
                 onClick={currentStep === 6 ? handleGoToDashboard : handleNext}
-                disabled={!canProceed()}
+                disabled={currentStep === 4 && !canProceed()}
                 className="gap-2 ml-auto"
               >
                 {getNextButtonText()}

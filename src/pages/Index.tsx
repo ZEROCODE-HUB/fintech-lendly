@@ -86,7 +86,7 @@ const Index = () => {
 
             {/* Desktop Navigation */}
             <nav className="hidden md:flex items-center gap-6">
-              <Link to="/contact" className="text-muted-foreground hover:text-foreground transition-colors">Contacto</Link>
+              <Link to="/contacto" className="text-muted-foreground hover:text-foreground transition-colors">Contacto</Link>
 
               {/* <a href="#features" className="text-muted-foreground hover:text-foreground transition-colors">Características</a>
               <a href="#about" className="text-muted-foreground hover:text-foreground transition-colors">Nosotros</a>

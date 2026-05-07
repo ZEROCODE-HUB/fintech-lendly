@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
-import { 
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -17,11 +17,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { 
-  Crown, 
-  Tag, 
-  Receipt, 
-  CheckCircle2, 
+import {
+  Crown,
+  Tag,
+  Receipt,
+  CheckCircle2,
   ArrowLeft,
   CreditCard,
   FileText
@@ -41,7 +41,7 @@ const MembershipCheckout = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
-  
+
   const state = (location.state || {}) as LocationState;
   const membershipId = state?.membershipId;
   const returnTo = state?.returnTo || "/memberships";
@@ -50,7 +50,7 @@ const MembershipCheckout = () => {
   const membership = (state?.membership as any)
     || (membershipId ? defaultMemberships.find((m) => m.id === membershipId) : null)
     || defaultMemberships[0];
-  
+
   const [couponCode, setCouponCode] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState<any | null>(null);
   const [discountPercent, setDiscountPercent] = useState<number | null>(null);
@@ -213,7 +213,7 @@ const MembershipCheckout = () => {
     <SidebarProvider>
       <div className="min-h-screen flex w-full">
         <AppSidebar />
-        
+
         <main className="flex-1">
           <header className="h-16 border-b border-border bg-card flex items-center px-4 sm:px-6 gap-4 fixed md:sticky top-0 z-10 w-full md:w-auto">
             <SidebarTrigger />
@@ -286,7 +286,7 @@ const MembershipCheckout = () => {
                     </Button>
                   </div>
                 )}
-                
+
               </CardContent>
             </Card>
 
@@ -387,16 +387,16 @@ const MembershipCheckout = () => {
                     <span>Subtotal</span>
                     <span>${originalPrice.toLocaleString()} MXN</span>
                   </div>
-                  
+
                   {appliedCoupon && (
                     <div className="flex justify-between text-success">
                       <span>{discountPercent !== null ? `Descuento (${discountPercent}%)` : `Descuento`}</span>
                       <span>-${discountAmount.toLocaleString()} MXN</span>
                     </div>
                   )}
-                  
+
                   <Separator />
-                  
+
                   <div className="flex justify-between items-center">
                     <span className="text-lg font-bold">Total Final</span>
                     <div className="text-right">
@@ -419,18 +419,18 @@ const MembershipCheckout = () => {
                 )}
 
                 <div className="space-y-3 mt-6">
-                  <Button 
-                    className="w-full" 
+                  <Button
+                    className="w-full"
                     size="lg"
                     onClick={handleProceedToPayment}
                     disabled={!termsAccepted || acquiring}
                   >
                     {acquiring ? 'Procesando...' : 'Proceder al Pago'}
                   </Button>
-                  
-                  <Button 
-                    variant="outline" 
-                    className="w-full gap-2" 
+
+                  <Button
+                    variant="outline"
+                    className="w-full gap-2"
                     size="lg"
                     onClick={handleBack}
                   >
@@ -456,14 +456,14 @@ const MembershipCheckout = () => {
               Por favor lee detenidamente los siguientes términos antes de continuar.
             </DialogDescription>
           </DialogHeader>
-          
+
           <ScrollArea className="flex-1 pr-4 -mr-4">
             <div className="space-y-6 text-sm text-muted-foreground text-justified pr-4">
               <section>
                 <h3 className="text-base font-semibold text-foreground mb-2">1. Aceptación de los Términos</h3>
                 <p className="leading-relaxed">
-                  Al adquirir una membresía en Increscendo Fintech, el usuario acepta estar sujeto a estos Términos y Condiciones. 
-                  Si no está de acuerdo con alguna parte de estos términos, no podrá acceder al servicio ni completar la compra 
+                  Al adquirir una membresía en Increscendo Fintech, el usuario acepta estar sujeto a estos Términos y Condiciones.
+                  Si no está de acuerdo con alguna parte de estos términos, no podrá acceder al servicio ni completar la compra
                   de la membresía.
                 </p>
               </section>
@@ -471,8 +471,8 @@ const MembershipCheckout = () => {
               <section>
                 <h3 className="text-base font-semibold text-foreground mb-2">2. Descripción del Servicio</h3>
                 <p className="leading-relaxed">
-                  La membresía otorga acceso a servicios financieros especializados, incluyendo tasas preferenciales en 
-                  préstamos, asesoría financiera personalizada, y acceso a productos exclusivos. Los beneficios específicos 
+                  La membresía otorga acceso a servicios financieros especializados, incluyendo tasas preferenciales en
+                  préstamos, asesoría financiera personalizada, y acceso a productos exclusivos. Los beneficios específicos
                   varían según el tipo de membresía adquirida (Premier o Gold).
                 </p>
               </section>
@@ -480,8 +480,8 @@ const MembershipCheckout = () => {
               <section>
                 <h3 className="text-base font-semibold text-foreground mb-2">3. Renovación y Vigencia</h3>
                 <p className="leading-relaxed">
-                  Las membresías tienen una vigencia anual a partir de la fecha de adquisición. La renovación puede ser 
-                  automática o manual según la preferencia del usuario. Se enviará un recordatorio 30 días antes del 
+                  Las membresías tienen una vigencia anual a partir de la fecha de adquisición. La renovación puede ser
+                  automática o manual según la preferencia del usuario. Se enviará un recordatorio 30 días antes del
                   vencimiento de la membresía.
                 </p>
               </section>
@@ -489,8 +489,8 @@ const MembershipCheckout = () => {
               <section>
                 <h3 className="text-base font-semibold text-foreground mb-2">4. Política de Pagos</h3>
                 <p className="leading-relaxed">
-                  El pago de la membresía se realiza de forma anticipada y en una sola exhibición. Aceptamos tarjetas de 
-                  crédito, débito y transferencias bancarias. Todos los precios están expresados en pesos mexicanos (MXN) 
+                  El pago de la membresía se realiza de forma anticipada y en una sola exhibición. Aceptamos tarjetas de
+                  crédito, débito y transferencias bancarias. Todos los precios están expresados en pesos mexicanos (MXN)
                   e incluyen impuestos aplicables.
                 </p>
               </section>
@@ -498,8 +498,8 @@ const MembershipCheckout = () => {
               <section>
                 <h3 className="text-base font-semibold text-foreground mb-2">5. Política de Cancelación y Reembolsos</h3>
                 <p className="leading-relaxed">
-                  El usuario podrá solicitar la cancelación de su membresía dentro de los primeros 14 días naturales 
-                  posteriores a la adquisición, siempre que no haya utilizado los servicios incluidos. Pasado este período, 
+                  El usuario podrá solicitar la cancelación de su membresía dentro de los primeros 14 días naturales
+                  posteriores a la adquisición, siempre que no haya utilizado los servicios incluidos. Pasado este período,
                   no se realizarán reembolsos parciales ni totales.
                 </p>
               </section>
@@ -507,8 +507,8 @@ const MembershipCheckout = () => {
               <section>
                 <h3 className="text-base font-semibold text-foreground mb-2">6. Uso de Datos Personales</h3>
                 <p className="leading-relaxed">
-                  Los datos personales proporcionados serán tratados conforme a nuestra Política de Privacidad, cumpliendo 
-                  con la Ley Federal de Protección de Datos Personales en Posesión de los Particulares. La información 
+                  Los datos personales proporcionados serán tratados conforme a nuestra Política de Privacidad, cumpliendo
+                  con la Ley Federal de Protección de Datos Personales en Posesión de los Particulares. La información
                   será utilizada exclusivamente para la prestación del servicio.
                 </p>
               </section>
@@ -516,8 +516,8 @@ const MembershipCheckout = () => {
               <section>
                 <h3 className="text-base font-semibold text-foreground mb-2">7. Obligaciones del Usuario</h3>
                 <p className="leading-relaxed">
-                  El usuario se compromete a proporcionar información veraz y actualizada, mantener la confidencialidad 
-                  de sus credenciales de acceso, y utilizar los servicios de manera responsable y conforme a la ley. 
+                  El usuario se compromete a proporcionar información veraz y actualizada, mantener la confidencialidad
+                  de sus credenciales de acceso, y utilizar los servicios de manera responsable y conforme a la ley.
                   El uso indebido resultará en la cancelación inmediata de la membresía sin derecho a reembolso.
                 </p>
               </section>
@@ -525,8 +525,8 @@ const MembershipCheckout = () => {
               <section>
                 <h3 className="text-base font-semibold text-foreground mb-2">8. Limitación de Responsabilidad</h3>
                 <p className="leading-relaxed">
-                  Increscendo Fintech no será responsable por daños indirectos, incidentales o consecuentes derivados 
-                  del uso de los servicios. Nuestra responsabilidad máxima se limitará al monto pagado por la membresía 
+                  Increscendo Fintech no será responsable por daños indirectos, incidentales o consecuentes derivados
+                  del uso de los servicios. Nuestra responsabilidad máxima se limitará al monto pagado por la membresía
                   en el período vigente.
                 </p>
               </section>
@@ -534,8 +534,8 @@ const MembershipCheckout = () => {
               <section>
                 <h3 className="text-base font-semibold text-foreground mb-2">9. Modificaciones a los Términos</h3>
                 <p className="leading-relaxed">
-                  Nos reservamos el derecho de modificar estos términos en cualquier momento. Los cambios entrarán en 
-                  vigor al momento de su publicación. Es responsabilidad del usuario revisar periódicamente estos términos. 
+                  Nos reservamos el derecho de modificar estos términos en cualquier momento. Los cambios entrarán en
+                  vigor al momento de su publicación. Es responsabilidad del usuario revisar periódicamente estos términos.
                   El uso continuado del servicio constituye aceptación de las modificaciones.
                 </p>
               </section>
@@ -543,14 +543,14 @@ const MembershipCheckout = () => {
               <section>
                 <h3 className="text-base font-semibold text-foreground mb-2">10. Jurisdicción y Ley Aplicable</h3>
                 <p className="leading-relaxed">
-                  Estos términos se regirán e interpretarán de acuerdo con las leyes de los Estados Unidos Mexicanos. 
-                  Para cualquier controversia, las partes se someten a la jurisdicción de los tribunales competentes 
+                  Estos términos se regirán e interpretarán de acuerdo con las leyes de los Estados Unidos Mexicanos.
+                  Para cualquier controversia, las partes se someten a la jurisdicción de los tribunales competentes
                   de la Ciudad de México, renunciando a cualquier otro fuero que pudiera corresponderles.
                 </p>
               </section>
             </div>
           </ScrollArea>
-          
+
           <DialogFooter className="flex-shrink-0 gap-2 pt-4 border-t">
             <Button variant="outline" onClick={() => setTermsModalOpen(false)}>
               Cerrar
