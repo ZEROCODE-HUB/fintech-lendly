@@ -77,7 +77,7 @@ const PaymentMethods = () => {
   const [isTokenizingCard, setIsTokenizingCard] = useState(false);
   const [isConektaReady, setIsConektaReady] = useState(false);
   const [paymentMethods, setPaymentMethods] = useState<any[]>([]);
-  
+
   // Form states for adding/editing
   const [formData, setFormData] = useState({
     cardNumber: DEFAULT_TEST_CARD.cardNumber,
@@ -599,10 +599,10 @@ const PaymentMethods = () => {
   const formatExpiry = (value: string) => {
     // Remove non-digits
     const digits = value.replace(/\D/g, '');
-    
+
     // Limit to 4 digits (MMYY)
     if (digits.length > 4) return formData.expiry;
-    
+
     // Format as MM/YY
     if (digits.length <= 2) {
       return digits;
@@ -613,31 +613,31 @@ const PaymentMethods = () => {
 
   const validateExpiry = (expiry: string): boolean => {
     if (!expiry || expiry.length !== 5) return false;
-    
+
     const [monthStr, yearStr] = expiry.split('/');
     const month = parseInt(monthStr, 10);
     const year = parseInt(yearStr, 10);
-    
+
     // Validate month
     if (month < 1 || month > 12) return false;
-    
+
     // Validate year is not in the past
     const now = new Date();
     const currentYear = now.getFullYear() % 100;
     const currentMonth = now.getMonth() + 1;
-    
+
     // If year is less than current year, it's expired
     if (year < currentYear) return false;
-    
+
     // If year is current and month is less than current month, it's expired
     if (year === currentYear && month < currentMonth) return false;
-    
+
     return true;
   };
 
   const handleExpiryChange = (value: string) => {
     const formatted = formatExpiry(value);
-    setFormData({...formData, expiry: formatted});
+    setFormData({ ...formData, expiry: formatted });
   };
 
   const cardNumberDigits = formData.cardNumber.replace(/\D/g, "");
@@ -679,7 +679,7 @@ const PaymentMethods = () => {
     <SidebarProvider>
       <div className="min-h-screen flex w-full">
         <AppSidebar />
-        
+
         <main className="flex-1">
           <header className="h-14 sm:h-16 border-b border-border bg-card flex items-center px-3 sm:px-4 md:px-6 gap-2 sm:gap-4 fixed md:sticky top-0 z-10 w-full md:w-auto">
             <SidebarTrigger />
@@ -751,8 +751,8 @@ const PaymentMethods = () => {
                               )}
                             </CardTitle>
                             <CardDescription className="text-xs sm:text-sm">
-                              {method.type === "card" 
-                                ? `•••• ${method.last_four}` 
+                              {method.type === "card"
+                                ? `•••• ${method.last_four}`
                                 : `CLABE •••• ${method.last_digits}`
                               }
                             </CardDescription>
@@ -792,9 +792,9 @@ const PaymentMethods = () => {
 
                       <div className="flex flex-col sm:flex-row gap-2 pt-2 border-t">
                         {!method.is_default && (
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
+                          <Button
+                            variant="outline"
+                            size="sm"
                             className="flex-1 text-xs sm:text-sm"
                             onClick={() => handleSetDefault(method)}
                           >
@@ -803,9 +803,9 @@ const PaymentMethods = () => {
                             <span className="sm:hidden">Predeterminado</span>
                           </Button>
                         )}
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
+                        <Button
+                          variant="outline"
+                          size="sm"
                           className={`${method.is_default ? "flex-1" : ""} text-xs sm:text-sm`}
                           onClick={() => {
                             setSelectedMethod(method);
@@ -828,8 +828,8 @@ const PaymentMethods = () => {
                           <Edit className="h-3 w-3 mr-1" />
                           Editar
                         </Button>
-                        <Button 
-                          variant="outline" 
+                        <Button
+                          variant="outline"
                           size="sm"
                           onClick={() => handleDelete(method)}
                           disabled={method.is_default}
@@ -871,13 +871,13 @@ const PaymentMethods = () => {
                 </Select>
               </div>
 
-            {methodType === "card" ? (
+              {methodType === "card" ? (
                 <>
                   <div>
                     <Label htmlFor="card-number">Número de Tarjeta</Label>
-                    <Input 
-                      id="card-number" 
-                      placeholder="1234 5678 9012 3456" 
+                    <Input
+                      id="card-number"
+                      placeholder="1234 5678 9012 3456"
                       maxLength={MAX_CARD_INPUT_LENGTH}
                       value={formData.cardNumber}
                       inputMode="numeric"
@@ -892,9 +892,9 @@ const PaymentMethods = () => {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label htmlFor="expiry">Vencimiento (MM/AA)</Label>
-                      <Input 
-                        id="expiry" 
-                        placeholder="07/26" 
+                      <Input
+                        id="expiry"
+                        placeholder="07/26"
                         maxLength={5}
                         value={formData.expiry}
                         onChange={(e) => handleExpiryChange(e.target.value)}
@@ -905,9 +905,9 @@ const PaymentMethods = () => {
                     </div>
                     <div>
                       <Label htmlFor="cvv">CVV</Label>
-                      <Input 
-                        id="cvv" 
-                        placeholder="123" 
+                      <Input
+                        id="cvv"
+                        placeholder="123"
                         maxLength={MAX_CVV_LENGTH}
                         type="password"
                         inputMode="numeric"
@@ -919,8 +919,8 @@ const PaymentMethods = () => {
                   </div>
                   <div>
                     <Label htmlFor="cardholder">Nombre del Titular</Label>
-                    <Input 
-                      id="cardholder" 
+                    <Input
+                      id="cardholder"
                       placeholder="Como aparece en la tarjeta"
                       maxLength={MAX_CARDHOLDER_LENGTH}
                       autoComplete="cc-name"
@@ -933,7 +933,7 @@ const PaymentMethods = () => {
                 <>
                   <div>
                     <Label htmlFor="bank-name">Banco</Label>
-                    <Select value={formData.bankName} onValueChange={(value) => setFormData({...formData, bankName: value})}>
+                    <Select value={formData.bankName} onValueChange={(value) => setFormData({ ...formData, bankName: value })}>
                       <SelectTrigger id="bank-name">
                         <SelectValue placeholder="Selecciona tu banco" />
                       </SelectTrigger>
@@ -948,22 +948,22 @@ const PaymentMethods = () => {
                   </div>
                   <div>
                     <Label htmlFor="clabe">CLABE Interbancaria</Label>
-                    <Input 
-                      id="clabe" 
-                      placeholder="18 dígitos" 
+                    <Input
+                      id="clabe"
+                      placeholder="18 dígitos"
                       maxLength={18}
                       value={formData.clabe}
-                      onChange={(e) => setFormData({...formData, clabe: e.target.value})}
+                      onChange={(e) => setFormData({ ...formData, clabe: e.target.value })}
                       disabled={!!selectedMethod}
                     />
                   </div>
                   <div>
                     <Label htmlFor="account-holder">Nombre del Titular</Label>
-                    <Input 
-                      id="account-holder" 
+                    <Input
+                      id="account-holder"
                       placeholder="Como aparece en la cuenta"
                       value={formData.accountHolder}
-                      onChange={(e) => setFormData({...formData, accountHolder: e.target.value})}
+                      onChange={(e) => setFormData({ ...formData, accountHolder: e.target.value })}
                     />
                   </div>
                   <div className="bg-accent rounded-lg p-3 text-sm">
@@ -1007,9 +1007,9 @@ const PaymentMethods = () => {
                     </div>
                     <div>
                       <Label htmlFor="edit-expiry">Vencimiento (MM/AA)</Label>
-                      <Input 
-                        id="edit-expiry" 
-                        value={formData.expiry} 
+                      <Input
+                        id="edit-expiry"
+                        value={formData.expiry}
                         maxLength={5}
                         onChange={(e) => handleExpiryChange(e.target.value)}
                       />
@@ -1021,10 +1021,10 @@ const PaymentMethods = () => {
                 )}
                 <div>
                   <Label htmlFor="edit-holder">Nombre del Titular</Label>
-                  <Input 
-                    id="edit-holder" 
+                  <Input
+                    id="edit-holder"
                     value={selectedMethod.type === 'card' ? formData.cardholder : formData.accountHolder}
-                    onChange={(e) => setFormData({...formData, [selectedMethod.type === 'card' ? 'cardholder' : 'accountHolder']: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, [selectedMethod.type === 'card' ? 'cardholder' : 'accountHolder']: e.target.value })}
                   />
                 </div>
               </div>
@@ -1052,8 +1052,8 @@ const PaymentMethods = () => {
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Cancelar</AlertDialogCancel>
-              <AlertDialogAction 
-                onClick={confirmDelete} 
+              <AlertDialogAction
+                onClick={confirmDelete}
                 className="bg-danger hover:bg-danger/90"
                 disabled={selectedMethod?.isDefault}
               >

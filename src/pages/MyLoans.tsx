@@ -23,6 +23,25 @@ interface Installment {
   interest?: number;
 }
 
+const getPaymentRequestStatusBadge = (status?: string) => {
+  const normalized = (status || '').toLowerCase();
+
+  switch (normalized) {
+    case 'initial':
+      return <Badge className="bg-warning/20 text-warning border-warning">Pendiente</Badge>;
+    case 'processing':
+      return <Badge className="bg-warning/20 text-warning border-warning">En proceso</Badge>;
+    case 'completed':
+      return <Badge className="bg-success/20 text-success border-success">Pagado</Badge>;
+    case 'failed':
+      return <Badge className="bg-danger/20 text-danger border-danger">Rechazado</Badge>;
+    default:
+      return <Badge variant="outline">Sin estado</Badge>;
+  }
+};
+
+const BELVO_API_BASE = "https://increscendo-api.vercel.app";
+
 const MyLoans = () => {
   const navigate = useNavigate();
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
@@ -35,16 +54,17 @@ const MyLoans = () => {
   const [loansData, setLoansData] = useState<any[]>([]);
   const [isLoadingLoans, setIsLoadingLoans] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [isRefreshingPaymentRequest, setIsRefreshingPaymentRequest] = useState(false);
 
   // Generate installments for a loan
   const generateInstallments = (loan: any): Installment[] => {
     const installments: Installment[] = [];
     const paidCount = Math.floor((loan.paid / loan.amount) * loan.term);
-    
+
     for (let i = 1; i <= loan.term; i++) {
       const baseDate = new Date(loan.approved);
       baseDate.setMonth(baseDate.getMonth() + i);
-      
+
       installments.push({
         number: i,
         dueDate: `${baseDate.getDate().toString().padStart(2, '0')}/${(baseDate.getMonth() + 1).toString().padStart(2, '0')}/${baseDate.getFullYear()}`,
@@ -58,6 +78,23 @@ const MyLoans = () => {
   const currentInstallments = useMemo(() => {
     if (!paymentLoan) return [];
     return generateInstallments(paymentLoan);
+  }, [paymentLoan]);
+
+  const paymentRequestStatusInfo = useMemo(() => {
+    const metadata = paymentLoan?.raw?.metadata ?? paymentLoan?.metadata ?? {};
+    const paymentRequests = Array.isArray(metadata.payment_requests) ? metadata.payment_requests : [];
+    const lastPaymentRequest = paymentRequests.length > 0 ? paymentRequests[paymentRequests.length - 1] : null;
+    const matchedPaymentRequest = metadata.last_payment_request_id
+      ? paymentRequests.find((request: any) => String(request.payment_request_id) === String(metadata.last_payment_request_id)) ?? null
+      : null;
+    const sourceRequest = matchedPaymentRequest || lastPaymentRequest;
+
+    return {
+      status: String(metadata.payment_request_status ?? sourceRequest?.status ?? sourceRequest?.belvo_status ?? '').toLowerCase(),
+      paymentRequestId: String(metadata.last_payment_request_id ?? sourceRequest?.payment_request_id ?? '').trim(),
+      updatedAt: metadata.payment_request_status_updated_at ?? sourceRequest?.last_updated_at ?? sourceRequest?.synced_at ?? '',
+      paymentRequests,
+    };
   }, [paymentLoan]);
 
   // KPIs derived from loaded loans
@@ -115,6 +152,58 @@ const MyLoans = () => {
       setSelectedInstallments([]);
     }
     setPaymentDialogOpen(true);
+  };
+
+  const refreshPaymentRequestStatus = async () => {
+    const loanId = paymentLoan?.id;
+    const paymentRequestId = paymentRequestStatusInfo.paymentRequestId;
+
+    if (!loanId || !paymentRequestId) {
+      return;
+    }
+
+    try {
+      setIsRefreshingPaymentRequest(true);
+      const resp = await fetch(`${BELVO_API_BASE}/belvo/loans/${loanId}/payment-request/${paymentRequestId}`);
+      const data = await resp.json().catch(() => null);
+
+      if (!resp.ok) {
+        throw data || new Error('No se pudo actualizar el estado de la solicitud de pago.');
+      }
+
+      const { data: refreshedLoan } = await supabase
+        .from('loans')
+        .select('*, loan_number')
+        .eq('id', loanId)
+        .maybeSingle();
+
+      if (refreshedLoan) {
+        setPaymentLoan((prev: any) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            raw: {
+              ...(prev.raw || {}),
+              ...(refreshedLoan as any),
+              metadata: {
+                ...(prev.raw?.metadata || {}),
+                ...(refreshedLoan as any)?.metadata,
+                payment_request_status: data?.payment_request_status ?? (refreshedLoan as any)?.metadata?.payment_request_status ?? prev.raw?.metadata?.payment_request_status,
+                last_payment_request_id: data?.payment_request_id ?? (refreshedLoan as any)?.metadata?.last_payment_request_id ?? prev.raw?.metadata?.last_payment_request_id,
+                payment_requests: data?.payment_requests ?? (refreshedLoan as any)?.metadata?.payment_requests ?? prev.raw?.metadata?.payment_requests,
+                payment_request_status_updated_at: data?.payment_request_status_updated_at ?? (refreshedLoan as any)?.metadata?.payment_request_status_updated_at ?? prev.raw?.metadata?.payment_request_status_updated_at,
+              },
+            },
+          };
+        });
+      }
+
+      await loadLoans();
+    } catch (error) {
+      console.error('Error refreshing payment request status', error);
+    } finally {
+      setIsRefreshingPaymentRequest(false);
+    }
   };
 
   // Payment schedule for selected loan (amortization)
@@ -226,39 +315,39 @@ const MyLoans = () => {
 
       const mapped = (data as any[]).map((l) => {
         const amount = Number(l.amount ?? 0);
-          const paid = Number(l.metadata?.paid_amount ?? 0);
-          const remaining = Math.max(0, amount - paid);
+        const paid = Number(l.metadata?.paid_amount ?? 0);
+        const remaining = Math.max(0, amount - paid);
 
-          const approvedDate = l.approved_at ? new Date(l.approved_at) : (l.applied_at ? new Date(l.applied_at) : null);
+        const approvedDate = l.approved_at ? new Date(l.approved_at) : (l.applied_at ? new Date(l.applied_at) : null);
 
-          // compute next payment date: prefer metadata.next_payment_date, otherwise derive from approved_at + paid installments
-          let nextPayment = '-';
-          if (l.metadata?.next_payment_date) {
-            try { nextPayment = new Date(l.metadata.next_payment_date).toISOString().slice(0,10); } catch { nextPayment = '-'; }
-          } else if (approvedDate && (l.status === 'active' || l.status === 'approved' || l.status === 'signed')) {
-            const term = l.installments ?? 12;
-            const installmentAmount = term > 0 ? (amount / term) : amount;
-            const paidInstallments = installmentAmount > 0 ? Math.floor(paid / installmentAmount) : 0;
-            const nextInstallmentNumber = paidInstallments + 1;
-            const base = new Date(approvedDate);
-            // next installment due at approved_at + nextInstallmentNumber months
-            base.setMonth(base.getMonth() + nextInstallmentNumber);
-            nextPayment = base.toISOString().slice(0,10);
-          }
+        // compute next payment date: prefer metadata.next_payment_date, otherwise derive from approved_at + paid installments
+        let nextPayment = '-';
+        if (l.metadata?.next_payment_date) {
+          try { nextPayment = new Date(l.metadata.next_payment_date).toISOString().slice(0, 10); } catch { nextPayment = '-'; }
+        } else if (approvedDate && (l.status === 'active' || l.status === 'approved' || l.status === 'signed')) {
+          const term = l.installments ?? 12;
+          const installmentAmount = term > 0 ? (amount / term) : amount;
+          const paidInstallments = installmentAmount > 0 ? Math.floor(paid / installmentAmount) : 0;
+          const nextInstallmentNumber = paidInstallments + 1;
+          const base = new Date(approvedDate);
+          // next installment due at approved_at + nextInstallmentNumber months
+          base.setMonth(base.getMonth() + nextInstallmentNumber);
+          nextPayment = base.toISOString().slice(0, 10);
+        }
 
-          return {
-            id: l.id,
-            loan_number: l.loan_number,
-            amount,
-            approved: approvedDate ? approvedDate.toISOString().slice(0,10) : '',
-            rate: Number(l.interest_rate ?? l.metadata?.interest_rate ?? 0),
-            term: l.installments ?? 12,
-            status: l.status ?? 'pending',
-            paid,
-            remaining,
-            nextPayment,
-            raw: l,
-          };
+        return {
+          id: l.id,
+          loan_number: l.loan_number,
+          amount,
+          approved: approvedDate ? approvedDate.toISOString().slice(0, 10) : '',
+          rate: Number(l.interest_rate ?? l.metadata?.interest_rate ?? 0),
+          term: l.installments ?? 12,
+          status: l.status ?? 'pending',
+          paid,
+          remaining,
+          nextPayment,
+          raw: l,
+        };
       });
 
       setLoansData(mapped);
@@ -279,10 +368,10 @@ const MyLoans = () => {
 
   const handleInstallmentToggle = (installmentNumber: number) => {
     const firstPendingNumber = pendingInstallments[0]?.number;
-    
+
     // First pending installment is mandatory
     if (installmentNumber === firstPendingNumber) return;
-    
+
     setSelectedInstallments(prev => {
       if (prev.includes(installmentNumber)) {
         // Uncheck: remove this and all following installments
@@ -337,7 +426,7 @@ const MyLoans = () => {
     <SidebarProvider>
       <div className="min-h-screen flex w-full">
         <AppSidebar />
-        
+
         <main className="flex-1 overflow-x-hidden">
           <header className="border-b border-border bg-card fixed md:sticky top-0 z-10 w-full md:w-auto">
             <div className="flex items-center h-14 sm:h-16 px-4 sm:px-6 gap-3">
@@ -426,75 +515,75 @@ const MyLoans = () => {
               </CardHeader>
               <CardContent className="px-2 sm:px-4 md:px-6 pb-4 sm:pb-6">
                 <div className="overflow-x-auto -mx-2 sm:mx-0">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="text-xs sm:text-sm whitespace-nowrap">ID</TableHead>
-                      <TableHead className="text-xs sm:text-sm whitespace-nowrap">Monto</TableHead>
-                      <TableHead className="text-xs sm:text-sm whitespace-nowrap hidden md:table-cell">Tasa</TableHead>
-                      <TableHead className="text-xs sm:text-sm whitespace-nowrap hidden lg:table-cell">Plazo</TableHead>
-                      <TableHead className="text-xs sm:text-sm whitespace-nowrap hidden sm:table-cell">Pagado</TableHead>
-                      <TableHead className="text-xs sm:text-sm whitespace-nowrap">Saldo</TableHead>
-                      <TableHead className="text-xs sm:text-sm whitespace-nowrap hidden xl:table-cell">Próximo Pago</TableHead>
-                      <TableHead className="text-xs sm:text-sm whitespace-nowrap">Estado</TableHead>
-                      <TableHead className="text-xs sm:text-sm whitespace-nowrap">Acciones</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {(isLoadingLoans ? [] : filteredLoans).map((loan) => (
-                      <TableRow key={loan.id}>
-                        <TableCell className="font-medium text-xs sm:text-sm whitespace-nowrap">{loan.loan_number ?? loan.id}</TableCell>
-                        <TableCell className="text-xs sm:text-sm whitespace-nowrap">${loan.amount.toLocaleString()}</TableCell>
-                        <TableCell className="text-xs sm:text-sm whitespace-nowrap hidden md:table-cell">{loan.rate}%</TableCell>
-                        <TableCell className="text-xs sm:text-sm whitespace-nowrap hidden lg:table-cell">{loan.term}m</TableCell>
-                        <TableCell className="text-success text-xs sm:text-sm whitespace-nowrap hidden sm:table-cell">
-                          ${loan.paid.toLocaleString()}
-                        </TableCell>
-                        <TableCell className="text-danger text-xs sm:text-sm whitespace-nowrap">
-                          ${loan.remaining.toLocaleString()}
-                        </TableCell>
-                        <TableCell className="text-xs sm:text-sm whitespace-nowrap hidden xl:table-cell">{loan.nextPayment}</TableCell>
-                        <TableCell>{getStatusBadge(loan.status)}</TableCell>
-                        <TableCell>
-                          <div className="flex flex-col sm:flex-row gap-1 sm:gap-2">
-                            <Button 
-                              size="sm" 
-                              variant="outline"
-                              onClick={() => handleViewLoan(loan)}
-                              className="text-xs whitespace-nowrap"
-                            >
-                              <Eye className="h-3 w-3 sm:mr-1" />
-                              <span className="hidden sm:inline">Ver</span>
-                            </Button>
-                            {(loan.status === 'pending' || loan.status === 'under_review' || loan.status === 'approved' || loan.status === 'signed') && (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="text-xs sm:text-sm whitespace-nowrap">ID</TableHead>
+                        <TableHead className="text-xs sm:text-sm whitespace-nowrap">Monto</TableHead>
+                        <TableHead className="text-xs sm:text-sm whitespace-nowrap hidden md:table-cell">Tasa</TableHead>
+                        <TableHead className="text-xs sm:text-sm whitespace-nowrap hidden lg:table-cell">Plazo</TableHead>
+                        <TableHead className="text-xs sm:text-sm whitespace-nowrap hidden sm:table-cell">Pagado</TableHead>
+                        <TableHead className="text-xs sm:text-sm whitespace-nowrap">Saldo</TableHead>
+                        <TableHead className="text-xs sm:text-sm whitespace-nowrap hidden xl:table-cell">Próximo Pago</TableHead>
+                        <TableHead className="text-xs sm:text-sm whitespace-nowrap">Estado</TableHead>
+                        <TableHead className="text-xs sm:text-sm whitespace-nowrap">Acciones</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {(isLoadingLoans ? [] : filteredLoans).map((loan) => (
+                        <TableRow key={loan.id}>
+                          <TableCell className="font-medium text-xs sm:text-sm whitespace-nowrap">{loan.loan_number ?? loan.id}</TableCell>
+                          <TableCell className="text-xs sm:text-sm whitespace-nowrap">${loan.amount.toLocaleString()}</TableCell>
+                          <TableCell className="text-xs sm:text-sm whitespace-nowrap hidden md:table-cell">{loan.rate}%</TableCell>
+                          <TableCell className="text-xs sm:text-sm whitespace-nowrap hidden lg:table-cell">{loan.term}m</TableCell>
+                          <TableCell className="text-success text-xs sm:text-sm whitespace-nowrap hidden sm:table-cell">
+                            ${loan.paid.toLocaleString()}
+                          </TableCell>
+                          <TableCell className="text-danger text-xs sm:text-sm whitespace-nowrap">
+                            ${loan.remaining.toLocaleString()}
+                          </TableCell>
+                          <TableCell className="text-xs sm:text-sm whitespace-nowrap hidden xl:table-cell">{loan.nextPayment}</TableCell>
+                          <TableCell>{getStatusBadge(loan.status)}</TableCell>
+                          <TableCell>
+                            <div className="flex flex-col sm:flex-row gap-1 sm:gap-2">
                               <Button
                                 size="sm"
+                                variant="outline"
+                                onClick={() => handleViewLoan(loan)}
                                 className="text-xs whitespace-nowrap"
-                                onClick={() => {
-                                  try { localStorage.setItem('resume_loan_id', String(loan.id)); } catch { }
-                                  const step = (loan.status === 'approved') ? 5 : (loan.status === 'signed' ? 6 : 4);
-                                  navigate('/loan-process', { state: { resumeLoanId: loan.id, resumeStep: step } });
-                                }}
                               >
-                                Continuar
+                                <Eye className="h-3 w-3 sm:mr-1" />
+                                <span className="hidden sm:inline">Ver</span>
                               </Button>
-                            )}
-                            {loan.status === 'active' && (
-                              <Button 
-                                size="sm" 
-                                className="text-xs whitespace-nowrap bg-primary hover:bg-primary/90"
-                                onClick={() => handleOpenPayment(loan)}
-                              >
-                                <CreditCard className="h-3 w-3 sm:mr-1" />
-                                <span className="hidden sm:inline">Pagar cuotas</span>
-                              </Button>
-                            )}
-                          </div>
-                        </TableCell>
-                      </TableRow>
+                              {(loan.status === 'pending' || loan.status === 'under_review' || loan.status === 'approved' || loan.status === 'signed') && (
+                                <Button
+                                  size="sm"
+                                  className="text-xs whitespace-nowrap"
+                                  onClick={() => {
+                                    try { localStorage.setItem('resume_loan_id', String(loan.id)); } catch { }
+                                    const step = (loan.status === 'approved') ? 5 : (loan.status === 'signed' ? 6 : 4);
+                                    navigate('/loan-process', { state: { resumeLoanId: loan.id, resumeStep: step } });
+                                  }}
+                                >
+                                  Continuar
+                                </Button>
+                              )}
+                              {loan.status === 'active' && (
+                                <Button
+                                  size="sm"
+                                  className="text-xs whitespace-nowrap bg-primary hover:bg-primary/90"
+                                  onClick={() => handleOpenPayment(loan)}
+                                >
+                                  <CreditCard className="h-3 w-3 sm:mr-1" />
+                                  <span className="hidden sm:inline">Pagar cuotas</span>
+                                </Button>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
                       ))}
-                  </TableBody>
-                </Table>
+                    </TableBody>
+                  </Table>
                 </div>
               </CardContent>
             </Card>
@@ -508,16 +597,16 @@ const MyLoans = () => {
                     <CardDescription className="text-xs sm:text-sm">Selecciona un préstamo para ver su calendario de cuotas</CardDescription>
                   </div>
                   <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
-                    <select 
+                    <select
                       className="border rounded-md px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm"
                       value={selectedLoanId}
                       onChange={(e) => setSelectedLoanId(e.target.value)}
                     >
                       {loansData.map((loan) => (
-                          <option key={loan.id} value={loan.id}>
-                            {loan.loan_number ?? loan.id} - ${loan.amount.toLocaleString()}
-                          </option>
-                        ))}
+                        <option key={loan.id} value={loan.id}>
+                          {loan.loan_number ?? loan.id} - ${loan.amount.toLocaleString()}
+                        </option>
+                      ))}
                     </select>
                     <Button variant="outline" size="sm" className="text-xs sm:text-sm" onClick={handleExport}>
                       <Calendar className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
@@ -528,44 +617,44 @@ const MyLoans = () => {
               </CardHeader>
               <CardContent className="px-2 sm:px-4 md:px-6 pb-4 sm:pb-6">
                 <div className="overflow-x-auto -mx-2 sm:mx-0">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="text-xs sm:text-sm whitespace-nowrap">Cuota</TableHead>
-                      <TableHead className="text-xs sm:text-sm whitespace-nowrap">Fecha</TableHead>
-                      <TableHead className="text-xs sm:text-sm whitespace-nowrap hidden sm:table-cell">Capital</TableHead>
-                      <TableHead className="text-xs sm:text-sm whitespace-nowrap hidden md:table-cell">Interés</TableHead>
-                      <TableHead className="text-xs sm:text-sm whitespace-nowrap">Total</TableHead>
-                      <TableHead className="text-xs sm:text-sm whitespace-nowrap">Estado</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {paymentSchedule.length === 0 ? (
+                  <Table>
+                    <TableHeader>
                       <TableRow>
-                        <TableCell colSpan={6} className="text-center text-xs sm:text-sm py-6">
-                          Selecciona un préstamo para ver su cronograma de cuotas.
-                        </TableCell>
+                        <TableHead className="text-xs sm:text-sm whitespace-nowrap">Cuota</TableHead>
+                        <TableHead className="text-xs sm:text-sm whitespace-nowrap">Fecha</TableHead>
+                        <TableHead className="text-xs sm:text-sm whitespace-nowrap hidden sm:table-cell">Capital</TableHead>
+                        <TableHead className="text-xs sm:text-sm whitespace-nowrap hidden md:table-cell">Interés</TableHead>
+                        <TableHead className="text-xs sm:text-sm whitespace-nowrap">Total</TableHead>
+                        <TableHead className="text-xs sm:text-sm whitespace-nowrap">Estado</TableHead>
                       </TableRow>
-                    ) : (
-                      paymentSchedule.map((inst) => (
-                        <TableRow key={inst.number}>
-                          <TableCell className="text-xs sm:text-sm whitespace-nowrap">#{inst.number}</TableCell>
-                          <TableCell className="text-xs sm:text-sm whitespace-nowrap">{inst.dueDate}</TableCell>
-                          <TableCell className="text-xs sm:text-sm whitespace-nowrap hidden sm:table-cell">${(inst.principal ?? 0).toLocaleString()}</TableCell>
-                          <TableCell className="text-xs sm:text-sm whitespace-nowrap hidden md:table-cell">${(inst.interest ?? 0).toLocaleString()}</TableCell>
-                          <TableCell className="font-semibold text-xs sm:text-sm whitespace-nowrap">${inst.amount.toLocaleString()}</TableCell>
-                          <TableCell>
-                            {inst.status === 'paid' ? (
-                              <Badge className="bg-success/20 text-success border-success text-xs">Pagado</Badge>
-                            ) : (
-                              <Badge variant="outline" className="text-xs">Pendiente</Badge>
-                            )}
+                    </TableHeader>
+                    <TableBody>
+                      {paymentSchedule.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={6} className="text-center text-xs sm:text-sm py-6">
+                            Selecciona un préstamo para ver su cronograma de cuotas.
                           </TableCell>
                         </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
+                      ) : (
+                        paymentSchedule.map((inst) => (
+                          <TableRow key={inst.number}>
+                            <TableCell className="text-xs sm:text-sm whitespace-nowrap">#{inst.number}</TableCell>
+                            <TableCell className="text-xs sm:text-sm whitespace-nowrap">{inst.dueDate}</TableCell>
+                            <TableCell className="text-xs sm:text-sm whitespace-nowrap hidden sm:table-cell">${(inst.principal ?? 0).toLocaleString()}</TableCell>
+                            <TableCell className="text-xs sm:text-sm whitespace-nowrap hidden md:table-cell">${(inst.interest ?? 0).toLocaleString()}</TableCell>
+                            <TableCell className="font-semibold text-xs sm:text-sm whitespace-nowrap">${inst.amount.toLocaleString()}</TableCell>
+                            <TableCell>
+                              {inst.status === 'paid' ? (
+                                <Badge className="bg-success/20 text-success border-success text-xs">Pagado</Badge>
+                              ) : (
+                                <Badge variant="outline" className="text-xs">Pendiente</Badge>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
                 </div>
               </CardContent>
             </Card>
@@ -631,7 +720,7 @@ const MyLoans = () => {
                       <span>{((selectedLoan.paid / selectedLoan.amount) * 100).toFixed(1)}%</span>
                     </div>
                     <div className="h-3 bg-secondary rounded-full overflow-hidden">
-                      <div 
+                      <div
                         className="h-full bg-success transition-all"
                         style={{ width: `${(selectedLoan.paid / selectedLoan.amount) * 100}%` }}
                       />
@@ -656,7 +745,7 @@ const MyLoans = () => {
                 </DialogDescription>
               </DialogHeader>
             </div>
-            
+
             <div className="p-4 sm:p-6 space-y-4">
               {/* Total Amount */}
               <Card className="border-2 border-primary/20 bg-primary/5">
@@ -669,6 +758,39 @@ const MyLoans = () => {
                     <span className="text-2xl sm:text-3xl font-bold text-primary">
                       ${totalToPay.toLocaleString()} MXN
                     </span>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border-dashed">
+                <CardContent className="p-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-medium text-foreground">Estado de la solicitud de pago</span>
+                        {getPaymentRequestStatusBadge(paymentRequestStatusInfo.status)}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {paymentRequestStatusInfo.paymentRequestId
+                          ? `ID: ${paymentRequestStatusInfo.paymentRequestId}`
+                          : 'Aún no existe una solicitud de pago para este préstamo.'}
+                      </p>
+                      {paymentRequestStatusInfo.updatedAt && (
+                        <p className="text-xs text-muted-foreground">
+                          Actualizado: {new Date(paymentRequestStatusInfo.updatedAt).toLocaleString('es-MX')}
+                        </p>
+                      )}
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={refreshPaymentRequestStatus}
+                      disabled={isRefreshingPaymentRequest || !paymentRequestStatusInfo.paymentRequestId}
+                    >
+                      {isRefreshingPaymentRequest ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+                      Actualizar estado
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
@@ -693,8 +815,8 @@ const MyLoans = () => {
                           key={installment.number}
                           className={`
                             flex items-center gap-3 p-3 sm:p-4 rounded-lg border transition-all
-                            ${isSelected 
-                              ? 'border-primary bg-primary/5 shadow-sm' 
+                            ${isSelected
+                              ? 'border-primary bg-primary/5 shadow-sm'
                               : 'border-border hover:border-primary/50'
                             }
                             ${isDisabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
@@ -751,61 +873,108 @@ const MyLoans = () => {
               </div>
             ) : (
               <DialogFooter className="p-4 sm:p-6 pt-0">
-                  <Button
+                <Button
                   className="w-full bg-primary hover:bg-primary/90 text-white font-semibold py-6 text-base"
                   disabled={selectedInstallments.length === 0}
                   onClick={async () => {
                     setIsProcessing(true);
                     try {
-                      // determine current user
-                      const { data: userData } = await supabase.auth.getUser();
-                      const userId = userData?.user?.id ?? null;
-
-                      // create invoice record (mark as paid since payment already processed)
-                      const invoicePayload: any = {
-                        user_id: userId,
-                        amount: totalToPay,
-                        currency: 'MXN',
-                        status: 'paid',
-                        metadata: { loan_id: paymentLoan?.id, installments: selectedInstallments },
-                      };
-                      const { data: invoiceData, error: invoiceErr } = await supabase.from('invoices').insert([invoicePayload]).select().maybeSingle();
-                      if (invoiceErr) throw invoiceErr;
-
-                      // fetch latest loan row to avoid races
                       const loanId = paymentLoan?.id;
-                      const { data: loanRow, error: loanErr } = await supabase.from('loans').select('id, amount, metadata, status').eq('id', loanId).maybeSingle();
-                      if (loanErr) throw loanErr;
-                      if (!loanRow) throw new Error('Loan not found');
+                      if (!loanId) throw new Error('Loan not found');
 
-                      const currentPaid = Number(loanRow.metadata?.paid_amount ?? 0);
-                      const newPaid = currentPaid + Number(totalToPay || 0);
-                      const updatedMetadata = Object.assign({}, loanRow.metadata || {}, {
-                        paid_amount: newPaid,
-                        last_payment_date: new Date().toISOString(),
-                      });
+                      const loanRow = paymentLoan?.raw ?? {};
+                      const metadata = loanRow?.metadata ?? {};
 
-                      const updates: any = { metadata: updatedMetadata, updated_at: new Date().toISOString() };
-                      if (newPaid >= Number(loanRow.amount || 0)) {
-                        updates.status = 'closed';
-                        updates.closed_at = new Date().toISOString();
-                      } else {
-                        updates.status = 'active';
+                      let paymentMethodId = String(metadata?.payment_method_id ?? '').trim();
+
+                      if (!paymentMethodId) {
+                        const { data: userData } = await supabase.auth.getUser();
+                        const userId = userData?.user?.id ?? null;
+                        if (!userId) throw new Error('No se encontro usuario autenticado.');
+
+                        const { data: paymentMethodRow, error: paymentMethodErr } = await supabase
+                          .from('payment_methods')
+                          .select('id')
+                          .eq('user_id', userId)
+                          .eq('is_validated', true)
+                          .order('created_at', { ascending: false })
+                          .limit(1)
+                          .maybeSingle();
+
+                        if (paymentMethodErr) throw paymentMethodErr;
+
+                        paymentMethodId = String(paymentMethodRow?.id ?? '').trim();
                       }
 
-                      const { error: updateLoanErr } = await supabase.from('loans').update(updates).eq('id', loanId);
-                      if (updateLoanErr) throw updateLoanErr;
+                      if (!paymentMethodId) {
+                        throw new Error('No hay un metodo de pago validado para procesar esta cuota.');
+                      }
 
-                      // success: navigate to payment success and reload loans
-                      const folio = invoiceData?.id ?? ("INC-" + Math.random().toString(36).substring(2, 10).toUpperCase());
-                      setIsProcessing(false);
-                      setPaymentDialogOpen(false);
+                      const firstInstallmentNumber = selectedInstallments[0];
+                      const lastInstallmentNumber = selectedInstallments[selectedInstallments.length - 1];
+                      const lastInstallment = pendingInstallments.find((inst) => inst.number === lastInstallmentNumber);
+                      const dueDateParts = lastInstallment?.dueDate?.split('/') ?? [];
+                      const normalizedDueDate = dueDateParts.length === 3
+                        ? `${dueDateParts[2]}-${dueDateParts[1]}-${dueDateParts[0]}`
+                        : new Date().toISOString().slice(0, 10);
+
+                      const reference = "failed";
+                      const payload = {
+                        amount: totalToPay,
+                        currency: 'mxn',
+                        reference,
+                        paymentMethodId,
+                        loanInformation: {
+                          reference,
+                          disbursementDate: String(paymentLoan?.approved ?? new Date().toISOString().slice(0, 10)),
+                          installmentNumber: firstInstallmentNumber,
+                          installmentAmount: totalToPay,
+                          installmentDueDate: normalizedDueDate,
+                          totalAmount: Number(paymentLoan?.amount ?? 0),
+                          totalInstallments: Number(paymentLoan?.term ?? 0),
+                        },
+                      };
+
+                      const createResp = await fetch(`${BELVO_API_BASE}/belvo/loans/${loanId}/payment-request`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload),
+                      });
+                      const createData = await createResp.json().catch(() => null);
+
+                      if (!createResp.ok) {
+                        throw createData || new Error('No se pudo crear la solicitud de pago.');
+                      }
+
+                      const createdPaymentRequestId = String(createData?.payment_request_id ?? '').trim();
+                      if (!createdPaymentRequestId) {
+                        throw new Error('El backend no devolvio payment_request_id.');
+                      }
+
+                      await fetch(`${BELVO_API_BASE}/belvo/loans/${loanId}/payment-request/${createdPaymentRequestId}`).catch(() => null);
+
                       await loadLoans();
-                      navigate(`/payment-success?amount=${totalToPay}&folio=${folio}`);
+                      setPaymentLoan((prev: any) => {
+                        if (!prev) return prev;
+                        return {
+                          ...prev,
+                          raw: {
+                            ...(prev.raw || {}),
+                            metadata: {
+                              ...(prev.raw?.metadata || {}),
+                              payment_request_status: String(createData?.payment_request_status ?? 'initial').toLowerCase(),
+                              last_payment_request_id: createdPaymentRequestId,
+                              payment_request_status_updated_at: new Date().toISOString(),
+                            },
+                          },
+                        };
+                      });
+
+                      setIsProcessing(false);
+                      navigate(`/payment-success?amount=${totalToPay}&folio=${createdPaymentRequestId}`);
                     } catch (e) {
                       console.error('Payment processing error', e);
                       setIsProcessing(false);
-                      setPaymentDialogOpen(false);
                       navigate(`/payment-error?returnTo=/my-loans`);
                     }
                   }}

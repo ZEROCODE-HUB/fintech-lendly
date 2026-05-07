@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,15 +8,115 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Bell, Mail, MessageSquare, Settings, CreditCard, Link as LinkIcon } from "lucide-react";
+import { Settings, CreditCard, Link as LinkIcon, Mail, MonitorCheck, Wrench } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+
+type PlatformStatus = {
+  ok: boolean;
+  label: string;
+  detail: string;
+  checkedAt: string;
+};
+
+const statusStyles = {
+  online: {
+    dot: "bg-green-500",
+    card: "border-green-500/30 bg-green-500/5",
+    icon: "text-green-600",
+    label: "En línea",
+  },
+  warning: {
+    dot: "bg-yellow-500",
+    card: "border-yellow-500/30 bg-yellow-500/5",
+    icon: "text-yellow-600",
+    label: "En desarrollo",
+  },
+  offline: {
+    dot: "bg-red-500",
+    card: "border-red-500/30 bg-red-500/5",
+    icon: "text-red-600",
+    label: "Sin respuesta",
+  },
+} as const;
 
 const SystemConfig = () => {
   const { toast } = useToast();
-  const [emailNotifications, setEmailNotifications] = useState(true);
+  const [emailNotifications, setEmailNotifications] = useState(false);
   const [smsNotifications, setSmsNotifications] = useState(true);
   const [paymentReminders, setPaymentReminders] = useState(true);
   const [loanApprovals, setLoanApprovals] = useState(true);
+  const [belvoStatus, setBelvoStatus] = useState<PlatformStatus>({
+    ok: false,
+    label: "Verificando...",
+    detail: "Comprobando disponibilidad de Belvo",
+    checkedAt: "",
+  });
+  const [conektaStatus, setConektaStatus] = useState<PlatformStatus>({
+    ok: false,
+    label: "Verificando...",
+    detail: "Comprobando disponibilidad de Conekta",
+    checkedAt: "",
+  });
+  const [whiteLabelStatus] = useState<PlatformStatus>({
+    ok: false,
+    label: "En desarrollo",
+    detail: "Integración white label en implementación",
+    checkedAt: new Date().toISOString(),
+  });
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const checkPlatform = async (
+      url: string,
+      setStatus: (status: PlatformStatus) => void,
+      fallbackLabel: string,
+      fallbackDetail: string,
+    ) => {
+      const checkedAt = new Date().toISOString();
+
+      try {
+        const response = await fetch(url, { method: "GET", mode: "no-cors" });
+        if (cancelled) return;
+
+        if (response) {
+          setStatus({
+            ok: true,
+            label: "En línea",
+            detail: fallbackDetail,
+            checkedAt,
+          });
+          return;
+        }
+      } catch {
+        if (cancelled) return;
+      }
+
+      setStatus({
+        ok: false,
+        label: fallbackLabel,
+        detail: `No fue posible validar ${fallbackDetail.toLowerCase()}.`,
+        checkedAt,
+      });
+    };
+
+    checkPlatform(
+      "https://auth.sandbox.directdebit.belvo.com/",
+      setBelvoStatus,
+      "Sin respuesta",
+      "Belvo sandbox responde correctamente",
+    );
+    checkPlatform(
+      "https://www.conekta.com/glosario/api",
+      setConektaStatus,
+      "Sin respuesta",
+      "Conekta responde correctamente",
+    );
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleSaveNotifications = () => {
     toast({
@@ -28,15 +128,56 @@ const SystemConfig = () => {
   const handleSaveIntegrations = () => {
     toast({
       title: "Integraciones Actualizadas",
-      description: "La configuración de integraciones ha sido guardada exitosamente.",
+      description: "El estado de las plataformas ha sido actualizado exitosamente.",
     });
+  };
+
+  const renderStatusCard = (
+    title: string,
+    description: string,
+    status: PlatformStatus,
+    tone: keyof typeof statusStyles,
+    icon: React.ReactNode,
+  ) => {
+    const styles = tone === "online" ? statusStyles.online : tone === "warning" ? statusStyles.warning : statusStyles.offline;
+
+    return (
+      <Card className={`shadow-soft border ${styles.card}`}>
+        <CardHeader>
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className={`flex h-10 w-10 items-center justify-center rounded-full border ${styles.card}`}>
+                <span className={`h-3.5 w-3.5 rounded-full ${styles.dot}`} />
+              </div>
+              <div className="min-w-0">
+                <CardTitle className="flex items-center gap-2 text-base sm:text-lg truncate">
+                  <span className={styles.icon}>{icon}</span>
+                  {title}
+                </CardTitle>
+                <CardDescription className="text-xs sm:text-sm">{description}</CardDescription>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium">
+              <span className={`h-2.5 w-2.5 rounded-full ${styles.dot}`} />
+              {status.label}
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-2 text-sm">
+          <p className="text-muted-foreground">{status.detail}</p>
+          <p className="text-xs text-muted-foreground">
+            Última verificación: {status.checkedAt ? new Date(status.checkedAt).toLocaleString('es-MX') : 'Pendiente'}
+          </p>
+        </CardContent>
+      </Card>
+    );
   };
 
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full">
         <AppSidebar />
-        
+
         <main className="flex-1">
           <header className="h-16 border-b border-border bg-card flex items-center px-6 gap-4 fixed md:sticky top-0 z-10 w-full md:w-auto">
             <SidebarTrigger />
@@ -81,14 +222,14 @@ const SystemConfig = () => {
                         onCheckedChange={setEmailNotifications}
                       />
                     </div>
-
+                    {/* 
                     {emailNotifications && (
                       <>
                         <div className="space-y-2">
                           <Label htmlFor="email-from">Email Remitente</Label>
-                          <Input 
-                            id="email-from" 
-                            type="email" 
+                          <Input
+                            id="email-from"
+                            type="email"
                             placeholder="noreply@increscendo.com"
                             defaultValue="noreply@increscendo.com"
                           />
@@ -96,7 +237,7 @@ const SystemConfig = () => {
 
                         <div className="space-y-2">
                           <Label htmlFor="email-template-approval">Plantilla: Aprobación de Préstamo</Label>
-                          <Textarea 
+                          <Textarea
                             id="email-template-approval"
                             placeholder="Estimado {nombre}, su préstamo ha sido aprobado..."
                             rows={4}
@@ -106,7 +247,7 @@ const SystemConfig = () => {
 
                         <div className="space-y-2">
                           <Label htmlFor="email-template-payment">Plantilla: Recordatorio de Pago</Label>
-                          <Textarea 
+                          <Textarea
                             id="email-template-payment"
                             placeholder="Estimado {nombre}, le recordamos que su pago vence el..."
                             rows={4}
@@ -114,124 +255,10 @@ const SystemConfig = () => {
                           />
                         </div>
                       </>
-                    )}
+                    )} */}
                   </CardContent>
                 </Card>
 
-                {/* SMS Notifications */}
-                <Card className="shadow-soft">
-                  <CardHeader>
-                    <div className="flex items-center gap-3">
-                      <MessageSquare className="h-5 w-5 text-primary" />
-                      <div>
-                        <CardTitle>Notificaciones por SMS</CardTitle>
-                        <CardDescription>
-                          Configura alertas automáticas por mensaje de texto
-                        </CardDescription>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-0.5">
-                        <Label htmlFor="sms-enabled">Habilitar SMS</Label>
-                        <p className="text-sm text-muted-foreground">
-                          Enviar notificaciones por mensaje de texto
-                        </p>
-                      </div>
-                      <Switch
-                        id="sms-enabled"
-                        checked={smsNotifications}
-                        onCheckedChange={setSmsNotifications}
-                      />
-                    </div>
-
-                    {smsNotifications && (
-                      <>
-                        <div className="space-y-2">
-                          <Label htmlFor="sms-sender">ID del Remitente</Label>
-                          <Input 
-                            id="sms-sender" 
-                            placeholder="INCRESCEN"
-                            defaultValue="INCRESCEN"
-                          />
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label htmlFor="sms-template">Plantilla de SMS</Label>
-                          <Textarea 
-                            id="sms-template"
-                            placeholder="INCRESCENDO: Tu pago de ${monto} vence el {fecha}..."
-                            rows={3}
-                            defaultValue="INCRESCENDO: Tu pago de ${monto} vence el {fecha}. Paga a tiempo para evitar cargos adicionales."
-                          />
-                          <p className="text-xs text-muted-foreground">
-                            Máximo 160 caracteres
-                          </p>
-                        </div>
-                      </>
-                    )}
-                  </CardContent>
-                </Card>
-
-                {/* Automated Alerts */}
-                <Card className="shadow-soft">
-                  <CardHeader>
-                    <div className="flex items-center gap-3">
-                      <Bell className="h-5 w-5 text-primary" />
-                      <div>
-                        <CardTitle>Alertas Automáticas</CardTitle>
-                        <CardDescription>
-                          Configura cuándo enviar notificaciones automáticas
-                        </CardDescription>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-0.5">
-                        <Label htmlFor="payment-reminders">Recordatorios de Pago</Label>
-                        <p className="text-sm text-muted-foreground">
-                          Enviar antes de la fecha de vencimiento
-                        </p>
-                      </div>
-                      <Switch
-                        id="payment-reminders"
-                        checked={paymentReminders}
-                        onCheckedChange={setPaymentReminders}
-                      />
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-0.5">
-                        <Label htmlFor="loan-approvals">Aprobaciones de Préstamo</Label>
-                        <p className="text-sm text-muted-foreground">
-                          Notificar cuando un préstamo es aprobado
-                        </p>
-                      </div>
-                      <Switch
-                        id="loan-approvals"
-                        checked={loanApprovals}
-                        onCheckedChange={setLoanApprovals}
-                      />
-                    </div>
-
-                    {paymentReminders && (
-                      <div className="space-y-2 pl-6 border-l-2">
-                        <Label htmlFor="reminder-days">Días de Anticipación</Label>
-                        <Input 
-                          id="reminder-days" 
-                          type="number" 
-                          placeholder="3"
-                          defaultValue="3"
-                        />
-                        <p className="text-xs text-muted-foreground">
-                          Días antes del vencimiento para enviar recordatorio
-                        </p>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
 
                 <div className="flex justify-end">
                   <Button onClick={handleSaveNotifications}>
@@ -243,108 +270,57 @@ const SystemConfig = () => {
 
               {/* Integrations Tab */}
               <TabsContent value="integrations" className="mt-6 space-y-6">
-                {/* Velvo Integration */}
-                <Card className="shadow-soft">
-                  <CardHeader>
-                    <div className="flex items-center gap-3">
-                      <LinkIcon className="h-5 w-5 text-primary" />
-                      <div>
-                        <CardTitle>API Velvo</CardTitle>
-                        <CardDescription>
-                          Configuración de validación bancaria
-                        </CardDescription>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="velvo-api-key">API Key</Label>
-                      <Input 
-                        id="velvo-api-key" 
-                        type="password" 
-                        placeholder="••••••••••••••••"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="velvo-endpoint">Endpoint</Label>
-                      <Input 
-                        id="velvo-endpoint" 
-                        placeholder="https://api.velvo.com/v1"
-                        defaultValue="https://api.velvo.com/v1"
-                      />
-                    </div>
-                  </CardContent>
-                </Card>
+                {renderStatusCard(
+                  "Belvo",
+                  "Monitoreo de disponibilidad del sandbox de instituciones.",
+                  belvoStatus,
+                  belvoStatus.ok ? "online" : "offline",
+                  <MonitorCheck className="h-5 w-5" />,
+                )}
 
-                {/* Payment Gateway */}
-                <Card className="shadow-soft">
-                  <CardHeader>
-                    <div className="flex items-center gap-3">
-                      <CreditCard className="h-5 w-5 text-primary" />
-                      <div>
-                        <CardTitle>Pasarela de Pagos</CardTitle>
-                        <CardDescription>
-                          Configuración de Stripe/STP
-                        </CardDescription>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="stripe-key">Stripe API Key</Label>
-                      <Input 
-                        id="stripe-key" 
-                        type="password" 
-                        placeholder="••••••••••••••••"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="stp-key">STP API Key</Label>
-                      <Input 
-                        id="stp-key" 
-                        type="password" 
-                        placeholder="••••••••••••••••"
-                      />
-                    </div>
-                  </CardContent>
-                </Card>
+                {renderStatusCard(
+                  "Conekta",
+                  "Pasarela de pago y documentación de la API.",
+                  conektaStatus,
+                  conektaStatus.ok ? "online" : "offline",
+                  <CreditCard className="h-5 w-5" />,
+                )}
 
-                {/* White Label Integration */}
-                <Card className="shadow-soft">
+                <Card className={`shadow-soft border ${statusStyles.warning.card}`}>
                   <CardHeader>
-                    <div className="flex items-center gap-3">
-                      <LinkIcon className="h-5 w-5 text-primary" />
-                      <div>
-                        <CardTitle>Integración White Label</CardTitle>
-                        <CardDescription>
-                          Servicios de pago y recargas
-                        </CardDescription>
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className={`flex h-10 w-10 items-center justify-center rounded-full border ${statusStyles.warning.card}`}>
+                          <span className={`h-3.5 w-3.5 rounded-full ${statusStyles.warning.dot}`} />
+                        </div>
+                        <div className="min-w-0">
+                          <CardTitle className="flex items-center gap-2 text-base sm:text-lg truncate">
+                            <span className={statusStyles.warning.icon}><Wrench className="h-5 w-5" /></span>
+                            Integración White Label
+                          </CardTitle>
+                          <CardDescription className="text-xs sm:text-sm">
+                            Servicios de pago y recargas en desarrollo
+                          </CardDescription>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium">
+                        <span className={`h-2.5 w-2.5 rounded-full ${statusStyles.warning.dot}`} />
+                        {statusStyles.warning.label}
                       </div>
                     </div>
                   </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="whitelabel-url">URL de Integración</Label>
-                      <Input 
-                        id="whitelabel-url" 
-                        placeholder="https://services.provider.com"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="whitelabel-token">Token de Acceso</Label>
-                      <Input 
-                        id="whitelabel-token" 
-                        type="password" 
-                        placeholder="••••••••••••••••"
-                      />
-                    </div>
+                  <CardContent className="space-y-2 text-sm">
+                    <p className="text-muted-foreground">Esta integración todavía está en implementación.</p>
+                    <p className="text-xs text-muted-foreground">
+                      URL de referencia: https://www.conekta.com/glosario/api
+                    </p>
                   </CardContent>
                 </Card>
 
                 <div className="flex justify-end">
                   <Button onClick={handleSaveIntegrations}>
                     <Settings className="h-4 w-4 mr-2" />
-                    Guardar Integraciones
+                    Guardar Monitoreo
                   </Button>
                 </div>
               </TabsContent>

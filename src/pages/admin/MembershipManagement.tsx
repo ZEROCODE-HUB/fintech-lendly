@@ -283,7 +283,7 @@ const MembershipManagement = () => {
     <SidebarProvider>
       <div className="min-h-screen flex w-full">
         <AppSidebar />
-        
+
         <main className="flex-1">
           <header className="h-16 border-b border-border bg-card flex items-center px-6 gap-4 fixed md:sticky top-0 z-10 w-full md:w-auto">
             <SidebarTrigger />
@@ -302,7 +302,7 @@ const MembershipManagement = () => {
                 </div>
                 <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
                   <DialogTrigger asChild>
-                    <Button 
+                    <Button
                       onClick={handleCreateOpen}
                       className="bg-white text-primary hover:bg-white/90 shadow-lg"
                     >
@@ -316,8 +316,8 @@ const MembershipManagement = () => {
                         {editingMembership ? 'Editar Membresía' : 'Nueva Membresía'}
                       </DialogTitle>
                       <DialogDescription className="text-xs sm:text-sm">
-                        {editingMembership 
-                          ? 'Modifica los detalles de la membresía' 
+                        {editingMembership
+                          ? 'Modifica los detalles de la membresía'
                           : 'Completa los datos para crear una nueva membresía'}
                       </DialogDescription>
                     </DialogHeader>
@@ -327,7 +327,7 @@ const MembershipManagement = () => {
                         <Input
                           id="title"
                           value={formData.title}
-                          onChange={(e) => setFormData({...formData, title: e.target.value})}
+                          onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                           placeholder="Ej: Membresía Premium"
                           className="text-sm"
                         />
@@ -339,7 +339,7 @@ const MembershipManagement = () => {
                             id="cost"
                             type="number"
                             value={formData.cost}
-                            onChange={(e) => setFormData({...formData, cost: e.target.value})}
+                            onChange={(e) => setFormData({ ...formData, cost: e.target.value })}
                             placeholder="100"
                             className="text-sm"
                           />
@@ -350,7 +350,7 @@ const MembershipManagement = () => {
                             id="interestRate"
                             type="number"
                             value={formData.interestRate}
-                            onChange={(e) => setFormData({...formData, interestRate: e.target.value})}
+                            onChange={(e) => setFormData({ ...formData, interestRate: e.target.value })}
                             placeholder="42"
                             className="text-sm"
                           />
@@ -388,7 +388,7 @@ const MembershipManagement = () => {
                         <Input
                           id="targetAudience"
                           value={formData.targetAudience}
-                          onChange={(e) => setFormData({...formData, targetAudience: e.target.value})}
+                          onChange={(e) => setFormData({ ...formData, targetAudience: e.target.value })}
                           placeholder="Ej: Persona Natural"
                           className="text-sm"
                         />
@@ -398,7 +398,7 @@ const MembershipManagement = () => {
                         <Textarea
                           id="benefits"
                           value={formData.benefits}
-                          onChange={(e) => setFormData({...formData, benefits: e.target.value})}
+                          onChange={(e) => setFormData({ ...formData, benefits: e.target.value })}
                           placeholder="Ej: Descuentos, Promociones, Atención preferencial"
                           rows={3}
                           className="text-sm"
@@ -511,8 +511,8 @@ const MembershipManagement = () => {
 
                       {/* Actions */}
                       <div className="flex gap-2 pt-3 border-t">
-                        <Button 
-                          variant="outline" 
+                        <Button
+                          variant="outline"
                           className="flex-1"
                           onClick={() => handleEditOpen(membership)}
                         >

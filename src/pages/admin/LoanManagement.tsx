@@ -32,8 +32,9 @@ const defaultPendingColumns: ColumnConfig[] = [
   { key: 'amount', label: 'Monto', visible: true },
   { key: 'installments', label: 'Cuotas', visible: true },
   { key: 'membership', label: 'Membresía', visible: true },
-  { key: 'accountVerification', label: 'Verificación cuenta', visible: true },
+  // { key: 'accountVerification', label: 'Verificación cuenta', visible: false },
   { key: 'ine', label: 'INE', visible: true },
+  { key: 'consent', label: 'Consentimiento', visible: true },
   { key: 'curp', label: 'CURP', visible: true },
   { key: 'preApproval', label: 'Pre-Aprob.', visible: true },
   { key: 'actions', label: 'Acciones', visible: true },
@@ -48,6 +49,7 @@ const defaultContractColumns: ColumnConfig[] = [
   { key: 'installments', label: 'Cuotas', visible: true },
   { key: 'membership', label: 'Membresía', visible: true },
   { key: 'ine', label: 'INE', visible: true },
+  { key: 'consent', label: 'Consentimiento', visible: true },
   { key: 'curp', label: 'CURP', visible: true },
   { key: 'preApproval', label: 'Pre-Aprob.', visible: true },
   { key: 'signatureStatus', label: 'Estado Firma', visible: true },
@@ -64,6 +66,7 @@ const defaultDisbursementColumns: ColumnConfig[] = [
   { key: 'installments', label: 'Cuotas', visible: true },
   { key: 'bank', label: 'Banco', visible: true },
   { key: 'accountNumber', label: 'Cta/CLABE', visible: true },
+  { key: 'consent', label: 'Consentimiento', visible: true },
   { key: 'ine', label: 'INE', visible: true },
   { key: 'curp', label: 'CURP', visible: true },
   { key: 'contractStatus', label: 'Est. Contrato', visible: true },
@@ -80,6 +83,7 @@ const defaultActiveColumns: ColumnConfig[] = [
   { key: 'installments', label: 'Cuotas', visible: true },
   { key: 'paidInstallments', label: 'Cuot. Pagadas', visible: true },
   { key: 'ine', label: 'INE', visible: true },
+  { key: 'consent', label: 'Consentimiento', visible: true },
   { key: 'lastPaymentDate', label: 'F. Últ. Pago', visible: true },
   { key: 'status', label: 'Estado', visible: true },
   { key: 'actions', label: 'Acciones', visible: true },
@@ -94,6 +98,7 @@ const defaultOverdueColumns: ColumnConfig[] = [
   { key: 'installments', label: 'Cuotas', visible: true },
   { key: 'paidInstallments', label: 'Cuot. Pagadas', visible: true },
   { key: 'ine', label: 'INE', visible: true },
+  { key: 'consent', label: 'Consentimiento', visible: true },
   { key: 'lastPaymentDate', label: 'F. Últ. Pago', visible: true },
   { key: 'status', label: 'Estado', visible: true },
   { key: 'actions', label: 'Acciones', visible: true },
@@ -108,6 +113,7 @@ const defaultHistoryColumns: ColumnConfig[] = [
   { key: 'installments', label: 'Cuotas', visible: true },
   { key: 'paidInstallments', label: 'Cuot. Pagadas', visible: true },
   { key: 'ine', label: 'INE', visible: true },
+  { key: 'consent', label: 'Consentimiento', visible: true },
   { key: 'lastPaymentDate', label: 'F. Últ. Pago', visible: true },
   { key: 'status', label: 'Estado', visible: true },
 ];
@@ -323,7 +329,7 @@ const LoanManagement = () => {
     const term = Number(l.installments ?? l.metadata?.installments ?? 12);
     const installmentAmount = term > 0 ? Math.round(amt / term) : amt;
     const paidInstallments = installmentAmount > 0 ? Math.floor(paidAmount / installmentAmount) : 0;
-    const lastPaymentDate = l.metadata?.last_payment_date ? (new Date(l.metadata.last_payment_date)).toISOString().slice(0,10) : '';
+    const lastPaymentDate = l.metadata?.last_payment_date ? (new Date(l.metadata.last_payment_date)).toISOString().slice(0, 10) : '';
 
     let friendlyStatus = '';
     if (l.status === 'closed') friendlyStatus = 'Liquidado';
@@ -339,7 +345,7 @@ const LoanManagement = () => {
     const approvedDateForNext = l.approved_at ? new Date(l.approved_at) : (l.applied_at ? new Date(l.applied_at) : (l.created_at ? new Date(l.created_at) : null));
     let nextPaymentDate = '';
     if (l.metadata?.next_payment_date) {
-      try { nextPaymentDate = new Date(l.metadata.next_payment_date).toISOString().slice(0,10); } catch { nextPaymentDate = ''; }
+      try { nextPaymentDate = new Date(l.metadata.next_payment_date).toISOString().slice(0, 10); } catch { nextPaymentDate = ''; }
     } else if (approvedDateForNext) {
       const termCount = Number(l.installments ?? l.metadata?.installments ?? 12);
       const amtVal = Number(l.amount ?? 0);
@@ -349,12 +355,12 @@ const LoanManagement = () => {
       const nextInst = paidInst + 1;
       const d = new Date(approvedDateForNext);
       d.setMonth(d.getMonth() + nextInst);
-      nextPaymentDate = d.toISOString().slice(0,10);
+      nextPaymentDate = d.toISOString().slice(0, 10);
     }
 
-    const now = new Date();
+    const today = new Date().toISOString().slice(0, 10);
     const totalAmount = Number(l.amount ?? 0);
-    const overdueFlag = (l.status === 'active') && nextPaymentDate && (new Date(nextPaymentDate) < now) && (paidAmount < totalAmount);
+    const overdueFlag = (l.status === 'active') && !!nextPaymentDate && (nextPaymentDate < today) && (paidAmount < totalAmount);
 
     return {
       id: l.loan_number ?? l.id,
@@ -363,7 +369,7 @@ const LoanManagement = () => {
       email: user.email ?? '',
       firstName: user.first_name ?? '',
       lastName: user.last_name ?? '',
-      requestDate: l.applied_at ? new Date(l.applied_at).toISOString().slice(0,10) : (l.created_at ? new Date(l.created_at).toISOString().slice(0,10) : ''),
+      requestDate: l.applied_at ? new Date(l.applied_at).toISOString().slice(0, 10) : (l.created_at ? new Date(l.created_at).toISOString().slice(0, 10) : ''),
       amount: l.amount,
       installments: l.installments,
       paidInstallments,
@@ -480,7 +486,7 @@ const LoanManagement = () => {
       const to = from + pageSize - 1;
       const { data, error, count } = await supabase
         .from('loans')
-        .select('id, loan_number, amount, installments, monthly_payment, interest_rate, total_to_pay, status, applied_at, created_at, approved_at, signed_at, disbursed_at, metadata, user_id, users(first_name,last_name,ine_key,curp,phone,email,user_memberships(membership_plans(name))), loan_signatures(*), loan_disbursements(*)', { count: 'exact' })
+        .select('id, loan_number, amount, installments, monthly_payment, interest_rate, total_to_pay, status, status_consent, applied_at, created_at, approved_at, signed_at, disbursed_at, metadata, user_id, users(first_name,last_name,ine_key,curp,phone,email,user_memberships(membership_plans(name))), loan_signatures(*), loan_disbursements(*)', { count: 'exact' })
         .in('status', ['pending', 'under_review', 'cancelled'])
         .order('created_at', { ascending: false })
         .range(from, to);
@@ -503,7 +509,7 @@ const LoanManagement = () => {
       const to = from + pageSize - 1;
       const { data, error, count } = await supabase
         .from('loans')
-        .select('id, loan_number, amount, installments, monthly_payment, interest_rate, total_to_pay, status, applied_at, created_at, approved_at, signed_at, disbursed_at, metadata, user_id, users(first_name,last_name,ine_key,curp,phone,email,user_memberships(membership_plans(name))), loan_signatures(*), loan_disbursements(*)', { count: 'exact' })
+        .select('id, loan_number, amount, installments, monthly_payment, interest_rate, total_to_pay, status, status_consent, applied_at, created_at, approved_at, signed_at, disbursed_at, metadata, user_id, users(first_name,last_name,ine_key,curp,phone,email,user_memberships(membership_plans(name))), loan_signatures(*), loan_disbursements(*)', { count: 'exact' })
         .in('status', ['approved', 'signed'])
         .order('created_at', { ascending: false })
         .range(from, to);
@@ -526,7 +532,7 @@ const LoanManagement = () => {
       const to = from + pageSize - 1;
       const { data, error, count } = await supabase
         .from('loans')
-        .select('id, loan_number, amount, installments, monthly_payment, interest_rate, total_to_pay, status, applied_at, created_at, approved_at, signed_at, disbursed_at, metadata, user_id, users(first_name,last_name,ine_key,curp,phone,email,user_memberships(membership_plans(name))), loan_signatures(*), loan_disbursements(*)', { count: 'exact' })
+        .select('id, loan_number, amount, installments, monthly_payment, interest_rate, total_to_pay, status, status_consent, applied_at, created_at, approved_at, signed_at, disbursed_at, metadata, user_id, users(first_name,last_name,ine_key,curp,phone,email,user_memberships(membership_plans(name))), loan_signatures(*), loan_disbursements(*)', { count: 'exact' })
         .in('status', ['signed', 'disbursed'])
         .order('created_at', { ascending: false })
         .range(from, to);
@@ -549,14 +555,14 @@ const LoanManagement = () => {
       const to = from + pageSize - 1;
       const { data, error, count } = await supabase
         .from('loans')
-        .select('id, loan_number, amount, installments, monthly_payment, interest_rate, total_to_pay, status, applied_at, created_at, approved_at, signed_at, disbursed_at, metadata, user_id, users(first_name,last_name,ine_key,curp,phone,email,user_memberships(membership_plans(name))), loan_signatures(*), loan_disbursements(*)', { count: 'exact' })
+        .select('id, loan_number, amount, installments, monthly_payment, interest_rate, total_to_pay, status, status_consent, applied_at, created_at, approved_at, signed_at, disbursed_at, metadata, user_id, users(first_name,last_name,ine_key,curp,phone,email,user_memberships(membership_plans(name))), loan_signatures(*), loan_disbursements(*)', { count: 'exact' })
         .eq('status', 'active')
         .order('created_at', { ascending: false })
         .range(from, to);
 
       if (error) throw error;
       const mapped = (data || []).map(mapLoan);
-      setActiveLoansData(mapped.filter(m => !m.overdue));
+      setActiveLoansData(mapped);
       setActiveTotal(count || mapped.length);
       setActivePage(page);
     } catch (err) {
@@ -568,20 +574,18 @@ const LoanManagement = () => {
   const loadOverdue = async (page = 1) => {
     setOverdueLoading(true);
     try {
-      // fetch active loans and filter overdue client-side (metadata-driven)
-      const from = (page - 1) * pageSize;
-      const to = from + pageSize - 1;
       const { data, error } = await supabase
         .from('loans')
-        .select('id, loan_number, amount, installments, monthly_payment, interest_rate, total_to_pay, status, applied_at, created_at, approved_at, signed_at, disbursed_at, metadata, user_id, users(first_name,last_name,ine_key,curp,phone,email,user_memberships(membership_plans(name))), loan_signatures(*), loan_disbursements(*)')
+        .select('id, loan_number, amount, installments, monthly_payment, interest_rate, total_to_pay, status, status_consent, applied_at, created_at, approved_at, signed_at, disbursed_at, metadata, user_id, users(first_name,last_name,ine_key,curp,phone,email,user_memberships(membership_plans(name))), loan_signatures(*), loan_disbursements(*)')
         .eq('status', 'active')
-        .order('created_at', { ascending: false })
-        .range(from, to);
+        .order('created_at', { ascending: false });
 
       if (error) throw error;
       const mapped = (data || []).map(mapLoan);
       const filtered = mapped.filter(m => m.overdue);
-      setOverdueLoansData(filtered);
+      const from = (page - 1) * pageSize;
+      const paginated = filtered.slice(from, from + pageSize);
+      setOverdueLoansData(paginated);
       setOverdueTotal(filtered.length);
       setOverduePage(page);
     } catch (err) {
@@ -597,7 +601,7 @@ const LoanManagement = () => {
       const to = from + pageSize - 1;
       const { data, error, count } = await supabase
         .from('loans')
-        .select('id, loan_number, amount, installments, monthly_payment, interest_rate, total_to_pay, status, applied_at, created_at, approved_at, signed_at, disbursed_at, metadata, user_id, users(first_name,last_name,ine_key,curp,phone,email,user_memberships(membership_plans(name))), loan_signatures(*), loan_disbursements(*)', { count: 'exact' })
+        .select('id, loan_number, amount, installments, monthly_payment, interest_rate, total_to_pay, status, status_consent, applied_at, created_at, approved_at, signed_at, disbursed_at, metadata, user_id, users(first_name,last_name,ine_key,curp,phone,email,user_memberships(membership_plans(name))), loan_signatures(*), loan_disbursements(*)', { count: 'exact' })
         .in('status', ['closed', 'cancelled'])
         .order('created_at', { ascending: false })
         .range(from, to);
@@ -667,11 +671,24 @@ const LoanManagement = () => {
     const loan = approveDialog.loan;
     if (!loan) return;
     const loadingToast = toast({ title: 'Cargando...', description: 'Aprobando solicitud.' });
+    const loanId = loan.uuid ?? loan.raw?.id ?? loan.id;
     try {
+      if (loanId) {
+        const consentsResp = await fetch('https://increscendo-api.vercel.app/belvo/consents', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ loan_id: loanId }),
+        });
+        const consentsData = await consentsResp.json().catch(() => null);
+        if (!consentsResp.ok) {
+          throw consentsData || new Error('Belvo consents error');
+        }
+      }
+
       const { error } = await supabase
         .from('loans')
         .update({ status: 'approved', approved_at: new Date().toISOString() })
-        .eq('id', loan.uuid ?? loan.raw?.id);
+        .eq('id', loanId);
 
       if (error) throw error;
 
@@ -691,6 +708,7 @@ const LoanManagement = () => {
           console.warn('[admin] failed to insert notification', e);
         }
       }
+
       if (loan.email) {
         try {
           const optionalPdfBase64 = generateLoanSchedulePdfBase64(loan);
@@ -709,14 +727,14 @@ const LoanManagement = () => {
           try {
             const updates: any = { metadata: Object.assign({}, loan.raw?.metadata || {}, { signnow_invite: data }) };
             if (data?.docId) updates.id_document = data.docId;
-            await supabase.from('loans').update(updates).eq('id', loan.uuid ?? loan.raw?.id);
+            await supabase.from('loans').update(updates).eq('id', loanId);
           } catch (e) {
             console.error('[admin] failed to save signnow_invite metadata', e);
           }
           toast({ title: 'Contrato enviado', description: 'Se envió la invitación de firma por correo.' });
         } catch (e) {
-          console.error('[admin] signnow invite error', e);
-          toast({ title: 'Error', description: 'No se pudo enviar la invitación de firma.', variant: 'destructive' });
+          console.warn('[admin] signnow invite error', e);
+          toast({ title: 'Aviso', description: 'La solicitud se aprobó, pero no se pudo enviar la invitación de firma.' });
         }
       }
       loadingToast.update({ id: loadingToast.id, title: 'Aprobado', description: `La solicitud ${loan.id} pasó a estado Aprobado (firma pendiente).` });
@@ -841,6 +859,27 @@ const LoanManagement = () => {
     }
   };
 
+  const getConsentBadge = (rawStatus?: string) => {
+    const status = (rawStatus || '').toString();
+    const key = status.toLowerCase();
+    switch (key) {
+      case 'pending_consent':
+      case 'pending-consent':
+      case 'pendingconsent':
+        return <Badge className="bg-warning/20 text-warning border-warning whitespace-nowrap">Pendiente</Badge>;
+      case 'consent_files_uploaded':
+      case 'consent-files-uploaded':
+      case 'files_uploaded':
+        return <Badge className="bg-info/20 text-info border-info whitespace-nowrap">Enviado</Badge>;
+      case 'verified':
+      case 'confirmed':
+      case 'verified_consent':
+        return <Badge className="bg-success/20 text-success border-success whitespace-nowrap">Verificado</Badge>;
+      default:
+        return <Badge variant="outline" className="whitespace-nowrap">{status || '—'}</Badge>;
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'Al día': return <Badge className="bg-success/20 text-success border-success whitespace-nowrap">{status}</Badge>;
@@ -853,14 +892,14 @@ const LoanManagement = () => {
     }
   };
 
-  const isColumnVisible = (columns: ColumnConfig[], key: string) => 
+  const isColumnVisible = (columns: ColumnConfig[], key: string) =>
     columns.find(c => c.key === key)?.visible ?? true;
 
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full">
         <AppSidebar />
-        
+
         <main className="flex-1 overflow-x-hidden">
           <header className="border-b border-border bg-card fixed md:sticky top-0 z-10 w-full md:w-auto">
             <div className="flex items-center h-14 sm:h-16 px-4 sm:px-6 gap-3">
@@ -924,8 +963,9 @@ const LoanManagement = () => {
                             {isColumnVisible(pendingColumns, 'amount') && <TableHead>Monto</TableHead>}
                             {isColumnVisible(pendingColumns, 'installments') && <TableHead>Cuotas</TableHead>}
                             {isColumnVisible(pendingColumns, 'membership') && <TableHead>Membresía</TableHead>}
-                            {isColumnVisible(pendingColumns, 'accountVerification') && <TableHead>Verificación cuenta</TableHead>}
+                            {/* {isColumnVisible(pendingColumns, 'accountVerification') && <TableHead>Verificación cuenta</TableHead>} */}
                             {isColumnVisible(pendingColumns, 'ine') && <TableHead>INE</TableHead>}
+                            {isColumnVisible(pendingColumns, 'consent') && <TableHead>Consentimiento</TableHead>}
                             {isColumnVisible(pendingColumns, 'curp') && <TableHead>CURP</TableHead>}
                             {isColumnVisible(pendingColumns, 'preApproval') && <TableHead>Pre-Aprob.</TableHead>}
                             {isColumnVisible(pendingColumns, 'actions') && <TableHead>Acciones</TableHead>}
@@ -933,20 +973,20 @@ const LoanManagement = () => {
                         </TableHeader>
                         <TableBody>
                           {pendingLoading ? renderSkeletonRows(pendingColumns) : (
-                          pendingLoansData.filter(l => 
-                            l.firstName.toLowerCase().includes(pendingSearch.toLowerCase()) ||
-                            l.lastName.toLowerCase().includes(pendingSearch.toLowerCase()) ||
-                            String(l.id).toLowerCase().includes(pendingSearch.toLowerCase())
-                          ).map((loan) => (
-                            <TableRow key={loan.id}>
-                              {isColumnVisible(pendingColumns, 'id') && <TableCell className="font-medium whitespace-nowrap">{loan.id}</TableCell>}
-                              {isColumnVisible(pendingColumns, 'firstName') && <TableCell>{loan.firstName}</TableCell>}
-                              {isColumnVisible(pendingColumns, 'lastName') && <TableCell>{loan.lastName}</TableCell>}
-                              {isColumnVisible(pendingColumns, 'requestDate') && <TableCell>{loan.requestDate}</TableCell>}
-                              {isColumnVisible(pendingColumns, 'amount') && <TableCell className="font-semibold">${loan.amount.toLocaleString()}</TableCell>}
-                              {isColumnVisible(pendingColumns, 'installments') && <TableCell>{loan.installments}</TableCell>}
-                              {isColumnVisible(pendingColumns, 'membership') && <TableCell>{loan.membership}</TableCell>}
-                              {isColumnVisible(pendingColumns, 'accountVerification') && (
+                            pendingLoansData.filter(l =>
+                              l.firstName.toLowerCase().includes(pendingSearch.toLowerCase()) ||
+                              l.lastName.toLowerCase().includes(pendingSearch.toLowerCase()) ||
+                              String(l.id).toLowerCase().includes(pendingSearch.toLowerCase())
+                            ).map((loan) => (
+                              <TableRow key={loan.id}>
+                                {isColumnVisible(pendingColumns, 'id') && <TableCell className="font-medium whitespace-nowrap">{loan.id}</TableCell>}
+                                {isColumnVisible(pendingColumns, 'firstName') && <TableCell>{loan.firstName}</TableCell>}
+                                {isColumnVisible(pendingColumns, 'lastName') && <TableCell>{loan.lastName}</TableCell>}
+                                {isColumnVisible(pendingColumns, 'requestDate') && <TableCell>{loan.requestDate}</TableCell>}
+                                {isColumnVisible(pendingColumns, 'amount') && <TableCell className="font-semibold">${loan.amount.toLocaleString()}</TableCell>}
+                                {isColumnVisible(pendingColumns, 'installments') && <TableCell>{loan.installments}</TableCell>}
+                                {isColumnVisible(pendingColumns, 'membership') && <TableCell>{loan.membership}</TableCell>}
+                                {/* {isColumnVisible(pendingColumns, 'accountVerification') && (
                                 <TableCell>
                                   {loan.isAccountVerified ? (
                                     <CheckCircle2 className="h-5 w-5 text-emerald-500" />
@@ -954,55 +994,61 @@ const LoanManagement = () => {
                                     <XCircle className="h-5 w-5 text-red-500" />
                                   )}
                                 </TableCell>
-                              )}
-                              {isColumnVisible(pendingColumns, 'ine') && (
-                                <TableCell>
-                                  <Button variant="link" size="sm" className="p-0 h-auto" onClick={() => setIneCurpModal({ open: true, loan, type: 'ine' })}>
-                                    {loan.ineNumber.slice(0, 10)}...
-                                  </Button>
-                                </TableCell>
-                              )}
-                              {isColumnVisible(pendingColumns, 'curp') && (
-                                <TableCell>
-                                  <Button variant="link" size="sm" className="p-0 h-auto" onClick={() => setIneCurpModal({ open: true, loan, type: 'curp' })}>
-                                    {loan.curpNumber.slice(0, 10)}...
-                                  </Button>
-                                </TableCell>
-                              )}
-                            {isColumnVisible(pendingColumns, 'preApproval') && (
-                              <TableCell>
-                                {loan?.raw?.status === 'cancelled' || loan?.status === 'Rechazado' ? (
-                                  getStatusBadge('Rechazado')
-                                ) : (
-                                  <Badge variant="outline" className="bg-warning/10 text-warning border-warning whitespace-nowrap">{loan.preApproval}</Badge>
+                              )} */}
+                                {isColumnVisible(pendingColumns, 'ine') && (
+                                  <TableCell>
+                                    <Button variant="link" size="sm" className="p-0 h-auto" onClick={() => setIneCurpModal({ open: true, loan, type: 'ine' })}>
+                                      {loan.ineNumber.slice(0, 10)}...
+                                    </Button>
+                                  </TableCell>
                                 )}
-                              </TableCell>
-                            )}
-                              {isColumnVisible(pendingColumns, 'actions') && (
-                                <TableCell>
-                                  <div className="flex gap-1">
-                                    <Button size="sm" variant="ghost" onClick={() => setDetailsModal({ open: true, loan })} title="Ver detalles">
-                                      <Eye className="h-4 w-4" />
+                                {isColumnVisible(pendingColumns, 'consent') && (
+                                  <TableCell>
+                                    {getConsentBadge(loan.status_consent || loan.raw?.status_consent || loan.statusConsent)}
+
+                                  </TableCell>
+                                )}
+                                {isColumnVisible(pendingColumns, 'curp') && (
+                                  <TableCell>
+                                    <Button variant="link" size="sm" className="p-0 h-auto" onClick={() => setIneCurpModal({ open: true, loan, type: 'curp' })}>
+                                      {loan.curpNumber.slice(0, 10)}...
                                     </Button>
-                                    <Button size="sm" variant="ghost" onClick={() => setModifyModal({ open: true, loan })} title="Modificar">
-                                      <Edit className="h-4 w-4" />
-                                    </Button>
-                                    <Button size="sm" variant="ghost" className="text-success hover:text-success" onClick={() => setApproveDialog({ open: true, loan })} title="Aprobar">
-                                      <CheckCircle className="h-4 w-4" />
-                                    </Button>
-                                    <Button size="sm" variant="ghost" className="text-danger hover:text-danger" onClick={() => setRejectDialog({ open: true, loan })} title="Rechazar">
-                                      <XCircle className="h-4 w-4" />
-                                    </Button>
-                                  </div>
-                                </TableCell>
-                              )}
-                            </TableRow>
-                          )) )}
+                                  </TableCell>
+                                )}
+                                {isColumnVisible(pendingColumns, 'preApproval') && (
+                                  <TableCell>
+                                    {loan?.raw?.status === 'cancelled' || loan?.status === 'Rechazado' ? (
+                                      getStatusBadge('Rechazado')
+                                    ) : (
+                                      <Badge variant="outline" className="bg-warning/10 text-warning border-warning whitespace-nowrap">{loan.preApproval}</Badge>
+                                    )}
+                                  </TableCell>
+                                )}
+                                {isColumnVisible(pendingColumns, 'actions') && (
+                                  <TableCell>
+                                    <div className="flex gap-1">
+                                      <Button size="sm" variant="ghost" onClick={() => setDetailsModal({ open: true, loan })} title="Ver detalles">
+                                        <Eye className="h-4 w-4" />
+                                      </Button>
+                                      <Button size="sm" variant="ghost" onClick={() => setModifyModal({ open: true, loan })} title="Modificar">
+                                        <Edit className="h-4 w-4" />
+                                      </Button>
+                                      <Button size="sm" variant="ghost" className="text-success hover:text-success" onClick={() => setApproveDialog({ open: true, loan })} title="Aprobar">
+                                        <CheckCircle className="h-4 w-4" />
+                                      </Button>
+                                      <Button size="sm" variant="ghost" className="text-danger hover:text-danger" onClick={() => setRejectDialog({ open: true, loan })} title="Rechazar">
+                                        <XCircle className="h-4 w-4" />
+                                      </Button>
+                                    </div>
+                                  </TableCell>
+                                )}
+                              </TableRow>
+                            )))}
                         </TableBody>
                       </Table>
                     </div>
                     <div className="flex items-center justify-between mt-4">
-                      <div className="text-sm text-muted-foreground">Mostrando {(pendingPage-1)*pageSize+1} - {Math.min(pendingPage*pageSize, pendingTotal)} de {pendingTotal}</div>
+                      <div className="text-sm text-muted-foreground">Mostrando {(pendingPage - 1) * pageSize + 1} - {Math.min(pendingPage * pageSize, pendingTotal)} de {pendingTotal}</div>
                       <div className="flex items-center gap-2">
                         {renderPagination(pendingPage, pendingTotal, (p) => loadPending(p))}
                       </div>
@@ -1041,6 +1087,7 @@ const LoanManagement = () => {
                             {isColumnVisible(contractColumns, 'installments') && <TableHead>Cuotas</TableHead>}
                             {isColumnVisible(contractColumns, 'membership') && <TableHead>Membresía</TableHead>}
                             {isColumnVisible(contractColumns, 'ine') && <TableHead>INE</TableHead>}
+                            {isColumnVisible(contractColumns, 'consent') && <TableHead>Consentimiento</TableHead>}
                             {isColumnVisible(contractColumns, 'curp') && <TableHead>CURP</TableHead>}
                             {isColumnVisible(contractColumns, 'preApproval') && <TableHead>Pre-Aprob.</TableHead>}
                             {isColumnVisible(contractColumns, 'signatureStatus') && <TableHead>Estado Firma</TableHead>}
@@ -1050,50 +1097,53 @@ const LoanManagement = () => {
                         </TableHeader>
                         <TableBody>
                           {contractLoading ? renderSkeletonRows(contractColumns) : (
-                          contractLoansData.filter(l => 
-                            l.firstName.toLowerCase().includes(contractSearch.toLowerCase()) ||
-                            l.lastName.toLowerCase().includes(contractSearch.toLowerCase()) ||
-                            String(l.id).toLowerCase().includes(contractSearch.toLowerCase())
-                          ).map((loan) => (
-                            <TableRow key={loan.id}>
-                              {isColumnVisible(contractColumns, 'id') && <TableCell className="font-medium whitespace-nowrap">{loan.id}</TableCell>}
-                              {isColumnVisible(contractColumns, 'firstName') && <TableCell>{loan.firstName}</TableCell>}
-                              {isColumnVisible(contractColumns, 'lastName') && <TableCell>{loan.lastName}</TableCell>}
-                              {isColumnVisible(contractColumns, 'requestDate') && <TableCell>{loan.requestDate}</TableCell>}
-                              {isColumnVisible(contractColumns, 'amount') && <TableCell className="font-semibold">${loan.amount.toLocaleString()}</TableCell>}
-                              {isColumnVisible(contractColumns, 'installments') && <TableCell>{loan.installments}</TableCell>}
-                              {isColumnVisible(contractColumns, 'membership') && <TableCell>{loan.membership}</TableCell>}
-                              {isColumnVisible(contractColumns, 'ine') && <TableCell>{loan.ineNumber.slice(0, 10)}...</TableCell>}
-                              {isColumnVisible(contractColumns, 'curp') && <TableCell>{loan.curpNumber.slice(0, 10)}...</TableCell>}
-                              {isColumnVisible(contractColumns, 'preApproval') && (
-                                <TableCell>
-                                  <Badge className="bg-success/20 text-success border-success">{loan.preApproval}</Badge>
-                                </TableCell>
-                              )}
-                              {isColumnVisible(contractColumns, 'signatureStatus') && (
-                                <TableCell>{getSignatureStatusBadge(loan.signatureStatus)}</TableCell>
-                              )}
-                              {isColumnVisible(contractColumns, 'resend') && (
-                                <TableCell>
-                                  <Button size="sm" variant="outline" onClick={() => setResendModal({ open: true, loan })}>
-                                    <Send className="h-4 w-4" />
-                                  </Button>
-                                </TableCell>
-                              )}
-                              {isColumnVisible(contractColumns, 'attach') && (
-                                <TableCell>
-                                  <Button size="sm" variant="outline" onClick={() => setAttachModal({ open: true, loan })}>
-                                    <FileText className="h-4 w-4" />
-                                  </Button>
-                                </TableCell>
-                              )}
-                            </TableRow>
-                          )) )}
+                            contractLoansData.filter(l =>
+                              l.firstName.toLowerCase().includes(contractSearch.toLowerCase()) ||
+                              l.lastName.toLowerCase().includes(contractSearch.toLowerCase()) ||
+                              String(l.id).toLowerCase().includes(contractSearch.toLowerCase())
+                            ).map((loan) => (
+                              <TableRow key={loan.id}>
+                                {isColumnVisible(contractColumns, 'id') && <TableCell className="font-medium whitespace-nowrap">{loan.id}</TableCell>}
+                                {isColumnVisible(contractColumns, 'firstName') && <TableCell>{loan.firstName}</TableCell>}
+                                {isColumnVisible(contractColumns, 'lastName') && <TableCell>{loan.lastName}</TableCell>}
+                                {isColumnVisible(contractColumns, 'requestDate') && <TableCell>{loan.requestDate}</TableCell>}
+                                {isColumnVisible(contractColumns, 'amount') && <TableCell className="font-semibold">${loan.amount.toLocaleString()}</TableCell>}
+                                {isColumnVisible(contractColumns, 'installments') && <TableCell>{loan.installments}</TableCell>}
+                                {isColumnVisible(contractColumns, 'membership') && <TableCell>{loan.membership}</TableCell>}
+                                {isColumnVisible(contractColumns, 'ine') && <TableCell>{loan.ineNumber.slice(0, 10)}...</TableCell>}
+                                {isColumnVisible(contractColumns, 'consent') && (
+                                  <TableCell>{getConsentBadge(loan.status_consent || loan.raw?.status_consent || loan.statusConsent)}</TableCell>
+                                )}
+                                {isColumnVisible(contractColumns, 'curp') && <TableCell>{loan.curpNumber.slice(0, 10)}...</TableCell>}
+                                {isColumnVisible(contractColumns, 'preApproval') && (
+                                  <TableCell>
+                                    <Badge className="bg-success/20 text-success border-success">{loan.preApproval}</Badge>
+                                  </TableCell>
+                                )}
+                                {isColumnVisible(contractColumns, 'signatureStatus') && (
+                                  <TableCell>{getSignatureStatusBadge(loan.signatureStatus)}</TableCell>
+                                )}
+                                {isColumnVisible(contractColumns, 'resend') && (
+                                  <TableCell>
+                                    <Button size="sm" variant="outline" onClick={() => setResendModal({ open: true, loan })}>
+                                      <Send className="h-4 w-4" />
+                                    </Button>
+                                  </TableCell>
+                                )}
+                                {isColumnVisible(contractColumns, 'attach') && (
+                                  <TableCell>
+                                    <Button size="sm" variant="outline" onClick={() => setAttachModal({ open: true, loan })}>
+                                      <FileText className="h-4 w-4" />
+                                    </Button>
+                                  </TableCell>
+                                )}
+                              </TableRow>
+                            )))}
                         </TableBody>
                       </Table>
                     </div>
                     <div className="flex items-center justify-between mt-4">
-                      <div className="text-sm text-muted-foreground">Mostrando {(contractPage-1)*pageSize+1} - {Math.min(contractPage*pageSize, contractTotal)} de {contractTotal}</div>
+                      <div className="text-sm text-muted-foreground">Mostrando {(contractPage - 1) * pageSize + 1} - {Math.min(contractPage * pageSize, contractTotal)} de {contractTotal}</div>
                       <div className="flex items-center gap-2">
                         {renderPagination(contractPage, contractTotal, (p) => loadContract(p))}
                       </div>
@@ -1132,6 +1182,7 @@ const LoanManagement = () => {
                             {isColumnVisible(disbursementColumns, 'installments') && <TableHead>Cuotas</TableHead>}
                             {isColumnVisible(disbursementColumns, 'bank') && <TableHead>Banco</TableHead>}
                             {isColumnVisible(disbursementColumns, 'accountNumber') && <TableHead>Cta/CLABE</TableHead>}
+                            {isColumnVisible(disbursementColumns, 'consent') && <TableHead>Consentimiento</TableHead>}
                             {isColumnVisible(disbursementColumns, 'ine') && <TableHead>INE</TableHead>}
                             {isColumnVisible(disbursementColumns, 'curp') && <TableHead>CURP</TableHead>}
                             {isColumnVisible(disbursementColumns, 'contractStatus') && <TableHead>Est. Contrato</TableHead>}
@@ -1141,51 +1192,54 @@ const LoanManagement = () => {
                         </TableHeader>
                         <TableBody>
                           {disbursementLoading ? renderSkeletonRows(disbursementColumns) : (
-                          disbursementLoansData.filter(l => 
-                            l.firstName.toLowerCase().includes(disbursementSearch.toLowerCase()) ||
-                            l.lastName.toLowerCase().includes(disbursementSearch.toLowerCase()) ||
-                            String(l.id).toLowerCase().includes(disbursementSearch.toLowerCase())
-                          ).map((loan) => (
-                            <TableRow key={loan.id}>
-                              {isColumnVisible(disbursementColumns, 'id') && <TableCell className="font-medium whitespace-nowrap">{loan.id}</TableCell>}
-                              {isColumnVisible(disbursementColumns, 'firstName') && <TableCell>{loan.firstName}</TableCell>}
-                              {isColumnVisible(disbursementColumns, 'lastName') && <TableCell>{loan.lastName}</TableCell>}
-                              {isColumnVisible(disbursementColumns, 'requestDate') && <TableCell>{loan.requestDate}</TableCell>}
-                              {isColumnVisible(disbursementColumns, 'amount') && <TableCell className="font-semibold">${loan.amount.toLocaleString()}</TableCell>}
-                              {isColumnVisible(disbursementColumns, 'installments') && <TableCell>{loan.installments}</TableCell>}
-                              {isColumnVisible(disbursementColumns, 'bank') && <TableCell>{loan.bank}</TableCell>}
-                              {isColumnVisible(disbursementColumns, 'accountNumber') && <TableCell>{loan.accountNumber}</TableCell>}
-                              {isColumnVisible(disbursementColumns, 'ine') && <TableCell>{loan.ineNumber.slice(0, 10)}...</TableCell>}
-                              {isColumnVisible(disbursementColumns, 'curp') && <TableCell>{loan.curpNumber.slice(0, 10)}...</TableCell>}
-                              {isColumnVisible(disbursementColumns, 'contractStatus') && (
-                                <TableCell>
-                                  <Badge className="bg-success/20 text-success border-success">{loan.contractStatus}</Badge>
-                                </TableCell>
-                              )}
-                              {isColumnVisible(disbursementColumns, 'disbursementStatus') && (
-                                <TableCell>
-                                  <Badge variant="outline" className="bg-warning/10 text-warning border-warning">{loan.disbursementStatus}</Badge>
-                                </TableCell>
-                              )}
-                              {isColumnVisible(disbursementColumns, 'actions') && (
-                                <TableCell>
-                                  <div className="flex gap-1">
-                                    <Button size="sm" variant="outline" onClick={() => setModifyDisbursementModal({ open: true, loan })} title="Modificar">
-                                      <Edit className="h-4 w-4" />
-                                    </Button>
-                                    <Button size="sm" variant="default" onClick={() => setConfirmDisbursementModal({ open: true, loan })} title="Confirmar Desembolso">
-                                      <DollarSign className="h-4 w-4" />
-                                    </Button>
-                                  </div>
-                                </TableCell>
-                              )}
-                            </TableRow>
-                          )) )}
+                            disbursementLoansData.filter(l =>
+                              l.firstName.toLowerCase().includes(disbursementSearch.toLowerCase()) ||
+                              l.lastName.toLowerCase().includes(disbursementSearch.toLowerCase()) ||
+                              String(l.id).toLowerCase().includes(disbursementSearch.toLowerCase())
+                            ).map((loan) => (
+                              <TableRow key={loan.id}>
+                                {isColumnVisible(disbursementColumns, 'id') && <TableCell className="font-medium whitespace-nowrap">{loan.id}</TableCell>}
+                                {isColumnVisible(disbursementColumns, 'firstName') && <TableCell>{loan.firstName}</TableCell>}
+                                {isColumnVisible(disbursementColumns, 'lastName') && <TableCell>{loan.lastName}</TableCell>}
+                                {isColumnVisible(disbursementColumns, 'requestDate') && <TableCell>{loan.requestDate}</TableCell>}
+                                {isColumnVisible(disbursementColumns, 'amount') && <TableCell className="font-semibold">${loan.amount.toLocaleString()}</TableCell>}
+                                {isColumnVisible(disbursementColumns, 'installments') && <TableCell>{loan.installments}</TableCell>}
+                                {isColumnVisible(disbursementColumns, 'bank') && <TableCell>{loan.bank}</TableCell>}
+                                {isColumnVisible(disbursementColumns, 'accountNumber') && <TableCell>{loan.accountNumber}</TableCell>}
+                                {isColumnVisible(disbursementColumns, 'consent') && (
+                                  <TableCell>{getConsentBadge(loan.status_consent || loan.raw?.status_consent || loan.statusConsent)}</TableCell>
+                                )}
+                                {isColumnVisible(disbursementColumns, 'ine') && <TableCell>{loan.ineNumber.slice(0, 10)}...</TableCell>}
+                                {isColumnVisible(disbursementColumns, 'curp') && <TableCell>{loan.curpNumber.slice(0, 10)}...</TableCell>}
+                                {isColumnVisible(disbursementColumns, 'contractStatus') && (
+                                  <TableCell>
+                                    <Badge className="bg-success/20 text-success border-success">{loan.contractStatus}</Badge>
+                                  </TableCell>
+                                )}
+                                {isColumnVisible(disbursementColumns, 'disbursementStatus') && (
+                                  <TableCell>
+                                    <Badge variant="outline" className="bg-warning/10 text-warning border-warning">{loan.disbursementStatus}</Badge>
+                                  </TableCell>
+                                )}
+                                {isColumnVisible(disbursementColumns, 'actions') && (
+                                  <TableCell>
+                                    <div className="flex gap-1">
+                                      <Button size="sm" variant="outline" onClick={() => setModifyDisbursementModal({ open: true, loan })} title="Modificar">
+                                        <Edit className="h-4 w-4" />
+                                      </Button>
+                                      <Button size="sm" variant="default" onClick={() => setConfirmDisbursementModal({ open: true, loan })} title="Confirmar Desembolso">
+                                        <DollarSign className="h-4 w-4" />
+                                      </Button>
+                                    </div>
+                                  </TableCell>
+                                )}
+                              </TableRow>
+                            )))}
                         </TableBody>
                       </Table>
                     </div>
                     <div className="flex items-center justify-between mt-4">
-                      <div className="text-sm text-muted-foreground">Mostrando {(disbursementPage-1)*pageSize+1} - {Math.min(disbursementPage*pageSize, disbursementTotal)} de {disbursementTotal}</div>
+                      <div className="text-sm text-muted-foreground">Mostrando {(disbursementPage - 1) * pageSize + 1} - {Math.min(disbursementPage * pageSize, disbursementTotal)} de {disbursementTotal}</div>
                       <div className="flex items-center gap-2">
                         {renderPagination(disbursementPage, disbursementTotal, (p) => loadDisbursement(p))}
                       </div>
@@ -1224,6 +1278,7 @@ const LoanManagement = () => {
                             {isColumnVisible(activeColumns, 'installments') && <TableHead>Cuotas</TableHead>}
                             {isColumnVisible(activeColumns, 'paidInstallments') && <TableHead>Cuot. Pagadas</TableHead>}
                             {isColumnVisible(activeColumns, 'ine') && <TableHead>INE</TableHead>}
+                            {isColumnVisible(activeColumns, 'consent') && <TableHead>Consentimiento</TableHead>}
                             {isColumnVisible(activeColumns, 'lastPaymentDate') && <TableHead>F. Últ. Pago</TableHead>}
                             {isColumnVisible(activeColumns, 'status') && <TableHead>Estado</TableHead>}
                             {isColumnVisible(activeColumns, 'actions') && <TableHead>Acciones</TableHead>}
@@ -1231,58 +1286,59 @@ const LoanManagement = () => {
                         </TableHeader>
                         <TableBody>
                           {activeLoading ? renderSkeletonRows(activeColumns) : (
-                          activeLoansData.filter(l => 
-                            l.firstName.toLowerCase().includes(activeSearch.toLowerCase()) ||
-                            l.lastName.toLowerCase().includes(activeSearch.toLowerCase()) ||
-                            String(l.id).toLowerCase().includes(activeSearch.toLowerCase())
-                          ).map((loan) => (
-                            <TableRow key={loan.id}>
-                              {isColumnVisible(activeColumns, 'id') && <TableCell className="font-medium whitespace-nowrap">{loan.id}</TableCell>}
-                              {isColumnVisible(activeColumns, 'firstName') && <TableCell>{loan.firstName}</TableCell>}
-                              {isColumnVisible(activeColumns, 'lastName') && <TableCell>{loan.lastName}</TableCell>}
-                              {isColumnVisible(activeColumns, 'requestDate') && <TableCell>{loan.requestDate}</TableCell>}
-                              {isColumnVisible(activeColumns, 'amount') && <TableCell className="font-semibold">${loan.amount.toLocaleString()}</TableCell>}
-                              {isColumnVisible(activeColumns, 'installments') && <TableCell>{loan.installments}</TableCell>}
-                              {isColumnVisible(activeColumns, 'paidInstallments') && <TableCell>{loan.paidInstallments}/{loan.installments}</TableCell>}
-                              {isColumnVisible(activeColumns, 'ine') && <TableCell>{loan.ineNumber.slice(0, 10)}...</TableCell>}
-                              {isColumnVisible(activeColumns, 'lastPaymentDate') && <TableCell>{loan.lastPaymentDate}</TableCell>}
-                              {isColumnVisible(activeColumns, 'status') && <TableCell>{getStatusBadge(loan.status)}</TableCell>}
-                              {isColumnVisible(activeColumns, 'actions') && (
-                                <TableCell>
-                                  <div className="flex gap-1">
-                                    <Button size="sm" variant="ghost" onClick={() => setModifyModal({ open: true, loan })} title="Ver/Editar">
-                                      <Eye className="h-4 w-4" />
-                                    </Button>
-                                    <Button size="sm" variant="ghost" onClick={() => setScheduleModal({ open: true, loan })} title="Ver Cronograma">
-                                      <Calendar className="h-4 w-4" />
-                                    </Button>
-                                    <DropdownMenu>
-                                      <DropdownMenuTrigger asChild>
-                                        <Button size="sm" variant="ghost">
-                                          <MoreHorizontal className="h-4 w-4" />
-                                        </Button>
-                                      </DropdownMenuTrigger>
-                                      <DropdownMenuContent align="end">
-                                        <DropdownMenuItem onClick={() => setReminderModal({ open: true, loan })}>
-                                          <Bell className="h-4 w-4 mr-2" />
-                                          Enviar recordatorio
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => setUpdateInstallmentsModal({ open: true, loan })}>
-                                          <RefreshCw className="h-4 w-4 mr-2" />
-                                          Actualizar cuotas
-                                        </DropdownMenuItem>
-                                      </DropdownMenuContent>
-                                    </DropdownMenu>
-                                  </div>
-                                </TableCell>
-                              )}
-                            </TableRow>
-                          )) )}
+                            activeLoansData.filter(l =>
+                              l.firstName.toLowerCase().includes(activeSearch.toLowerCase()) ||
+                              l.lastName.toLowerCase().includes(activeSearch.toLowerCase()) ||
+                              String(l.id).toLowerCase().includes(activeSearch.toLowerCase())
+                            ).map((loan) => (
+                              <TableRow key={loan.id}>
+                                {isColumnVisible(activeColumns, 'id') && <TableCell className="font-medium whitespace-nowrap">{loan.id}</TableCell>}
+                                {isColumnVisible(activeColumns, 'firstName') && <TableCell>{loan.firstName}</TableCell>}
+                                {isColumnVisible(activeColumns, 'lastName') && <TableCell>{loan.lastName}</TableCell>}
+                                {isColumnVisible(activeColumns, 'requestDate') && <TableCell>{loan.requestDate}</TableCell>}
+                                {isColumnVisible(activeColumns, 'amount') && <TableCell className="font-semibold">${loan.amount.toLocaleString()}</TableCell>}
+                                {isColumnVisible(activeColumns, 'installments') && <TableCell>{loan.installments}</TableCell>}
+                                {isColumnVisible(activeColumns, 'paidInstallments') && <TableCell>{loan.paidInstallments}/{loan.installments}</TableCell>}
+                                {isColumnVisible(activeColumns, 'ine') && <TableCell>{loan.ineNumber.slice(0, 10)}...</TableCell>}
+                                {isColumnVisible(activeColumns, 'consent') && <TableCell>{getConsentBadge(loan.status_consent || loan.raw?.status_consent || loan.statusConsent)}</TableCell>}
+                                {isColumnVisible(activeColumns, 'lastPaymentDate') && <TableCell>{loan.lastPaymentDate}</TableCell>}
+                                {isColumnVisible(activeColumns, 'status') && <TableCell>{getStatusBadge(loan.status)}</TableCell>}
+                                {isColumnVisible(activeColumns, 'actions') && (
+                                  <TableCell>
+                                    <div className="flex gap-1">
+                                      <Button size="sm" variant="ghost" onClick={() => setModifyModal({ open: true, loan })} title="Ver/Editar">
+                                        <Eye className="h-4 w-4" />
+                                      </Button>
+                                      <Button size="sm" variant="ghost" onClick={() => setScheduleModal({ open: true, loan })} title="Ver Cronograma">
+                                        <Calendar className="h-4 w-4" />
+                                      </Button>
+                                      <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                          <Button size="sm" variant="ghost">
+                                            <MoreHorizontal className="h-4 w-4" />
+                                          </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end">
+                                          <DropdownMenuItem onClick={() => setReminderModal({ open: true, loan })}>
+                                            <Bell className="h-4 w-4 mr-2" />
+                                            Enviar recordatorio
+                                          </DropdownMenuItem>
+                                          <DropdownMenuItem onClick={() => setUpdateInstallmentsModal({ open: true, loan })}>
+                                            <RefreshCw className="h-4 w-4 mr-2" />
+                                            Actualizar cuotas
+                                          </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                      </DropdownMenu>
+                                    </div>
+                                  </TableCell>
+                                )}
+                              </TableRow>
+                            )))}
                         </TableBody>
                       </Table>
                     </div>
                     <div className="flex items-center justify-between mt-4">
-                      <div className="text-sm text-muted-foreground">Mostrando {(activePage-1)*pageSize+1} - {Math.min(activePage*pageSize, activeTotal)} de {activeTotal}</div>
+                      <div className="text-sm text-muted-foreground">Mostrando {(activePage - 1) * pageSize + 1} - {Math.min(activePage * pageSize, activeTotal)} de {activeTotal}</div>
                       <div className="flex items-center gap-2">
                         {renderPagination(activePage, activeTotal, (p) => loadActive(p))}
                       </div>
@@ -1321,6 +1377,7 @@ const LoanManagement = () => {
                             {isColumnVisible(overdueColumns, 'installments') && <TableHead>Cuotas</TableHead>}
                             {isColumnVisible(overdueColumns, 'paidInstallments') && <TableHead>Cuot. Pagadas</TableHead>}
                             {isColumnVisible(overdueColumns, 'ine') && <TableHead>INE</TableHead>}
+                            {isColumnVisible(overdueColumns, 'consent') && <TableHead>Consentimiento</TableHead>}
                             {isColumnVisible(overdueColumns, 'lastPaymentDate') && <TableHead>F. Últ. Pago</TableHead>}
                             {isColumnVisible(overdueColumns, 'status') && <TableHead>Estado</TableHead>}
                             {isColumnVisible(overdueColumns, 'actions') && <TableHead>Acciones</TableHead>}
@@ -1328,54 +1385,55 @@ const LoanManagement = () => {
                         </TableHeader>
                         <TableBody>
                           {overdueLoading ? renderSkeletonRows(overdueColumns) : (
-                          overdueLoansData.filter(l => 
-                            l.firstName.toLowerCase().includes(overdueSearch.toLowerCase()) ||
-                            l.lastName.toLowerCase().includes(overdueSearch.toLowerCase()) ||
-                            String(l.id).toLowerCase().includes(overdueSearch.toLowerCase())
-                          ).map((loan) => (
-                            <TableRow key={loan.id}>
-                              {isColumnVisible(overdueColumns, 'id') && <TableCell className="font-medium whitespace-nowrap">{loan.id}</TableCell>}
-                              {isColumnVisible(overdueColumns, 'firstName') && <TableCell>{loan.firstName}</TableCell>}
-                              {isColumnVisible(overdueColumns, 'lastName') && <TableCell>{loan.lastName}</TableCell>}
-                              {isColumnVisible(overdueColumns, 'requestDate') && <TableCell>{loan.requestDate}</TableCell>}
-                              {isColumnVisible(overdueColumns, 'amount') && <TableCell className="font-semibold">${loan.amount.toLocaleString()}</TableCell>}
-                              {isColumnVisible(overdueColumns, 'installments') && <TableCell>{loan.installments}</TableCell>}
-                              {isColumnVisible(overdueColumns, 'paidInstallments') && <TableCell>{loan.paidInstallments}/{loan.installments}</TableCell>}
-                              {isColumnVisible(overdueColumns, 'ine') && <TableCell>{loan.ineNumber.slice(0, 10)}...</TableCell>}
-                              {isColumnVisible(overdueColumns, 'lastPaymentDate') && <TableCell>{loan.lastPaymentDate}</TableCell>}
-                              {isColumnVisible(overdueColumns, 'status') && <TableCell>{getStatusBadge(loan.status)}</TableCell>}
-                              {isColumnVisible(overdueColumns, 'actions') && (
-                                <TableCell>
-                                  <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                      <Button size="sm" variant="ghost">
-                                        <MoreHorizontal className="h-4 w-4" />
-                                      </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end">
-                                      <DropdownMenuItem onClick={() => setReminderModal({ open: true, loan })}>
-                                        <Bell className="h-4 w-4 mr-2" />
-                                        Enviar recordatorio
-                                      </DropdownMenuItem>
-                                      <DropdownMenuItem onClick={() => setSellPortfolioModal({ open: true, loan })}>
-                                        <TrendingDown className="h-4 w-4 mr-2" />
-                                        Vender cartera
-                                      </DropdownMenuItem>
-                                      <DropdownMenuItem onClick={() => setUpdateInstallmentsModal({ open: true, loan })}>
-                                        <RefreshCw className="h-4 w-4 mr-2" />
-                                        Actualizar cuotas
-                                      </DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                  </DropdownMenu>
-                                </TableCell>
-                              )}
-                            </TableRow>
-                          )) )}
+                            overdueLoansData.filter(l =>
+                              l.firstName.toLowerCase().includes(overdueSearch.toLowerCase()) ||
+                              l.lastName.toLowerCase().includes(overdueSearch.toLowerCase()) ||
+                              String(l.id).toLowerCase().includes(overdueSearch.toLowerCase())
+                            ).map((loan) => (
+                              <TableRow key={loan.id}>
+                                {isColumnVisible(overdueColumns, 'id') && <TableCell className="font-medium whitespace-nowrap">{loan.id}</TableCell>}
+                                {isColumnVisible(overdueColumns, 'firstName') && <TableCell>{loan.firstName}</TableCell>}
+                                {isColumnVisible(overdueColumns, 'lastName') && <TableCell>{loan.lastName}</TableCell>}
+                                {isColumnVisible(overdueColumns, 'requestDate') && <TableCell>{loan.requestDate}</TableCell>}
+                                {isColumnVisible(overdueColumns, 'amount') && <TableCell className="font-semibold">${loan.amount.toLocaleString()}</TableCell>}
+                                {isColumnVisible(overdueColumns, 'installments') && <TableCell>{loan.installments}</TableCell>}
+                                {isColumnVisible(overdueColumns, 'paidInstallments') && <TableCell>{loan.paidInstallments}/{loan.installments}</TableCell>}
+                                {isColumnVisible(overdueColumns, 'ine') && <TableCell>{loan.ineNumber.slice(0, 10)}...</TableCell>}
+                                {isColumnVisible(overdueColumns, 'consent') && <TableCell>{getConsentBadge(loan.status_consent || loan.raw?.status_consent || loan.statusConsent)}</TableCell>}
+                                {isColumnVisible(overdueColumns, 'lastPaymentDate') && <TableCell>{loan.lastPaymentDate}</TableCell>}
+                                {isColumnVisible(overdueColumns, 'status') && <TableCell>{getStatusBadge(loan.status)}</TableCell>}
+                                {isColumnVisible(overdueColumns, 'actions') && (
+                                  <TableCell>
+                                    <DropdownMenu>
+                                      <DropdownMenuTrigger asChild>
+                                        <Button size="sm" variant="ghost">
+                                          <MoreHorizontal className="h-4 w-4" />
+                                        </Button>
+                                      </DropdownMenuTrigger>
+                                      <DropdownMenuContent align="end">
+                                        <DropdownMenuItem onClick={() => setReminderModal({ open: true, loan })}>
+                                          <Bell className="h-4 w-4 mr-2" />
+                                          Enviar recordatorio
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => setSellPortfolioModal({ open: true, loan })}>
+                                          <TrendingDown className="h-4 w-4 mr-2" />
+                                          Vender cartera
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => setUpdateInstallmentsModal({ open: true, loan })}>
+                                          <RefreshCw className="h-4 w-4 mr-2" />
+                                          Actualizar cuotas
+                                        </DropdownMenuItem>
+                                      </DropdownMenuContent>
+                                    </DropdownMenu>
+                                  </TableCell>
+                                )}
+                              </TableRow>
+                            )))}
                         </TableBody>
                       </Table>
                     </div>
                     <div className="flex items-center justify-between mt-4">
-                      <div className="text-sm text-muted-foreground">Mostrando {(overduePage-1)*pageSize+1} - {Math.min(overduePage*pageSize, overdueTotal)} de {overdueTotal}</div>
+                      <div className="text-sm text-muted-foreground">Mostrando {(overduePage - 1) * pageSize + 1} - {Math.min(overduePage * pageSize, overdueTotal)} de {overdueTotal}</div>
                       <div className="flex items-center gap-2">
                         {renderPagination(overduePage, overdueTotal, (p) => loadOverdue(p))}
                       </div>
@@ -1414,35 +1472,37 @@ const LoanManagement = () => {
                             {isColumnVisible(historyColumns, 'installments') && <TableHead>Cuotas</TableHead>}
                             {isColumnVisible(historyColumns, 'paidInstallments') && <TableHead>Cuot. Pagadas</TableHead>}
                             {isColumnVisible(historyColumns, 'ine') && <TableHead>INE</TableHead>}
+                            {isColumnVisible(historyColumns, 'consent') && <TableHead>Consentimiento</TableHead>}
                             {isColumnVisible(historyColumns, 'lastPaymentDate') && <TableHead>F. Últ. Pago</TableHead>}
                             {isColumnVisible(historyColumns, 'status') && <TableHead>Estado</TableHead>}
                           </TableRow>
                         </TableHeader>
                         <TableBody>
                           {historyLoading ? renderSkeletonRows(historyColumns) : (
-                          historyLoansData.filter(l => 
-                            l.firstName.toLowerCase().includes(historySearch.toLowerCase()) ||
-                            l.lastName.toLowerCase().includes(historySearch.toLowerCase()) ||
-                            String(l.id).toLowerCase().includes(historySearch.toLowerCase())
-                          ).map((loan) => (
-                            <TableRow key={loan.id}>
-                              {isColumnVisible(historyColumns, 'id') && <TableCell className="font-medium whitespace-nowrap">{loan.id}</TableCell>}
-                              {isColumnVisible(historyColumns, 'firstName') && <TableCell>{loan.firstName}</TableCell>}
-                              {isColumnVisible(historyColumns, 'lastName') && <TableCell>{loan.lastName}</TableCell>}
-                              {isColumnVisible(historyColumns, 'requestDate') && <TableCell>{loan.requestDate}</TableCell>}
-                              {isColumnVisible(historyColumns, 'amount') && <TableCell className="font-semibold">${loan.amount.toLocaleString()}</TableCell>}
-                              {isColumnVisible(historyColumns, 'installments') && <TableCell>{loan.installments}</TableCell>}
-                              {isColumnVisible(historyColumns, 'paidInstallments') && <TableCell>{loan.paidInstallments}/{loan.installments}</TableCell>}
-                              {isColumnVisible(historyColumns, 'ine') && <TableCell>{loan.ineNumber.slice(0, 10)}...</TableCell>}
-                              {isColumnVisible(historyColumns, 'lastPaymentDate') && <TableCell>{loan.lastPaymentDate}</TableCell>}
-                              {isColumnVisible(historyColumns, 'status') && <TableCell>{getStatusBadge(loan.status)}</TableCell>}
-                            </TableRow>
-                          )) )}
+                            historyLoansData.filter(l =>
+                              l.firstName.toLowerCase().includes(historySearch.toLowerCase()) ||
+                              l.lastName.toLowerCase().includes(historySearch.toLowerCase()) ||
+                              String(l.id).toLowerCase().includes(historySearch.toLowerCase())
+                            ).map((loan) => (
+                              <TableRow key={loan.id}>
+                                {isColumnVisible(historyColumns, 'id') && <TableCell className="font-medium whitespace-nowrap">{loan.id}</TableCell>}
+                                {isColumnVisible(historyColumns, 'firstName') && <TableCell>{loan.firstName}</TableCell>}
+                                {isColumnVisible(historyColumns, 'lastName') && <TableCell>{loan.lastName}</TableCell>}
+                                {isColumnVisible(historyColumns, 'requestDate') && <TableCell>{loan.requestDate}</TableCell>}
+                                {isColumnVisible(historyColumns, 'amount') && <TableCell className="font-semibold">${loan.amount.toLocaleString()}</TableCell>}
+                                {isColumnVisible(historyColumns, 'installments') && <TableCell>{loan.installments}</TableCell>}
+                                {isColumnVisible(historyColumns, 'paidInstallments') && <TableCell>{loan.paidInstallments}/{loan.installments}</TableCell>}
+                                {isColumnVisible(historyColumns, 'ine') && <TableCell>{loan.ineNumber.slice(0, 10)}...</TableCell>}
+                                {isColumnVisible(historyColumns, 'consent') && <TableCell>{getConsentBadge(loan.status_consent || loan.raw?.status_consent || loan.statusConsent)}</TableCell>}
+                                {isColumnVisible(historyColumns, 'lastPaymentDate') && <TableCell>{loan.lastPaymentDate}</TableCell>}
+                                {isColumnVisible(historyColumns, 'status') && <TableCell>{getStatusBadge(loan.status)}</TableCell>}
+                              </TableRow>
+                            )))}
                         </TableBody>
                       </Table>
                     </div>
                     <div className="flex items-center justify-between mt-4">
-                      <div className="text-sm text-muted-foreground">Mostrando {(historyPage-1)*pageSize+1} - {Math.min(historyPage*pageSize, historyTotal)} de {historyTotal}</div>
+                      <div className="text-sm text-muted-foreground">Mostrando {(historyPage - 1) * pageSize + 1} - {Math.min(historyPage * pageSize, historyTotal)} de {historyTotal}</div>
                       <div className="flex items-center gap-2">
                         {renderPagination(historyPage, historyTotal, (p) => loadHistory(p))}
                       </div>
