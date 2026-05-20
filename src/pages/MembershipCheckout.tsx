@@ -29,6 +29,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { defaultMemberships } from "@/data/memberships";
 import { supabase } from "@/lib/supabase";
+import { increscendoApiFetch } from "@/lib/increscendoApi";
 import { authService } from "@/utils/auth";
 
 interface LocationState {
@@ -152,7 +153,7 @@ const MembershipCheckout = () => {
         if (!currentUser?.id) throw new Error('Usuario no autenticado');
 
         setAcquiring(true);
-        const resp = await fetch('https://increscendo-api.vercel.app/acquire-membership', {
+        const resp = await increscendoApiFetch('/acquire-membership', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ user_id: currentUser.id, membership_plan_id: membership.id }),

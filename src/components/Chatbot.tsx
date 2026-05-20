@@ -6,7 +6,7 @@ import { MessageCircle, X, Send } from "lucide-react";
 
 // WARNING: Embedding API keys in frontend code is insecure and exposes your key publicly.
 // Only do this for local testing and never commit real keys to version control.
-const INSECURE_OPENAI_KEY = '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';
+const INSECURE_OPENAI_KEY = "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"
 
 interface Message {
   id: string;
@@ -59,6 +59,10 @@ export const Chatbot = () => {
         return;
       }
 
+      const SYSTEM_PROMPT = `
+Actúa como Asistente Virtual Oficial de Increscendo Fintech MX, S.A.P.I. DE C.V.; tono profesional, amable, claro y seguro; transmite confianza, transparencia y tecnología avanzada. Información oficial: Montes Urales 755, Lomas de Chapultepec, Miguel Hidalgo, CDMX, CP 11000, México; único dominio autorizado: https://increscendofintech.com; jurisdicción México y tribunales CDMX. Tu objetivo es asistir usuarios en WALLET sobre préstamos, membresías, pagos, recargas, monederos digitales, OCR, links de pago y navegación de plataforma. Beneficios: seguridad bancaria con cifrado, pagos de luz/agua/gas/teléfono/TV/impuestos/telepeaje, recargas móviles México, préstamos automatizados con IA, soporte 24/7 y gift cards digitales enviados por SMS. Tecnología: IA, OCR, validación biométrica, cronogramas, wallets seguros y links de pago instantáneo. Prioridad absoluta: seguridad y prevención de fraude. Regla crítica: jamás solicitar, aprobar o sugerir pagos anticipados, depósitos previos, comisiones o garantías antes del otorgamiento de crédito; ningún promotor puede cobrar previamente. Alertar sobre phishing, pharming, vishing, smishing, robo de identidad, pirámides y créditos falsos. Nunca pedir contraseñas, NIP, CVV, OTP, tokens ni datos completos de tarjeta. Datos protegidos bajo normativa mexicana. Portal dual: Servicios/Recargas y Préstamos. Para préstamos: membresía anual activa obligatoria, validación CLABE 18 dígitos, OCR con INE/CURP/selfie, revisión, contrato y desembolso. Si aparece "Procesando pago" o "Procesando desembolso", indicar que es normal temporalmente. Nunca garantizar aprobación, montos ni tiempos exactos. Escalar incidencias a contacto@increscendofintech.com o WhatsApp +52 55 9020 7001. Si hay conflicto entre rapidez y seguridad, prioriza seguridad.
+`;
+
       const r = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -66,16 +70,21 @@ export const Chatbot = () => {
           'Authorization': `Bearer ${clientKey}`
         },
         body: JSON.stringify({
-          model: (import.meta as any).env.VITE_OPENAI_MODEL || 'gpt-3.5-turbo',
+          model: (import.meta.env.VITE_OPENAI_MODEL || 'gpt-4o-mini'),
           messages: [
-            { role: 'system', content: 'Eres un asistente virtual amable y breve para una fintech en español.' },
-            { role: 'user', content: messageText }
+            {
+              role: 'system',
+              content: SYSTEM_PROMPT
+            },
+            {
+              role: 'user',
+              content: messageText
+            }
           ],
           max_tokens: 500,
           temperature: 0.2
         })
       });
-
       if (!r.ok) {
         const errText = await r.text().catch(() => '[no body]');
         console.error('[Chatbot] direct OpenAI call failed', r.status, errText);
@@ -103,27 +112,27 @@ export const Chatbot = () => {
 
   const getBotResponse = (input: string): string => {
     const lowerInput = input.toLowerCase();
-    
+
     if (lowerInput.includes('préstamo') || lowerInput.includes('solicitar')) {
       return 'Para solicitar un préstamo, ve a la sección "Solicitar Préstamo" en el menú. Necesitarás tener una membresía activa. ¿Te gustaría que te explique el proceso?';
     }
-    
+
     if (lowerInput.includes('pago') || lowerInput.includes('pagar')) {
       return 'Puedes realizar pagos desde tu dashboard. Aceptamos tarjetas de crédito/débito y transferencias bancarias. ¿Necesitas ayuda con algún pago en específico?';
     }
-    
+
     if (lowerInput.includes('membresía') || lowerInput.includes('membresia')) {
       return 'Ofrecemos diferentes planes de membresía que te dan acceso a préstamos y servicios. ¿Te gustaría conocer nuestros planes disponibles?';
     }
-    
+
     if (lowerInput.includes('historial')) {
       return 'Puedes ver tu historial completo de préstamos y transacciones en la sección "Historial" del menú lateral.';
     }
-    
+
     if (lowerInput.includes('soporte') || lowerInput.includes('ayuda')) {
       return 'Estoy aquí para ayudarte. También puedes contactar a nuestro equipo de soporte humano en la sección "Soporte" o enviando un correo a soporte@increscendo.com';
     }
-    
+
     return 'Gracias por tu mensaje. ¿Podrías ser más específico? Puedo ayudarte con préstamos, pagos, membresías, historial o cualquier otra consulta sobre nuestros servicios.';
   };
 
@@ -152,7 +161,7 @@ export const Chatbot = () => {
           <X className="h-5 w-5" />
         </Button>
       </CardHeader>
-      
+
       <CardContent className="flex-1 flex flex-col p-4 gap-4 overflow-hidden">
         <div className="flex-1 overflow-y-auto space-y-4">
           {messages.map((message) => (
@@ -161,24 +170,23 @@ export const Chatbot = () => {
               className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
             >
               <div
-                className={`max-w-[80%] rounded-lg px-4 py-2 ${
-                  message.sender === 'user'
-                    ? 'bg-primary text-white'
-                    : 'bg-accent/50 text-foreground'
-                }`}
+                className={`max-w-[80%] rounded-lg px-4 py-2 ${message.sender === 'user'
+                  ? 'bg-primary text-white'
+                  : 'bg-accent/50 text-foreground'
+                  }`}
               >
                 <p className="text-sm">{message.text}</p>
                 <p className="text-xs opacity-70 mt-1">
-                  {message.timestamp.toLocaleTimeString('es-MX', { 
-                    hour: '2-digit', 
-                    minute: '2-digit' 
+                  {message.timestamp.toLocaleTimeString('es-MX', {
+                    hour: '2-digit',
+                    minute: '2-digit'
                   })}
                 </p>
               </div>
             </div>
           ))}
         </div>
-        
+
         <div className="flex gap-2">
           <Input
             value={inputValue}

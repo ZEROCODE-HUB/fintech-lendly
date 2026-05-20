@@ -35,6 +35,7 @@ import { useToast } from "@/hooks/use-toast";
 import { authService } from "@/utils/auth";
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '@/lib/supabaseConfig';
 import { supabase } from "@/lib/supabase";
+import { increscendoApiFetch } from "@/lib/increscendoApi";
 import { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext } from "@/components/ui/carousel";
 
 const STEPS = [
@@ -48,7 +49,7 @@ const STEPS = [
 
 const INTEREST_RATE = 0.42;
 const ALLOWED_INSTALLMENTS = [3, 6, 9, 12, 18, 24];
-const INSTITUTIONS_ENDPOINT = "https://increscendo-api.vercel.app/belvo/institutions";
+const INSTITUTIONS_ENDPOINT = "/belvo/institutions";
 
 type Institution = {
   id: string;
@@ -221,6 +222,7 @@ const LoanProcess = () => {
   const [references, setReferences] = useState([
     { name: "", relationship: "", phone: "" },
   ]);
+  const [includeSolidario, setIncludeSolidario] = useState(false);
 
   // Local files (keep only client-side until user decides to upload)
   const [ineFrontFile, setIneFrontFile] = useState<File | null>(null);
@@ -363,14 +365,16 @@ const LoanProcess = () => {
       nextErrors.clabe = "La CLABE debe tener 18 dígitos.";
     }
 
-    if (!references.length) {
-      nextErrors.references = "Agrega al menos una referencia.";
-    } else {
-      references.forEach((reference, index) => {
-        if (!normalizeText(reference.name)) nextErrors[`reference-${index}-name`] = "El nombre de la referencia es obligatorio.";
-        if (!normalizeText(reference.relationship)) nextErrors[`reference-${index}-relationship`] = "Indica la relación.";
-        if (!isValidPhone(reference.phone)) nextErrors[`reference-${index}-phone`] = "Ingresa un teléfono válido.";
-      });
+    if (includeSolidario) {
+      if (!references.length) {
+        nextErrors.references = "Agrega al menos una referencia.";
+      } else {
+        references.forEach((reference, index) => {
+          if (!normalizeText(reference.name)) nextErrors[`reference-${index}-name`] = "El nombre de la referencia es obligatorio.";
+          if (!normalizeText(reference.relationship)) nextErrors[`reference-${index}-relationship`] = "Indica la relación.";
+          if (!isValidPhone(reference.phone)) nextErrors[`reference-${index}-phone`] = "Ingresa un teléfono válido.";
+        });
+      }
     }
 
     if (!ineFrontFile) nextErrors.ineFront = "Adjunta la parte frontal de tu INE.";
@@ -469,10 +473,10 @@ const LoanProcess = () => {
       const selfieWithIneUrl = selfieWithIneFile ? await uploadFileToStorage(selfieWithIneFile, 'ine-documents', `selfie_ine_${ineFileTimestamp}.jpg`) : null;
       const curpUrl = curpFile ? await uploadFileToStorage(curpFile, 'curp-documents', `curp_${ineFileTimestamp}.jpg`) : null;
 
-      // Build metadata object with references
-      const updatedMetadata = {
-        references: references,
-      };
+      // Build metadata object with references only when the user enabled the section
+      const updatedMetadata = includeSolidario
+        ? { references }
+        : {};
 
       // Update users table with document URLs and metadata
       const { error: updateError } = await supabase
@@ -543,7 +547,7 @@ const LoanProcess = () => {
         payload.paymentMethodId = depositData.paymentMethodId;
       }
 
-      const response = await fetch('https://increscendo-api.vercel.app/belvo/loan-request', {
+      const response = await increscendoApiFetch('/belvo/loan-request', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -694,7 +698,7 @@ const LoanProcess = () => {
     const loadInstitutions = async () => {
       try {
         setLoadingInstitutions(true);
-        const response = await fetch(INSTITUTIONS_ENDPOINT);
+        const response = await increscendoApiFetch(INSTITUTIONS_ENDPOINT);
         if (!response.ok) throw new Error(`institutions status ${response.status}`);
 
         const data = await response.json();
@@ -1530,57 +1534,72 @@ const LoanProcess = () => {
             Obligado solidario
           </CardTitle>
           <CardDescription>
-            Agrega al menos una referencia de confianza.
+            Activa esta opción si quieres agregar un obligado solidario o referencia de confianza.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {references.map((ref, index) => (
-            <div key={`ref-${index}`} className="rounded-xl border border-border bg-muted/20 p-4">
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-sm font-medium">Referencia {index + 1}</p>
-                {references.length > 1 && (
-                  <Button variant="ghost" size="sm" onClick={() => removeReference(index)}>
-                    Quitar
-                  </Button>
-                )}
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label>Nombre completo</Label>
-                  <Input
-                    placeholder="Ej: Ana Perez"
-                    value={ref.name}
-                    onChange={(e) => updateReference(index, "name", e.target.value)}
-                  />
-                  {validationErrors[`reference-${index}-name`] && <p className="text-xs text-destructive">{validationErrors[`reference-${index}-name`]}</p>}
-                </div>
-                <div className="space-y-2">
-                  <Label>Relacion</Label>
-                  <Input
-                    placeholder="Ej: Hermana, Amigo"
-                    value={ref.relationship}
-                    onChange={(e) => updateReference(index, "relationship", e.target.value)}
-                  />
-                  {validationErrors[`reference-${index}-relationship`] && <p className="text-xs text-destructive">{validationErrors[`reference-${index}-relationship`]}</p>}
-                </div>
-                <div className="space-y-2">
-                  <Label>Telefono</Label>
-                  <Input
-                    placeholder="Ej: +52 55 1234 5678"
-                    value={ref.phone}
-                    onChange={(e) => updateReference(index, "phone", e.target.value)}
-                  />
-                  {validationErrors[`reference-${index}-phone`] && <p className="text-xs text-destructive">{validationErrors[`reference-${index}-phone`]}</p>}
-                </div>
-              </div>
-            </div>
-          ))}
-
-          <div>
-            <Button variant="outline" onClick={addReference}>
-              Agregar otra referencia
-            </Button>
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="include-solidario"
+              checked={includeSolidario}
+              onCheckedChange={(checked) => setIncludeSolidario(checked === true)}
+            />
+            <Label htmlFor="include-solidario" className="text-sm font-normal cursor-pointer">
+              Agregar obligado solidario
+            </Label>
           </div>
+
+          {includeSolidario && (
+            <>
+              {references.map((ref, index) => (
+                <div key={`ref-${index}`} className="rounded-xl border border-border bg-muted/20 p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-sm font-medium">Referencia {index + 1}</p>
+                    {references.length > 1 && (
+                      <Button variant="ghost" size="sm" onClick={() => removeReference(index)}>
+                        Quitar
+                      </Button>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label>Nombre completo</Label>
+                      <Input
+                        placeholder="Ej: Ana Perez"
+                        value={ref.name}
+                        onChange={(e) => updateReference(index, "name", e.target.value)}
+                      />
+                      {validationErrors[`reference-${index}-name`] && <p className="text-xs text-destructive">{validationErrors[`reference-${index}-name`]}</p>}
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Relacion</Label>
+                      <Input
+                        placeholder="Ej: Hermana, Amigo"
+                        value={ref.relationship}
+                        onChange={(e) => updateReference(index, "relationship", e.target.value)}
+                      />
+                      {validationErrors[`reference-${index}-relationship`] && <p className="text-xs text-destructive">{validationErrors[`reference-${index}-relationship`]}</p>}
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Telefono</Label>
+                      <Input
+                        placeholder="Ej: +52 55 1234 5678"
+                        value={ref.phone}
+                        onChange={(e) => updateReference(index, "phone", e.target.value)}
+                      />
+                      {validationErrors[`reference-${index}-phone`] && <p className="text-xs text-destructive">{validationErrors[`reference-${index}-phone`]}</p>}
+                    </div>
+                  </div>
+                </div>
+              ))}
+
+              <div>
+                <Button variant="outline" onClick={addReference}>
+                  Agregar otra referencia
+                </Button>
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
 

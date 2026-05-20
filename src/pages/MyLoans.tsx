@@ -13,6 +13,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { CreditCard, Eye, Calendar, DollarSign, Loader2, Shield } from "lucide-react";
 import * as XLSX from 'xlsx';
 import { Chatbot } from "@/components/Chatbot";
+import { increscendoApiFetch } from "@/lib/increscendoApi";
 
 interface Installment {
   number: number;
@@ -39,8 +40,6 @@ const getPaymentRequestStatusBadge = (status?: string) => {
       return <Badge variant="outline">Sin estado</Badge>;
   }
 };
-
-const BELVO_API_BASE = "https://increscendo-api.vercel.app";
 
 const MyLoans = () => {
   const navigate = useNavigate();
@@ -164,7 +163,7 @@ const MyLoans = () => {
 
     try {
       setIsRefreshingPaymentRequest(true);
-      const resp = await fetch(`${BELVO_API_BASE}/belvo/loans/${loanId}/payment-request/${paymentRequestId}`);
+      const resp = await increscendoApiFetch(`/belvo/loans/${loanId}/payment-request/${paymentRequestId}`);
       const data = await resp.json().catch(() => null);
 
       if (!resp.ok) {
@@ -935,7 +934,7 @@ const MyLoans = () => {
                         },
                       };
 
-                      const createResp = await fetch(`${BELVO_API_BASE}/belvo/loans/${loanId}/payment-request`, {
+                      const createResp = await increscendoApiFetch(`/belvo/loans/${loanId}/payment-request`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(payload),
@@ -951,7 +950,7 @@ const MyLoans = () => {
                         throw new Error('El backend no devolvio payment_request_id.');
                       }
 
-                      await fetch(`${BELVO_API_BASE}/belvo/loans/${loanId}/payment-request/${createdPaymentRequestId}`).catch(() => null);
+                      await increscendoApiFetch(`/belvo/loans/${loanId}/payment-request/${createdPaymentRequestId}`).catch(() => null);
 
                       await loadLoans();
                       setPaymentLoan((prev: any) => {

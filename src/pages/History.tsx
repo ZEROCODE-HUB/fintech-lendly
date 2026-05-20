@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Chatbot } from "@/components/Chatbot";
 import { supabase } from "@/lib/supabase";
+import { increscendoApiFetch } from "@/lib/increscendoApi";
 import {
   Pagination,
   PaginationContent,
@@ -21,8 +22,6 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-
-const BELVO_API_BASE = "https://increscendo-api.vercel.app";
 
 const getPaymentRequestStatusLabel = (status?: string) => {
   switch ((status || '').toLowerCase()) {
@@ -89,7 +88,7 @@ const History = () => {
 
       // Load payments from loan_events table (where event_type is 'payment')
       const fetchPaymentRequestsPage = async (page: number) => {
-        const response = await fetch(`${BELVO_API_BASE}/belvo/loans/payment-requests?page=${page}&limit=50`);
+        const response = await increscendoApiFetch(`/belvo/loans/payment-requests?page=${page}&limit=50`);
         const payload = await response.json().catch(() => null);
 
         if (!response.ok) {
