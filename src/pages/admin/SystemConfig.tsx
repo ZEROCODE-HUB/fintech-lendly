@@ -57,11 +57,11 @@ const SystemConfig = () => {
     detail: "Comprobando disponibilidad de Conekta",
     checkedAt: "",
   });
-  const [whiteLabelStatus] = useState<PlatformStatus>({
+  const [tekaeStatus, setTekaeStatus] = useState<PlatformStatus>({
     ok: false,
-    label: "En desarrollo",
-    detail: "Integración white label en implementación",
-    checkedAt: new Date().toISOString(),
+    label: "Verificando...",
+    detail: "Comprobando disponibilidad de Tekae",
+    checkedAt: "",
   });
 
   useEffect(() => {
@@ -111,6 +111,12 @@ const SystemConfig = () => {
       setConektaStatus,
       "Sin respuesta",
       "Conekta responde correctamente",
+    );
+    checkPlatform(
+      "https://www.tekaebusiness.com.mx/",
+      setTekaeStatus,
+      "Sin respuesta",
+      "Tekae Business responde correctamente",
     );
 
     return () => {
@@ -286,33 +292,33 @@ const SystemConfig = () => {
                   <CreditCard className="h-5 w-5" />,
                 )}
 
-                <Card className={`shadow-soft border ${statusStyles.warning.card}`}>
+                <Card className={`shadow-soft border ${tekaeStatus.ok ? statusStyles.online.card : statusStyles.warning.card}`}>
                   <CardHeader>
                     <div className="flex items-center justify-between gap-4">
                       <div className="flex items-center gap-3 min-w-0">
-                        <div className={`flex h-10 w-10 items-center justify-center rounded-full border ${statusStyles.warning.card}`}>
-                          <span className={`h-3.5 w-3.5 rounded-full ${statusStyles.warning.dot}`} />
+                        <div className={`flex h-10 w-10 items-center justify-center rounded-full border ${tekaeStatus.ok ? statusStyles.online.card : statusStyles.warning.card}`}>
+                          <span className={`h-3.5 w-3.5 rounded-full ${tekaeStatus.ok ? statusStyles.online.dot : statusStyles.warning.dot}`} />
                         </div>
                         <div className="min-w-0">
                           <CardTitle className="flex items-center gap-2 text-base sm:text-lg truncate">
-                            <span className={statusStyles.warning.icon}><Wrench className="h-5 w-5" /></span>
-                            Integración White Label
+                            <span className={tekaeStatus.ok ? statusStyles.online.icon : statusStyles.warning.icon}><LinkIcon className="h-5 w-5" /></span>
+                            Tekae Business
                           </CardTitle>
                           <CardDescription className="text-xs sm:text-sm">
-                            Servicios de pago y recargas en desarrollo
+                            Integración de incentivos digitales y conexión directa con la plataforma de Tekae.
                           </CardDescription>
                         </div>
                       </div>
                       <div className="flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium">
-                        <span className={`h-2.5 w-2.5 rounded-full ${statusStyles.warning.dot}`} />
-                        {statusStyles.warning.label}
+                        <span className={`h-2.5 w-2.5 rounded-full ${tekaeStatus.ok ? statusStyles.online.dot : statusStyles.warning.dot}`} />
+                        {tekaeStatus.label}
                       </div>
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-2 text-sm">
-                    <p className="text-muted-foreground">Esta integración todavía está en implementación.</p>
+                    <p className="text-muted-foreground">{tekaeStatus.detail}</p>
                     <p className="text-xs text-muted-foreground">
-                      URL de referencia: https://www.conekta.com/glosario/api
+                      URL de referencia: https://www.tekaebusiness.com.mx/
                     </p>
                   </CardContent>
                 </Card>

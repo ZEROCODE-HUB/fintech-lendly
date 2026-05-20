@@ -16,6 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 import { ColumnConfig, PendingLoan, ContractLoan, DisbursementLoan, OverdueLoan } from "@/types/loans";
 import { supabase } from "@/lib/supabase";
 import { authService } from '@/utils/auth';
+import { increscendoApiFetch } from "@/lib/increscendoApi";
 import { LoanTableFilters } from "@/components/admin/loans/LoanTableFilters";
 import { INECURPModal } from "@/components/admin/loans/modals/INECURPModal";
 import { ModifyLoanModal } from "@/components/admin/loans/modals/ModifyLoanModal";
@@ -674,7 +675,7 @@ const LoanManagement = () => {
     const loanId = loan.uuid ?? loan.raw?.id ?? loan.id;
     try {
       if (loanId) {
-        const consentsResp = await fetch('https://increscendo-api.vercel.app/belvo/consents', {
+        const consentsResp = await increscendoApiFetch('/belvo/consents', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ loan_id: loanId }),
@@ -713,7 +714,7 @@ const LoanManagement = () => {
         try {
           const optionalPdfBase64 = generateLoanSchedulePdfBase64(loan);
           const optionalPdfName = `cronograma-${loan.id ?? loan.uuid ?? 'prestamo'}.pdf`;
-          const resp = await fetch('https://increscendo-api.vercel.app/signnow-invite', {
+          const resp = await increscendoApiFetch('/signnow-invite', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({

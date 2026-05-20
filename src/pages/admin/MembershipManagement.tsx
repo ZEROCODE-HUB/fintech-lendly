@@ -33,9 +33,8 @@ import { Plus, Edit, Trash2, Users, CreditCard, Percent } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { authService } from "@/utils/auth";
 import { supabase } from '@/lib/supabase';
+import { increscendoApiFetch } from "@/lib/increscendoApi";
 import { Skeleton } from '@/components/ui/skeleton';
-
-const CONEKTA_PLANS_ENDPOINT = 'https://increscendo-api.vercel.app/conekta-plans';
 
 type Plan = {
   id: string;
@@ -63,6 +62,18 @@ type Membership = {
   isActive: boolean;
 };
 
+type MembershipFormErrors = Partial<{
+  title: string;
+  cost: string;
+  targetAudience: string;
+  interestRate: string;
+  frequency: string;
+  benefits: string;
+}>;
+
+const MEMBERSHIP_TITLE_PATTERN = /^[A-Za-z0-9ÁÉÍÓÚÜÑáéíóúüñ\s.,'&()\-]+$/;
+const MEMBERSHIP_TEXT_PATTERN = /^[A-Za-z0-9ÁÉÍÓÚÜÑáéíóúüñ\s.,'&()/:+\-]+$/;
+
 const MembershipManagement = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -70,6 +81,8 @@ const MembershipManagement = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingMembership, setEditingMembership] = useState<Membership | null>(null);
+  const [costError, setCostError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<MembershipFormErrors>({});
   const [formData, setFormData] = useState({
     title: '',
     cost: '',
@@ -125,6 +138,8 @@ const MembershipManagement = () => {
   useEffect(() => { fetchPlans(); }, []);
 
   const resetForm = () => {
+    setCostError('');
+    setFieldErrors({});
     setFormData({
       title: '',
       cost: '',
@@ -159,6 +174,71 @@ const MembershipManagement = () => {
     setIsCreateOpen(true);
   };
 
+  const setFieldValue = (field: keyof typeof formData, value: string) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+    setFieldErrors((prev) => ({ ...prev, [field]: undefined }));
+    if (field === 'cost') setCostError('');
+  };
+
+  const validateForm = () => {
+    const nextErrors: MembershipFormErrors = {};
+    const title = formData.title.trim();
+    const targetAudience = formData.targetAudience.trim();
+    const costValue = Number(formData.cost);
+    const interestRateValue = Number(formData.interestRate);
+    const frequencyValue = Number(formData.frequency);
+    const benefitsText = formData.benefits.trim();
+
+    if (!title) {
+      nextErrors.title = 'El título es obligatorio.';
+    } else if (title.length < 4 || title.length > 60) {
+      nextErrors.title = 'El título debe tener entre 4 y 60 caracteres.';
+    } else if (!MEMBERSHIP_TITLE_PATTERN.test(title)) {
+      nextErrors.title = 'El título solo puede incluir letras, números, espacios y signos básicos.';
+    }
+
+    if (!formData.cost) {
+      nextErrors.cost = 'El costo es obligatorio.';
+    } else if (!Number.isFinite(costValue)) {
+      nextErrors.cost = 'El costo debe ser un número válido.';
+    } else if (costValue <= 3) {
+      nextErrors.cost = 'El monto debe ser mayor a 3.';
+    } else if (costValue > 999999.99) {
+      nextErrors.cost = 'El costo es demasiado alto.';
+    }
+
+    if (!targetAudience) {
+      nextErrors.targetAudience = 'El público objetivo es obligatorio.';
+    } else if (targetAudience.length < 3 || targetAudience.length > 80) {
+      nextErrors.targetAudience = 'El público objetivo debe tener entre 3 y 80 caracteres.';
+    } else if (!MEMBERSHIP_TEXT_PATTERN.test(targetAudience)) {
+      nextErrors.targetAudience = 'El público objetivo contiene caracteres no permitidos.';
+    }
+
+    if (!formData.interestRate) {
+      nextErrors.interestRate = 'La tasa es obligatoria.';
+    } else if (!Number.isFinite(interestRateValue)) {
+      nextErrors.interestRate = 'La tasa debe ser un número válido.';
+    } else if (interestRateValue < 0 || interestRateValue > 100) {
+      nextErrors.interestRate = 'La tasa debe estar entre 0 y 100.';
+    }
+
+    if (!formData.frequency) {
+      nextErrors.frequency = 'La frecuencia es obligatoria.';
+    } else if (!Number.isInteger(frequencyValue) || frequencyValue < 1 || frequencyValue > 60) {
+      nextErrors.frequency = 'La frecuencia debe ser un entero entre 1 y 60.';
+    }
+
+    if (benefitsText.length > 200) {
+      nextErrors.benefits = 'Los beneficios no pueden exceder 200 caracteres.';
+    }
+
+    setFieldErrors(nextErrors);
+    setCostError(nextErrors.cost || '');
+
+    return Object.keys(nextErrors).length === 0;
+  };
+
   const handleEditOpen = (membership: Membership) => {
     const parsedRenewal = parseRenewalPeriod(membership.renewalPeriod);
     setFormData({
@@ -175,26 +255,21 @@ const MembershipManagement = () => {
   };
 
   const handleSubmit = async () => {
-    if (!formData.title || !formData.cost || !formData.targetAudience) {
+    setCostError('');
+
+    if (!validateForm()) {
       toast({
         title: "Error",
-        description: "Por favor completa todos los campos requeridos",
+        description: "Revisa los campos marcados antes de continuar.",
         variant: "destructive"
       });
       return;
     }
+
+    const costValue = Number(formData.cost);
 
     const benefitsArray = formData.benefits.split(',').map(b => b.trim()).filter(b => b);
     const frequency = Number(formData.frequency || '1');
-
-    if (!Number.isFinite(frequency) || frequency <= 0) {
-      toast({
-        title: "Error",
-        description: "La frecuencia debe ser mayor a 0",
-        variant: "destructive"
-      });
-      return;
-    }
 
     try {
       if (editingMembership) {
@@ -205,14 +280,14 @@ const MembershipManagement = () => {
             ? 7 * frequency
             : 30 * frequency;
         const features = { benefits: benefitsArray, interestRate: Number(formData.interestRate), targetAudience: formData.targetAudience };
-        const { error } = await supabase.from('membership_plans').update({ name: formData.title, price: Number(formData.cost), currency: 'MXN', duration_days, features }).eq('id', editingMembership.id);
+        const { error } = await supabase.from('membership_plans').update({ name: formData.title, price: costValue, currency: 'MXN', duration_days, features }).eq('id', editingMembership.id);
         if (error) throw error;
         toast({ title: 'Membresía actualizada', description: `${formData.title} actualizada` });
       } else {
         // create new plan through external API instead of Supabase
         const payload = {
           name: formData.title,
-          amount: Number(formData.cost),
+          amount: costValue,
           currency: 'MXN',
           interval: formData.interval,
           frequency,
@@ -225,7 +300,7 @@ const MembershipManagement = () => {
           active: true,
         };
 
-        const response = await fetch(CONEKTA_PLANS_ENDPOINT, {
+        const response = await increscendoApiFetch('/conekta-plans', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
@@ -236,25 +311,8 @@ const MembershipManagement = () => {
           throw new Error(rawError || `Error HTTP ${response.status}`);
         }
 
-        const createdPlan = await response.json().catch(() => null);
-
-        // Keep UI responsive even if plans list is still sourced from Supabase.
-        setMemberships((prev) => [
-          {
-            id: createdPlan?.id || `remote-${Date.now()}`,
-            title: formData.title,
-            cost: Number(formData.cost),
-            currency: 'MXN',
-            targetAudience: formData.targetAudience,
-            interestRate: Number(formData.interestRate),
-            renewalPeriod: `${frequency} ${formData.interval}`,
-            benefits: benefitsArray,
-            isActive: true,
-          },
-          ...prev,
-        ]);
-
         toast({ title: 'Membresía creada', description: `${formData.title} creada` });
+        await fetchPlans();
       }
       if (editingMembership) {
         await fetchPlans();
@@ -327,10 +385,13 @@ const MembershipManagement = () => {
                         <Input
                           id="title"
                           value={formData.title}
-                          onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                          onChange={(e) => setFieldValue('title', e.target.value)}
                           placeholder="Ej: Membresía Premium"
+                          maxLength={60}
                           className="text-sm"
                         />
+                        <p className="text-xs text-muted-foreground">4 a 60 caracteres, letras, números y signos básicos.</p>
+                        {fieldErrors.title && <p className="text-xs text-destructive">{fieldErrors.title}</p>}
                       </div>
                       <div className="grid grid-cols-2 gap-2 sm:gap-4">
                         <div className="grid gap-2">
@@ -338,22 +399,31 @@ const MembershipManagement = () => {
                           <Input
                             id="cost"
                             type="number"
+                            min={4}
+                            step="0.01"
                             value={formData.cost}
-                            onChange={(e) => setFormData({ ...formData, cost: e.target.value })}
+                            onChange={(e) => setFieldValue('cost', e.target.value)}
                             placeholder="100"
                             className="text-sm"
                           />
+                          <p className="text-xs text-muted-foreground">Debe ser mayor a 3.</p>
+                          {costError && <p className="text-xs text-destructive">{costError}</p>}
                         </div>
                         <div className="grid gap-2">
                           <Label htmlFor="interestRate" className="text-xs sm:text-sm">Tasa (%)</Label>
                           <Input
                             id="interestRate"
                             type="number"
+                            min={0}
+                            max={100}
+                            step="0.01"
                             value={formData.interestRate}
-                            onChange={(e) => setFormData({ ...formData, interestRate: e.target.value })}
+                            onChange={(e) => setFieldValue('interestRate', e.target.value)}
                             placeholder="42"
                             className="text-sm"
                           />
+                          <p className="text-xs text-muted-foreground">Entre 0 y 100.</p>
+                          {fieldErrors.interestRate && <p className="text-xs text-destructive">{fieldErrors.interestRate}</p>}
                         </div>
                       </div>
                       <div className="grid grid-cols-2 gap-2 sm:gap-4">
@@ -363,11 +433,15 @@ const MembershipManagement = () => {
                             id="frequency"
                             type="number"
                             min={1}
+                            max={60}
+                            step={1}
                             value={formData.frequency}
-                            onChange={(e) => setFormData({ ...formData, frequency: e.target.value })}
+                            onChange={(e) => setFieldValue('frequency', e.target.value)}
                             placeholder="1"
                             className="text-sm"
                           />
+                          <p className="text-xs text-muted-foreground">Entero entre 1 y 60.</p>
+                          {fieldErrors.frequency && <p className="text-xs text-destructive">{fieldErrors.frequency}</p>}
                         </div>
                         <div className="grid gap-2">
                           <Label htmlFor="interval" className="text-xs sm:text-sm">Intervalo *</Label>
@@ -388,21 +462,27 @@ const MembershipManagement = () => {
                         <Input
                           id="targetAudience"
                           value={formData.targetAudience}
-                          onChange={(e) => setFormData({ ...formData, targetAudience: e.target.value })}
+                          onChange={(e) => setFieldValue('targetAudience', e.target.value)}
                           placeholder="Ej: Persona Natural"
+                          maxLength={80}
                           className="text-sm"
                         />
+                        <p className="text-xs text-muted-foreground">3 a 80 caracteres, formato de texto simple.</p>
+                        {fieldErrors.targetAudience && <p className="text-xs text-destructive">{fieldErrors.targetAudience}</p>}
                       </div>
                       <div className="grid gap-2">
                         <Label htmlFor="benefits" className="text-xs sm:text-sm">Beneficios (separados por coma)</Label>
                         <Textarea
                           id="benefits"
                           value={formData.benefits}
-                          onChange={(e) => setFormData({ ...formData, benefits: e.target.value })}
+                          onChange={(e) => setFieldValue('benefits', e.target.value)}
                           placeholder="Ej: Descuentos, Promociones, Atención preferencial"
                           rows={3}
+                          maxLength={200}
                           className="text-sm"
                         />
+                        <p className="text-xs text-muted-foreground">Máximo 200 caracteres.</p>
+                        {fieldErrors.benefits && <p className="text-xs text-destructive">{fieldErrors.benefits}</p>}
                       </div>
                     </div>
                     <DialogFooter className="flex gap-2 sm:gap-3 flex-col-reverse sm:flex-row">

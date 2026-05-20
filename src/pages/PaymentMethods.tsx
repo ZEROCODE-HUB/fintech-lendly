@@ -13,6 +13,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { CreditCard, Building2, Plus, Edit, Trash2, CheckCircle, Star } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
+import { increscendoApiFetch } from "@/lib/increscendoApi";
 
 type ConektaTokenResponse = {
   id: string;
@@ -184,7 +185,7 @@ const PaymentMethods = () => {
       if (!user) throw new Error('No user logged in');
 
       // Llamada al endpoint externo para marcar la tarjeta por defecto
-      const resp = await fetch('https://increscendo-api.vercel.app/set-default-card', {
+      const resp = await increscendoApiFetch('/set-default-card', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_id: user.id, default_payment_source_id: method.token }),
@@ -352,7 +353,7 @@ const PaymentMethods = () => {
         // Enviar token al endpoint externo que añade la tarjeta
         console.log("[Conekta] Token recibido", { tokenId: token.id });
         try {
-          const resp = await fetch('https://increscendo-api.vercel.app/add-card', {
+          const resp = await increscendoApiFetch('/add-card', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
