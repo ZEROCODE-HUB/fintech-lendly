@@ -1,6 +1,4 @@
 import { useEffect, useState } from "react";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/AppSidebar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -149,7 +147,7 @@ const SystemConfig = () => {
 
     return (
       <Card className={`shadow-soft border ${styles.card}`}>
-        <CardHeader>
+        <CardHeader className="p-4 sm:p-6">
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-3 min-w-0">
               <div className={`flex h-10 w-10 items-center justify-center rounded-full border ${styles.card}`}>
@@ -169,7 +167,7 @@ const SystemConfig = () => {
             </div>
           </div>
         </CardHeader>
-        <CardContent className="space-y-2 text-sm">
+        <CardContent className="p-4 sm:p-6 space-y-2 text-sm">
           <p className="text-muted-foreground">{status.detail}</p>
           <p className="text-xs text-muted-foreground">
             Última verificación: {status.checkedAt ? new Date(status.checkedAt).toLocaleString('es-MX') : 'Pendiente'}
@@ -180,30 +178,19 @@ const SystemConfig = () => {
   };
 
   return (
-    <SidebarProvider>
-      <div className="min-h-screen flex w-full">
-        <AppSidebar />
-
-        <main className="flex-1">
-          <header className="h-16 border-b border-border bg-card flex items-center px-6 gap-4 fixed md:sticky top-0 z-10 w-full md:w-auto">
-            <SidebarTrigger />
-            <div className="flex-1">
-              <h1 className="text-2xl font-bold">Configuración del Sistema</h1>
-            </div>
-          </header>
-
-          <div className="p-6 space-y-6">
-            <Tabs defaultValue="notifications" className="w-full">
-              <TabsList className="grid w-full max-w-md grid-cols-2">
-                <TabsTrigger value="notifications">Notificaciones</TabsTrigger>
-                <TabsTrigger value="integrations">Integraciones</TabsTrigger>
-              </TabsList>
+    <>
+      <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+        <Tabs defaultValue="notifications" className="w-full">
+          <TabsList className="grid w-full max-w-md grid-cols-2">
+            <TabsTrigger value="notifications">Notificaciones</TabsTrigger>
+            <TabsTrigger value="integrations">Integraciones</TabsTrigger>
+          </TabsList>
 
               {/* Notifications Tab */}
               <TabsContent value="notifications" className="mt-6 space-y-6">
                 {/* Email Notifications */}
                 <Card className="shadow-soft">
-                  <CardHeader>
+                  <CardHeader className="p-4 sm:p-6">
                     <div className="flex items-center gap-3">
                       <Mail className="h-5 w-5 text-primary" />
                       <div>
@@ -214,7 +201,7 @@ const SystemConfig = () => {
                       </div>
                     </div>
                   </CardHeader>
-                  <CardContent className="space-y-4">
+                  <CardContent className="p-4 sm:p-6 space-y-4">
                     <div className="flex items-center justify-between">
                       <div className="space-y-0.5">
                         <Label htmlFor="email-enabled">Habilitar Emails</Label>
@@ -293,7 +280,7 @@ const SystemConfig = () => {
                 )}
 
                 <Card className={`shadow-soft border ${tekaeStatus.ok ? statusStyles.online.card : statusStyles.warning.card}`}>
-                  <CardHeader>
+                  <CardHeader className="p-4 sm:p-6">
                     <div className="flex items-center justify-between gap-4">
                       <div className="flex items-center gap-3 min-w-0">
                         <div className={`flex h-10 w-10 items-center justify-center rounded-full border ${tekaeStatus.ok ? statusStyles.online.card : statusStyles.warning.card}`}>
@@ -315,7 +302,7 @@ const SystemConfig = () => {
                       </div>
                     </div>
                   </CardHeader>
-                  <CardContent className="space-y-2 text-sm">
+                  <CardContent className="p-4 sm:p-6 space-y-2 text-sm">
                     <p className="text-muted-foreground">{tekaeStatus.detail}</p>
                     <p className="text-xs text-muted-foreground">
                       URL de referencia: https://www.tekaebusiness.com.mx/
@@ -331,10 +318,8 @@ const SystemConfig = () => {
                 </div>
               </TabsContent>
             </Tabs>
-          </div>
-        </main>
       </div>
-    </SidebarProvider>
+    </>
   );
 };
 

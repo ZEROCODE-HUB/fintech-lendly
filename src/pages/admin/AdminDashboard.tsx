@@ -1,25 +1,23 @@
 import { useState, useEffect } from "react";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/AppSidebar";
 import { useCountUp } from "@/hooks/use-count-up";
 import { AnimatedNumber } from "@/components/AnimatedNumber";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { 
-  Users, 
-  DollarSign, 
-  TrendingUp, 
+import {
+  Users,
+  DollarSign,
+  TrendingUp,
   AlertTriangle,
   CheckCircle2,
   Clock,
   Wallet,
   FileText
 } from "lucide-react";
-import { 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
+import {
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
   ResponsiveContainer,
   LineChart,
   Line,
@@ -61,13 +59,13 @@ const AdminDashboard = () => {
         const totalClients = Array.isArray(users) ? users.length : 0;
 
         const loansArr = Array.isArray(loans) ? loans : [];
-        const activeLoans = loansArr.filter((l:any) => l.status === 'active').length;
-        const pendingRequests = loansArr.filter((l:any) => ['pending','under_review'].includes(l.status)).length;
+        const activeLoans = loansArr.filter((l: any) => l.status === 'active').length;
+        const pendingRequests = loansArr.filter((l: any) => ['pending', 'under_review'].includes(l.status)).length;
 
-        const totalDisbursed = Array.isArray(disbursements) ? disbursements.reduce((s:any, d:any) => s + Number(d.amount || 0), 0) : 0;
+        const totalDisbursed = Array.isArray(disbursements) ? disbursements.reduce((s: any, d: any) => s + Number(d.amount || 0), 0) : 0;
 
         // pending disbursement: sum amounts of loans approved/signed but not disbursed
-        const pendingDisbursement = loansArr.filter((l:any) => ['approved','signed'].includes(l.status)).reduce((s:any,l:any) => s + Number(l.amount||0), 0);
+        const pendingDisbursement = loansArr.filter((l: any) => ['approved', 'signed'].includes(l.status)).reduce((s: any, l: any) => s + Number(l.amount || 0), 0);
 
         // overdue calculation: basic heuristic using metadata.next_payment_date or derived schedule
         const now = new Date();
@@ -82,7 +80,7 @@ const AdminDashboard = () => {
             const approved = l.approved_at ? new Date(l.approved_at) : (l.applied_at ? new Date(l.applied_at) : (l.created_at ? new Date(l.created_at) : null));
             if (approved) {
               const installments = Number(l.installments ?? l.metadata?.installments ?? 12);
-              const installmentAmount = installments > 0 ? Math.round(Number(l.amount||0) / installments) : Number(l.amount||0);
+              const installmentAmount = installments > 0 ? Math.round(Number(l.amount || 0) / installments) : Number(l.amount || 0);
               const paid = Number(l.metadata?.paid_amount ?? 0);
               const paidInst = installmentAmount > 0 ? Math.floor(paid / installmentAmount) : 0;
               const nextInst = paidInst + 1;
@@ -123,8 +121,8 @@ const AdminDashboard = () => {
             const monthStart = new Date(d.getFullYear(), d.getMonth(), 1);
             const monthEnd = new Date(d.getFullYear(), d.getMonth() + 1, 1);
 
-            const monthRegs = Array.isArray(users) ? users.filter((u:any) => { const dt = new Date(u.created_at); return dt >= monthStart && dt < monthEnd; }) : [];
-            const monthMemb = Array.isArray(userMemberships) ? userMemberships.filter((m:any) => { if (!m.started_at) return false; const dt = new Date(m.started_at); return dt >= monthStart && dt < monthEnd && m.status === 'active'; }) : [];
+            const monthRegs = Array.isArray(users) ? users.filter((u: any) => { const dt = new Date(u.created_at); return dt >= monthStart && dt < monthEnd; }) : [];
+            const monthMemb = Array.isArray(userMemberships) ? userMemberships.filter((m: any) => { if (!m.started_at) return false; const dt = new Date(m.started_at); return dt >= monthStart && dt < monthEnd && m.status === 'active'; }) : [];
             registradosSeries.push(monthRegs.length);
             conMembresiaSeries.push(monthMemb.length);
           }
@@ -147,10 +145,10 @@ const AdminDashboard = () => {
           const monthStart = new Date(d.getFullYear(), d.getMonth(), 1);
           const monthEnd = new Date(d.getFullYear(), d.getMonth() + 1, 1);
 
-          const monthDes = Array.isArray(disbursements) ? disbursements.filter((x:any) => { const dt = new Date(x.created_at); return dt >= monthStart && dt < monthEnd; }) : [];
-          const monthPag = Array.isArray(invoices) ? invoices.filter((x:any) => { const dt = new Date(x.created_at); return dt >= monthStart && dt < monthEnd; }) : [];
-          desembolsosSeries.push(monthDes.reduce((s:any,x:any) => s + Number(x.amount||0), 0));
-          pagosSeries.push(monthPag.reduce((s:any,x:any) => s + Number(x.amount||0), 0));
+          const monthDes = Array.isArray(disbursements) ? disbursements.filter((x: any) => { const dt = new Date(x.created_at); return dt >= monthStart && dt < monthEnd; }) : [];
+          const monthPag = Array.isArray(invoices) ? invoices.filter((x: any) => { const dt = new Date(x.created_at); return dt >= monthStart && dt < monthEnd; }) : [];
+          desembolsosSeries.push(monthDes.reduce((s: any, x: any) => s + Number(x.amount || 0), 0));
+          pagosSeries.push(monthPag.reduce((s: any, x: any) => s + Number(x.amount || 0), 0));
         }
 
         // construct profitabilityDynamic structure compatible with existing UI
@@ -276,295 +274,277 @@ const AdminDashboard = () => {
   };
 
   return (
-    <SidebarProvider>
-      <div className="min-h-screen flex w-full">
-        <AppSidebar />
-        
-        <main className="flex-1 overflow-x-hidden">
-          <header className="border-b border-border bg-card fixed md:sticky top-0 z-10 w-full md:w-auto">
-            <div className="flex items-center h-14 sm:h-16 px-4 sm:px-6 gap-3">
-              <SidebarTrigger />
-              <div className="flex-1 min-w-0">
-                <h1 className="text-xl sm:text-2xl font-bold truncate">Dashboard Administrativo</h1>
-              </div>
+    <div className="">
+      <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3">
+        <Card className="shadow-soft">
+          <CardHeader className="flex flex-row items-center justify-between  ">
+            <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
+              Total Clientes
+            </CardTitle>
+            <div className="h-7 w-7 sm:h-9 sm:w-9 rounded-xl bg-primary/10 flex items-center justify-center">
+              <Users className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
             </div>
-          </header>
-
-          <div className="p-4 sm:p-6 md:px-6 lg:p-8 space-y-4 sm:space-y-6 pt-16 sm:pt-20 md:pt-0">
-            {/* KPI Cards Grid */}
-            <div className="grid gap-3 sm:gap-4 md:gap-5 lg:gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3">
-              <Card variant="elevated" className="animate-fade-in-up [animation-delay:0ms] hover:-translate-y-1">
-                <CardHeader className="flex flex-row items-center justify-between pb-2 p-3 sm:p-4 md:p-6">
-                  <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
-                    Total Clientes
-                  </CardTitle>
-                  <div className="h-7 w-7 sm:h-9 sm:w-9 rounded-xl bg-primary/10 flex items-center justify-center">
-                    <Users className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
-                  </div>
-                </CardHeader>
-                <CardContent className="p-3 sm:p-4 md:p-6 pt-0">
-                  <div className="text-xl sm:text-2xl md:text-3xl font-bold">
-                    <AnimatedNumber value={stats.totalClients} duration={800} delay={0} />
-                  </div>
-                  <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 sm:mt-2">
-                    <span className="inline-flex items-center text-success font-medium">
-                      <TrendingUp className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-1" />
-                      +8%
-                    </span>
-                    <span className="ml-1">este mes</span>
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card variant="elevated" className="animate-fade-in-up [animation-delay:50ms] hover:-translate-y-1">
-                <CardHeader className="flex flex-row items-center justify-between pb-2 p-3 sm:p-4 md:p-6">
-                  <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
-                    Préstamos Activos
-                  </CardTitle>
-                  <div className="h-7 w-7 sm:h-9 sm:w-9 rounded-xl bg-success/10 flex items-center justify-center">
-                    <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 text-success" />
-                  </div>
-                </CardHeader>
-                <CardContent className="p-3 sm:p-4 md:p-6 pt-0">
-                  <div className="text-xl sm:text-2xl md:text-3xl font-bold">
-                    <AnimatedNumber value={stats.activeLoans} duration={800} delay={50} />
-                  </div>
-                  <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 sm:mt-2">
-                    Cartera saludable
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card variant="elevated" className="animate-fade-in-up [animation-delay:100ms] hover:-translate-y-1">
-                <CardHeader className="flex flex-row items-center justify-between pb-2 p-3 sm:p-4 md:p-6">
-                  <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
-                    Solicitudes Pendientes
-                  </CardTitle>
-                  <div className="h-7 w-7 sm:h-9 sm:w-9 rounded-xl bg-warning/10 flex items-center justify-center">
-                    <Clock className="h-4 w-4 sm:h-5 sm:w-5 text-warning" />
-                  </div>
-                </CardHeader>
-                <CardContent className="p-3 sm:p-4 md:p-6 pt-0">
-                  <div className="text-xl sm:text-2xl md:text-3xl font-bold">
-                    <AnimatedNumber value={stats.pendingRequests} duration={800} delay={100} />
-                  </div>
-                  <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 sm:mt-2">
-                    Requieren atención
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card variant="elevated" className="animate-fade-in-up [animation-delay:150ms] hover:-translate-y-1">
-                <CardHeader className="flex flex-row items-center justify-between pb-2 p-3 sm:p-4 md:p-6">
-                  <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
-                    Total Desembolsado
-                  </CardTitle>
-                  <div className="h-7 w-7 sm:h-9 sm:w-9 rounded-xl bg-success/10 flex items-center justify-center">
-                    <DollarSign className="h-4 w-4 sm:h-5 sm:w-5 text-success" />
-                  </div>
-                </CardHeader>
-                <CardContent className="p-3 sm:p-4 md:p-6 pt-0">
-                  <div className="text-lg sm:text-xl md:text-2xl font-bold">
-                    <AnimatedNumber 
-                      value={stats.totalDisbursed} 
-                      duration={800} 
-                      delay={150}
-                      formatter={formatCurrency}
-                    />
-                  </div>
-                  <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 sm:mt-2">
-                    En el último semestre
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card variant="elevated" className="animate-fade-in-up [animation-delay:200ms] hover:-translate-y-1">
-                <CardHeader className="flex flex-row items-center justify-between pb-2 p-3 sm:p-4 md:p-6">
-                  <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
-                    Préstamos Vencidos
-                  </CardTitle>
-                  <div className="h-7 w-7 sm:h-9 sm:w-9 rounded-xl bg-danger/10 flex items-center justify-center">
-                    <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5 text-danger" />
-                  </div>
-                </CardHeader>
-                <CardContent className="p-3 sm:p-4 md:p-6 pt-0">
-                  <div className="text-xl sm:text-2xl md:text-3xl font-bold">
-                    <AnimatedNumber value={stats.overdueLoans} duration={800} delay={200} />
-                  </div>
-                  <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 sm:mt-2">
-                    Atención requerida
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card variant="elevated" className="animate-fade-in-up [animation-delay:250ms] hover:-translate-y-1">
-                <CardHeader className="flex flex-row items-center justify-between pb-2 p-3 sm:p-4 md:p-6">
-                  <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
-                    Total por Desembolsar
-                  </CardTitle>
-                  <div className="h-7 w-7 sm:h-9 sm:w-9 rounded-xl bg-primary/10 flex items-center justify-center">
-                    <Wallet className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
-                  </div>
-                </CardHeader>
-                <CardContent className="p-3 sm:p-4 md:p-6 pt-0">
-                  <div className="text-lg sm:text-xl md:text-2xl font-bold">
-                    <AnimatedNumber 
-                      value={stats.pendingDisbursement} 
-                      duration={800} 
-                      delay={250}
-                      formatter={formatCurrency}
-                    />
-                  </div>
-                  <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 sm:mt-2">
-                    <FileText className="inline h-2.5 w-2.5 sm:h-3 sm:w-3 mr-1" />
-                    Pendiente + Pend. Firma
-                  </p>
-                </CardContent>
-              </Card>
+          </CardHeader>
+          <CardContent className=" ">
+            <div className="text-2xl sm:text-3xl font-bold">
+              <AnimatedNumber value={stats.totalClients} duration={800} delay={0} />
             </div>
+            <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 sm:mt-2">
+              <span className="inline-flex items-center text-success font-medium">
+                <TrendingUp className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-1" />
+                +8%
+              </span>
+              <span className="ml-1">este mes</span>
+            </p>
+          </CardContent>
+        </Card>
 
-            {/* Central Charts */}
-            <div className="grid gap-4 sm:gap-5 md:gap-6 grid-cols-1 md:grid-cols-1 lg:grid-cols-2">
-              {/* Membership Status - Line Chart */}
-              <Card variant="elevated" className="animate-fade-in-up [animation-delay:300ms]">
-                <CardHeader className="p-4 sm:p-6">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                    <div>
-                      <CardTitle className="text-base sm:text-lg">Estado de Membresías</CardTitle>
-                      <CardDescription className="text-xs sm:text-sm">Usuarios Registrados vs Con Membresía</CardDescription>
-                    </div>
-                    <Select value={membershipDateRange} onValueChange={setMembershipDateRange}>
-                      <SelectTrigger className="w-full sm:w-[140px]">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="3months">3 meses</SelectItem>
-                        <SelectItem value="6months">6 meses</SelectItem>
-                        <SelectItem value="12months">12 meses</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </CardHeader>
-                <CardContent className="p-2 sm:p-6">
-                  <ResponsiveContainer width="100%" height={250} className="sm:h-[300px]">
-                    <LineChart data={(membershipDynamic[membershipDateRange] && membershipDynamic[membershipDateRange].length) ? membershipDynamic[membershipDateRange] : membershipData[membershipDateRange as keyof typeof membershipData]}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                      <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" />
-                      <YAxis stroke="hsl(var(--muted-foreground))" />
-                      <Tooltip content={<CustomTooltipLine />} />
-                      <Legend />
-                      <Line 
-                        type="monotone" 
-                        dataKey="registrados" 
-                        stroke="hsl(var(--primary))" 
-                        strokeWidth={2}
-                        name="Usuarios Registrados"
-                        dot={{ fill: "hsl(var(--primary))" }}
-                      />
-                      <Line 
-                        type="monotone" 
-                        dataKey="conMembresia" 
-                        stroke="hsl(var(--success))" 
-                        strokeWidth={2}
-                        name="Usuarios con Membresía"
-                        dot={{ fill: "hsl(var(--success))" }}
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
-
-              {/* Active Loans Status - Donut Chart */}
-              <Card variant="elevated" className="animate-fade-in-up [animation-delay:350ms]">
-                <CardHeader className="p-4 sm:p-6">
-                  <CardTitle className="text-base sm:text-lg">Estado de Préstamos Activos</CardTitle>
-                  <CardDescription className="text-xs sm:text-sm">Distribución de cartera activa</CardDescription>
-                </CardHeader>
-                <CardContent className="p-2 sm:p-6">
-                  <ResponsiveContainer width="100%" height={250} className="sm:h-[300px]">
-                    <PieChart>
-                      <Pie
-                        data={activeLoanStatusDataDynamic.length ? activeLoanStatusDataDynamic : activeLoanStatusData}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={60}
-                        outerRadius={100}
-                        paddingAngle={2}
-                        dataKey="value"
-                      >
-                        {(activeLoanStatusDataDynamic.length ? activeLoanStatusDataDynamic : activeLoanStatusData).map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} />
-                        ))}
-                      </Pie>
-                      <Tooltip content={<CustomTooltipPie />} />
-                      <Legend 
-                        verticalAlign="bottom" 
-                        height={36}
-                        formatter={(value, entry: any) => (
-                          <span className="text-sm text-foreground">{value}</span>
-                        )}
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
+        <Card className="shadow-soft">
+          <CardHeader className="flex flex-row items-center justify-between ">
+            <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
+              Préstamos Activos
+            </CardTitle>
+            <div className="h-7 w-7 sm:h-9 sm:w-9 rounded-xl bg-success/10 flex items-center justify-center">
+              <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 text-success" />
             </div>
+          </CardHeader>
+          <CardContent className="">
+            <div className="text-2xl sm:text-3xl font-bold">
+              <AnimatedNumber value={stats.activeLoans} duration={800} delay={50} />
+            </div>
+            <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 sm:mt-2">
+              Cartera saludable
+            </p>
+          </CardContent>
+        </Card>
 
-            {/* Profitability Section */}
-            <Card variant="elevated" className="animate-fade-in-up [animation-delay:400ms]">
-              <CardHeader className="p-4 sm:p-6">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                  <div>
-                    <CardTitle className="text-base sm:text-lg">Rentabilidad</CardTitle>
-                    <CardDescription className="text-xs sm:text-sm">Desembolsos vs Pagos de Usuarios</CardDescription>
-                  </div>
-                  <Select value={profitabilityDateRange} onValueChange={setProfitabilityDateRange}>
-                    <SelectTrigger className="w-full sm:w-[140px]">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="3months">3 meses</SelectItem>
-                      <SelectItem value="6months">6 meses</SelectItem>
-                      <SelectItem value="12months">12 meses</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </CardHeader>
-              <CardContent className="p-2 sm:p-6">
-                <ResponsiveContainer width="100%" height={280} className="sm:h-[350px]">
-                  <LineChart data={(profitabilityDynamic[profitabilityDateRange] && profitabilityDynamic[profitabilityDateRange].length) ? profitabilityDynamic[profitabilityDateRange] : profitabilityData[profitabilityDateRange as keyof typeof profitabilityData]}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" />
-                    <YAxis 
-                      stroke="hsl(var(--muted-foreground))" 
-                      tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`}
-                    />
-                    <Tooltip content={<CustomTooltipLine />} />
-                    <Legend />
-                    <Line 
-                      type="monotone" 
-                      dataKey="desembolsos" 
-                      stroke="hsl(var(--primary))" 
-                      strokeWidth={2}
-                      name="Desembolsos"
-                      dot={{ fill: "hsl(var(--primary))" }}
-                    />
-                    <Line 
-                      type="monotone" 
-                      dataKey="pagos" 
-                      stroke="hsl(var(--success))" 
-                      strokeWidth={2}
-                      name="Pagos de Usuarios"
-                      dot={{ fill: "hsl(var(--success))" }}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-          </div>
-        </main>
+        <Card className="shadow-soft">
+          <CardHeader className="flex flex-row items-center justify-between ">
+            <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
+              Solicitudes Pendientes
+            </CardTitle>
+            <div className="h-7 w-7 sm:h-9 sm:w-9 rounded-xl bg-warning/10 flex items-center justify-center">
+              <Clock className="h-4 w-4 sm:h-5 sm:w-5 text-warning" />
+            </div>
+          </CardHeader>
+          <CardContent className="">
+            <div className="text-2xl sm:text-3xl font-bold">
+              <AnimatedNumber value={stats.pendingRequests} duration={800} delay={100} />
+            </div>
+            <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 sm:mt-2">
+              Requieren atención
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-soft">
+          <CardHeader className="flex flex-row items-center justify-between ">
+            <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
+              Total Desembolsado
+            </CardTitle>
+            <div className="h-7 w-7 sm:h-9 sm:w-9 rounded-xl bg-success/10 flex items-center justify-center">
+              <DollarSign className="h-4 w-4 sm:h-5 sm:w-5 text-success" />
+            </div>
+          </CardHeader>
+          <CardContent className="">
+            <div className="text-2xl sm:text-3xl font-bold">
+              <AnimatedNumber
+                value={stats.totalDisbursed}
+                duration={800}
+                delay={150}
+                formatter={formatCurrency}
+              />
+            </div>
+            <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 sm:mt-2">
+              En el último semestre
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-soft">
+          <CardHeader className="flex flex-row items-center justify-between ">
+            <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
+              Préstamos Vencidos
+            </CardTitle>
+            <div className="h-7 w-7 sm:h-9 sm:w-9 rounded-xl bg-danger/10 flex items-center justify-center">
+              <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5 text-danger" />
+            </div>
+          </CardHeader>
+          <CardContent className="">
+            <div className="text-2xl sm:text-3xl font-bold">
+              <AnimatedNumber value={stats.overdueLoans} duration={800} delay={200} />
+            </div>
+            <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 sm:mt-2">
+              Atención requerida
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-soft">
+          <CardHeader className="flex flex-row items-center justify-between ">
+            <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
+              Total por Desembolsar
+            </CardTitle>
+            <div className="h-7 w-7 sm:h-9 sm:w-9 rounded-xl bg-primary/10 flex items-center justify-center">
+              <Wallet className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+            </div>
+          </CardHeader>
+          <CardContent className="">
+            <div className="text-2xl sm:text-3xl font-bold">
+              <AnimatedNumber
+                value={stats.pendingDisbursement}
+                duration={800}
+                delay={250}
+                formatter={formatCurrency}
+              />
+            </div>
+            <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 sm:mt-2">
+              <FileText className="inline h-2.5 w-2.5 sm:h-3 sm:w-3 mr-1" />
+              Pendiente + Pend. Firma
+            </p>
+          </CardContent>
+        </Card>
       </div>
-    </SidebarProvider>
+
+      {/* Central Charts */}
+      <div className="grid gap-4 mt-4 sm:gap-6 grid-cols-1 md:grid-cols-1 lg:grid-cols-2">
+        {/* Membership Status - Line Chart */}
+        <Card className="shadow-soft">
+          <CardHeader className="p-4 sm:p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div>
+                <CardTitle className="text-base sm:text-lg">Estado de Membresías</CardTitle>
+                <CardDescription className="text-xs sm:text-sm">Usuarios Registrados vs Con Membresía</CardDescription>
+              </div>
+              <Select value={membershipDateRange} onValueChange={setMembershipDateRange}>
+                <SelectTrigger className="w-full sm:w-[140px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="3months">3 meses</SelectItem>
+                  <SelectItem value="6months">6 meses</SelectItem>
+                  <SelectItem value="12months">12 meses</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </CardHeader>
+          <CardContent className="p-4 sm:p-6">
+            <ResponsiveContainer width="100%" height={250} className="sm:h-[300px]">
+              <LineChart data={(membershipDynamic[membershipDateRange] && membershipDynamic[membershipDateRange].length) ? membershipDynamic[membershipDateRange] : membershipData[membershipDateRange as keyof typeof membershipData]}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" />
+                <YAxis stroke="hsl(var(--muted-foreground))" />
+                <Tooltip content={<CustomTooltipLine />} />
+                <Legend />
+                <Line
+                  type="monotone"
+                  dataKey="registrados"
+                  stroke="hsl(var(--primary))"
+                  strokeWidth={2}
+                  name="Usuarios Registrados"
+                  dot={{ fill: "hsl(var(--primary))" }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="conMembresia"
+                  stroke="hsl(var(--success))"
+                  strokeWidth={2}
+                  name="Usuarios con Membresía"
+                  dot={{ fill: "hsl(var(--success))" }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        {/* Active Loans Status - Donut Chart */}
+        <Card className="shadow-soft">
+          <CardHeader className="p-4 sm:p-6">
+            <CardTitle className="text-base sm:text-lg">Estado de Préstamos Activos</CardTitle>
+            <CardDescription className="text-xs sm:text-sm">Distribución de cartera activa</CardDescription>
+          </CardHeader>
+          <CardContent className="p-4 sm:p-6">
+            <ResponsiveContainer width="100%" height={250} className="sm:h-[300px]">
+              <PieChart>
+                <Pie
+                  data={activeLoanStatusDataDynamic.length ? activeLoanStatusDataDynamic : activeLoanStatusData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={60}
+                  outerRadius={100}
+                  paddingAngle={2}
+                  dataKey="value"
+                >
+                  {(activeLoanStatusDataDynamic.length ? activeLoanStatusDataDynamic : activeLoanStatusData).map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip content={<CustomTooltipPie />} />
+                <Legend
+                  verticalAlign="bottom"
+                  height={36}
+                  formatter={(value, entry: any) => (
+                    <span className="text-sm text-foreground">{value}</span>
+                  )}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Profitability Section */}
+      <Card className="shadow-soft mt-4">
+        <CardHeader className="p-4 sm:p-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+              <CardTitle className="text-base sm:text-lg">Rentabilidad</CardTitle>
+              <CardDescription className="text-xs sm:text-sm">Desembolsos vs Pagos de Usuarios</CardDescription>
+            </div>
+            <Select value={profitabilityDateRange} onValueChange={setProfitabilityDateRange}>
+              <SelectTrigger className="w-full sm:w-[140px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="3months">3 meses</SelectItem>
+                <SelectItem value="6months">6 meses</SelectItem>
+                <SelectItem value="12months">12 meses</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </CardHeader>
+        <CardContent className="p-2 sm:p-6">
+          <ResponsiveContainer width="100%" height={280} className="sm:h-[350px]">
+            <LineChart data={(profitabilityDynamic[profitabilityDateRange] && profitabilityDynamic[profitabilityDateRange].length) ? profitabilityDynamic[profitabilityDateRange] : profitabilityData[profitabilityDateRange as keyof typeof profitabilityData]}>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+              <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" />
+              <YAxis
+                stroke="hsl(var(--muted-foreground))"
+                tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`}
+              />
+              <Tooltip content={<CustomTooltipLine />} />
+              <Legend />
+              <Line
+                type="monotone"
+                dataKey="desembolsos"
+                stroke="hsl(var(--primary))"
+                strokeWidth={2}
+                name="Desembolsos"
+                dot={{ fill: "hsl(var(--primary))" }}
+              />
+              <Line
+                type="monotone"
+                dataKey="pagos"
+                stroke="hsl(var(--success))"
+                strokeWidth={2}
+                name="Pagos de Usuarios"
+                dot={{ fill: "hsl(var(--success))" }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
+    </div>
   );
 };
 

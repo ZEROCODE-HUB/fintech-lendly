@@ -1,6 +1,4 @@
 import { useState, useMemo, useEffect } from "react";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/AppSidebar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +12,7 @@ import { clientsMockData, membershipsMockData, defaultClientColumns, defaultMemb
 import { AddUserModal, ModifyClientModal, DeleteClientModal, ViewPhotoModal, ViewDocumentsModal } from "@/components/admin/clients/modals/ClientModals";
 import { AddMembershipModal, ViewHistoryModal, ExpireMembershipModal } from "@/components/admin/clients/modals/MembershipModals";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/contexts/AuthContext";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Pagination,
@@ -435,26 +434,13 @@ const ClientManagement = () => {
     columns.find(c => c.key === key)?.visible ?? false;
 
   return (
-    <SidebarProvider>
-      <div className="min-h-screen flex w-full">
-        <AppSidebar />
-        
-        <main className="flex-1 overflow-x-hidden">
-          <header className="border-b border-border bg-card fixed md:sticky top-0 z-10 w-full md:w-auto">
-            <div className="flex items-center h-14 sm:h-16 px-4 sm:px-6 gap-3">
-              <SidebarTrigger />
-              <div className="flex-1 min-w-0">
-                <h1 className="text-xl sm:text-2xl font-bold truncate">Gestión de Clientes</h1>
-              </div>
-            </div>
-          </header>
-
-          <div className="p-4 sm:p-6 md:px-6 lg:p-8 space-y-4 sm:space-y-6 pt-16 sm:pt-20 md:pt-0">
-            <Tabs defaultValue="clients" className="w-full">
-              <TabsList className="grid w-full max-w-md grid-cols-2">
-                <TabsTrigger value="clients">Clientes</TabsTrigger>
-                <TabsTrigger value="memberships">Membresías</TabsTrigger>
-              </TabsList>
+    <>
+      <div className="p-4 sm:p-6 md:px-6 lg:p-8 space-y-4 sm:space-y-6">
+        <Tabs defaultValue="clients" className="w-full">
+          <TabsList className="grid w-full max-w-md grid-cols-2">
+            <TabsTrigger value="clients">Clientes</TabsTrigger>
+            <TabsTrigger value="memberships">Membresías</TabsTrigger>
+          </TabsList>
 
               {/* Clients Tab */}
               <TabsContent value="clients" className="mt-6">
@@ -462,7 +448,7 @@ const ClientManagement = () => {
                   <CardHeader>
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                       <div>
-                        <CardTitle className="text-lg sm:text-xl">Base de Datos de Clientes</CardTitle>
+                        <CardTitle className="text-base sm:text-lg">Base de Datos de Clientes</CardTitle>
                         <CardDescription className="text-xs sm:text-sm">Información completa de todos los usuarios registrados</CardDescription>
                       </div>
                       <div className="flex items-center gap-2 flex-wrap">
@@ -494,7 +480,7 @@ const ClientManagement = () => {
                     />
                     
                     <div className="overflow-x-auto border rounded-lg -mx-4 sm:mx-0">
-                      <Table className="min-w-full">
+                      <Table className="w-full">
                         <TableHeader>
                           <TableRow className="hover:bg-transparent">
                             {isColumnVisible(clientColumns, "id") && <TableHead className="text-xs sm:text-sm whitespace-nowrap">ID</TableHead>}
@@ -809,7 +795,7 @@ const ClientManagement = () => {
                     />
                     
                     <div className="overflow-x-auto border rounded-lg -mx-4 sm:mx-0">
-                      <Table className="min-w-full">
+                      <Table className="w-full">
                         <TableHeader>
                           <TableRow className="hover:bg-transparent">
                             {isColumnVisible(membershipColumns, "firstName") && <TableHead className="text-xs sm:text-sm whitespace-nowrap">Nombre</TableHead>}
@@ -863,10 +849,9 @@ const ClientManagement = () => {
               </TabsContent>
             </Tabs>
           </div>
-        </main>
 
-        {/* Client Modals */}
-        <AddUserModal
+          {/* Client Modals */}
+          <AddUserModal
           open={addUserOpen}
           onOpenChange={setAddUserOpen}
           onConfirm={async (data) => {
@@ -1104,9 +1089,8 @@ const ClientManagement = () => {
             }
           }}
         />
-      </div>
-    </SidebarProvider>
-  );
-};
+      </>
+    );
+  };
 
-export default ClientManagement;
+  export default ClientManagement;

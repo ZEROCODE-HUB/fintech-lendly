@@ -9,27 +9,42 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { ChevronDown } from "lucide-react";
 import * as XLSX from 'xlsx';
 import { PendingLoan } from "@/types/loans";
+import { supabase } from "@/lib/supabase";
 
 interface ModifyLoanModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   loan: PendingLoan | null;
   onSend: (data: { amount: number; installments: number; rate: number; message: string }) => void;
+  onSave?: () => void;
 }
 
-export const ModifyLoanModal = ({ open, onOpenChange, loan, onSend }: ModifyLoanModalProps) => {
+export const ModifyLoanModal = ({ open, onOpenChange, loan, onSend, onSave }: ModifyLoanModalProps) => {
   const [amount, setAmount] = useState(0);
   const [installments, setInstallments] = useState(12);
   const [rate, setRate] = useState(18);
   const [message, setMessage] = useState('');
   const [showSchedule, setShowSchedule] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [errors, setErrors] = useState<{ amount?: string; installments?: string; rate?: string }>({});
+
+  const validate = () => {
+    const newErrors: typeof errors = {};
+    if (!amount || amount <= 0) newErrors.amount = 'Ingresa un monto válido';
+    if (!installments || installments <= 0 || isNaN(installments)) newErrors.installments = 'Ingresa un número de cuotas válido';
+    if (!rate || rate <= 0 || isNaN(rate)) newErrors.rate = 'Ingresa una tasa válida';
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   useEffect(() => {
     if (loan) {
       setAmount(loan.amount ?? loan.raw?.amount ?? 0);
       setInstallments(loan.installments ?? loan.raw?.installments ?? 12);
-      setRate(loan.raw?.interest_rate ?? loan.interest_rate ?? loan.metadata?.interest_rate ?? 18);
+      const dbRate = loan.raw?.interest_rate ?? loan.interest_rate ?? loan.metadata?.interest_rate ?? 0.18;
+      setRate(Number(dbRate) * 100);
       setMessage('');
+      setErrors({});
     }
   }, [loan]);
 
@@ -39,8 +54,8 @@ export const ModifyLoanModal = ({ open, onOpenChange, loan, onSend }: ModifyLoan
     const l = loan.raw ?? loan;
     const P = Number(l.amount ?? amount ?? 0);
     const n = Number(l.installments ?? installments ?? 12);
-    const annualRate = Number(l.interest_rate ?? rate ?? l.metadata?.interest_rate ?? 0);
-    const monthlyRate = annualRate / 100 / 12;
+    const annualRate = rate / 100;
+    const monthlyRate = annualRate / 12;
 
     let monthlyPayment = 0;
     if (monthlyRate === 0) monthlyPayment = P / n;
@@ -88,8 +103,56 @@ export const ModifyLoanModal = ({ open, onOpenChange, loan, onSend }: ModifyLoan
   const monthlyPayment = schedule[0]?.payment || 0;
   const totalPayment = monthlyPayment * (installments || schedule.length);
 
+  const handleSave = async () => {
+    if (!loan) return;
+    if (!validate()) return;
+    
+    const loanId = loan.raw?.id ?? loan.uuid ?? loan.id;
+    if (!loanId) return;
+    
+    setSaving(true);
+    try {
+      const rateDecimal = rate / 100;
+      const monthlyPaymentValue = schedule[0]?.payment || 0;
+      const totalToPay = monthlyPaymentValue * installments;
+
+      const { error } = await supabase
+        .from('loans')
+        .update({
+          amount,
+          installments,
+          interest_rate: rateDecimal,
+          monthly_payment: Math.round(monthlyPaymentValue * 100) / 100,
+          total_to_pay: Math.round(totalToPay * 100) / 100,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', loanId);
+
+      if (error) throw error;
+      
+      const updatedRaw = {
+        ...loan.raw,
+        amount,
+        installments,
+        interest_rate: rateDecimal,
+        monthly_payment: Math.round(monthlyPaymentValue * 100) / 100,
+        total_to_pay: Math.round(totalToPay * 100) / 100
+      };
+      const updatedLoan = { ...loan, raw: updatedRaw };
+      
+      onSave?.(updatedLoan);
+      onOpenChange(false);
+    } catch (err) {
+      console.error('Error saving loan:', err);
+      alert('Error al guardar los cambios');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleSend = () => {
-    onSend({ amount, installments, rate, message });
+    const rateDecimal = rate / 100;
+    onSend({ amount, installments, rate: rateDecimal, message });
     onOpenChange(false);
   };
 
@@ -112,27 +175,55 @@ export const ModifyLoanModal = ({ open, onOpenChange, loan, onSend }: ModifyLoan
               <Input
                 id="mod-amount"
                 type="number"
-                value={amount}
-                onChange={(e) => setAmount(Number(e.target.value))}
+                value={amount || ''}
+                onChange={(e) => {
+                  setAmount(e.target.value === '' ? 0 : Number(e.target.value));
+                  if (errors.amount) setErrors(prev => ({ ...prev, amount: undefined }));
+                }}
+                onBlur={(e) => {
+                  if (e.target.value === '') setAmount(0);
+                }}
+                placeholder="Ej: 15000"
+                className={errors.amount ? 'border-red-500' : ''}
               />
+              {errors.amount && <p className="text-xs text-red-500 mt-1">{errors.amount}</p>}
             </div>
             <div>
               <Label htmlFor="mod-installments">Cuotas</Label>
               <Input
                 id="mod-installments"
-                type="number"
-                value={installments}
-                onChange={(e) => setInstallments(Number(e.target.value))}
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                value={installments || ''}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/\D/g, '');
+                  setInstallments(val === '' ? NaN : Number(val));
+                  if (errors.installments) setErrors(prev => ({ ...prev, installments: undefined }));
+                }}
+                placeholder="Ej: 12"
+                className={errors.installments ? 'border-red-500' : ''}
               />
+              {errors.installments && <p className="text-xs text-red-500 mt-1">{errors.installments}</p>}
             </div>
             <div>
               <Label htmlFor="mod-rate">Tasa Anual (%)</Label>
               <Input
                 id="mod-rate"
-                type="number"
-                value={rate}
-                onChange={(e) => setRate(Number(e.target.value))}
+                type="text"
+                inputMode="decimal"
+                value={rate || ''}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/[^0-9.]/g, '');
+                  const parts = val.split('.');
+                  const formatted = parts.length > 2 ? parts[0] + '.' + parts.slice(1).join('') : val;
+                  setRate(formatted === '' ? NaN : Number(formatted));
+                  if (errors.rate) setErrors(prev => ({ ...prev, rate: undefined }));
+                }}
+                placeholder="Ej: 42"
+                className={errors.rate ? 'border-red-500' : ''}
               />
+              {errors.rate && <p className="text-xs text-red-500 mt-1">{errors.rate}</p>}
             </div>
           </div>
 
@@ -222,8 +313,11 @@ export const ModifyLoanModal = ({ open, onOpenChange, loan, onSend }: ModifyLoan
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>
-          <Button onClick={handleSend}>
-            Enviar
+          <Button onClick={handleSave} disabled={saving}>
+            {saving ? 'Guardando...' : 'Guardar'}
+          </Button>
+          <Button variant="secondary" onClick={handleSend}>
+            Enviar Propuesta
           </Button>
         </DialogFooter>
       </DialogContent>

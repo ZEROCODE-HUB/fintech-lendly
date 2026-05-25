@@ -1,7 +1,5 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/AppSidebar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -191,8 +189,8 @@ const MembershipManagement = () => {
 
     if (!title) {
       nextErrors.title = 'El título es obligatorio.';
-    } else if (title.length < 4 || title.length > 60) {
-      nextErrors.title = 'El título debe tener entre 4 y 60 caracteres.';
+    } else if (title.length < 3 || title.length > 60) {
+      nextErrors.title = 'El título debe tener entre 3 y 60 caracteres.';
     } else if (!MEMBERSHIP_TITLE_PATTERN.test(title)) {
       nextErrors.title = 'El título solo puede incluir letras, números, espacios y signos básicos.';
     }
@@ -209,10 +207,8 @@ const MembershipManagement = () => {
 
     if (!targetAudience) {
       nextErrors.targetAudience = 'El público objetivo es obligatorio.';
-    } else if (targetAudience.length < 3 || targetAudience.length > 80) {
-      nextErrors.targetAudience = 'El público objetivo debe tener entre 3 y 80 caracteres.';
-    } else if (!MEMBERSHIP_TEXT_PATTERN.test(targetAudience)) {
-      nextErrors.targetAudience = 'El público objetivo contiene caracteres no permitidos.';
+    } else if (!['Persona Natural', 'Persona Moral'].includes(targetAudience)) {
+      nextErrors.targetAudience = 'Selecciona una opción válida.';
     }
 
     if (!formData.interestRate) {
@@ -338,19 +334,7 @@ const MembershipManagement = () => {
   };
 
   return (
-    <SidebarProvider>
-      <div className="min-h-screen flex w-full">
-        <AppSidebar />
-
-        <main className="flex-1">
-          <header className="h-16 border-b border-border bg-card flex items-center px-6 gap-4 fixed md:sticky top-0 z-10 w-full md:w-auto">
-            <SidebarTrigger />
-            <div className="flex-1">
-              <h1 className="text-2xl font-bold">Gestión de Membresías</h1>
-            </div>
-          </header>
-
-          <div className="p-6 space-y-6 pt-16 sm:pt-20 md:pt-0">
+    <div className="p-6 space-y-6">
             {/* Header Section */}
             <div className="bg-gradient-hero rounded-lg p-8 text-white">
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -368,7 +352,7 @@ const MembershipManagement = () => {
                       Nueva Membresía
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="max-h-screen overflow-y-auto w-[95vw] sm:w-full sm:max-w-[500px]">
+                  <DialogContent className="max-h-[85vh] overflow-y-auto w-[95vw] sm:w-full sm:max-w-[700px]">
                     <DialogHeader className="mb-4">
                       <DialogTitle className="text-lg sm:text-xl">
                         {editingMembership ? 'Editar Membresía' : 'Nueva Membresía'}
@@ -390,7 +374,7 @@ const MembershipManagement = () => {
                           maxLength={60}
                           className="text-sm"
                         />
-                        <p className="text-xs text-muted-foreground">4 a 60 caracteres, letras, números y signos básicos.</p>
+                        <p className="text-xs text-muted-foreground">3 a 60 caracteres, letras, números y signos básicos.</p>
                         {fieldErrors.title && <p className="text-xs text-destructive">{fieldErrors.title}</p>}
                       </div>
                       <div className="grid grid-cols-2 gap-2 sm:gap-4">
@@ -459,15 +443,18 @@ const MembershipManagement = () => {
                       </div>
                       <div className="grid gap-2">
                         <Label htmlFor="targetAudience" className="text-xs sm:text-sm">Público Objetivo *</Label>
-                        <Input
-                          id="targetAudience"
+                        <Select
                           value={formData.targetAudience}
-                          onChange={(e) => setFieldValue('targetAudience', e.target.value)}
-                          placeholder="Ej: Persona Natural"
-                          maxLength={80}
-                          className="text-sm"
-                        />
-                        <p className="text-xs text-muted-foreground">3 a 80 caracteres, formato de texto simple.</p>
+                          onValueChange={(value) => setFieldValue('targetAudience', value)}
+                        >
+                          <SelectTrigger id="targetAudience" className="text-sm">
+                            <SelectValue placeholder="Selecciona el público objetivo" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Persona Natural">Persona Natural</SelectItem>
+                            <SelectItem value="Persona Moral">Persona Moral</SelectItem>
+                          </SelectContent>
+                        </Select>
                         {fieldErrors.targetAudience && <p className="text-xs text-destructive">{fieldErrors.targetAudience}</p>}
                       </div>
                       <div className="grid gap-2">
@@ -641,9 +628,6 @@ const MembershipManagement = () => {
               </div>
             )}
           </div>
-        </main>
-      </div>
-    </SidebarProvider>
   );
 };
 

@@ -1,20 +1,20 @@
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Upload } from "lucide-react";
 import { ContractLoan } from "@/types/loans";
+import { supabase } from "@/lib/supabase";
+import { increscendoApiFetch } from "@/lib/increscendoApi";
 
 interface ResendContractModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   loan: ContractLoan | null;
   onResend: (data: Partial<ContractLoan>) => void;
-  onSave: (data: Partial<ContractLoan>) => void;
 }
 
-export const ResendContractModal = ({ open, onOpenChange, loan, onResend, onSave }: ResendContractModalProps) => {
+export const ResendContractModal = ({ open, onOpenChange, loan, onResend }: ResendContractModalProps) => {
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -24,22 +24,116 @@ export const ResendContractModal = ({ open, onOpenChange, loan, onResend, onSave
     bank: '',
     accountNumber: ''
   });
+  const [loading, setLoading] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [loanId, setLoanId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (loan) {
-      setFormData({
-        firstName: loan.firstName,
-        lastName: loan.lastName,
-        address: loan.address || '',
-        birthDate: loan.birthDate || '',
-        phone: loan.phone || '',
-        bank: loan.bank || '',
-        accountNumber: loan.accountNumber || ''
-      });
+    if (open && loan) {
+      const id = (loan as any).uuid ?? (loan as any).raw?.id ?? loan.id;
+      if (!id) return;
+      
+      setLoanId(id);
+      setLoading(true);
+      supabase
+        .from('loans')
+        .select('*, users(id, first_name, last_name, email, phone, address, birth_date, ine_key, curp, avatar_url)')
+        .eq('id', id)
+        .single()
+        .then(({ data: loanData, error: loanError }) => {
+          if (loanError || !loanData) {
+            setLoading(false);
+            return;
+          }
+          
+          supabase
+            .from('user_memberships')
+            .select('*, membership_plans(id, name, price, active)')
+            .eq('user_id', loanData.user_id)
+            .eq('status', 'active')
+            .maybeSingle()
+            .then(({ data: membershipData }) => {
+              const user = loanData.users ?? {};
+              const md = loanData.metadata ?? {};
+              const personalData = md?.personalData ?? {};
+              
+              const firstName = user.first_name || personalData.firstName || loan.firstName || '';
+              const lastName = user.last_name || personalData.lastName || loan.lastName || '';
+              const address = user.address || personalData.address || loan.address || '';
+              const birthDate = user.birth_date || personalData.birthDate || loan.birthDate || '';
+              const phone = user.phone || personalData.phone || loan.phone || '';
+              const getBankDisplayName = (code: string) => {
+                const bankNames: Record<string, string> = {
+                  'mx_santander': 'Santander',
+                  'mx_bbva': 'BBVA Bancomer',
+                  'mx_banorte': 'Banorte',
+                  'mx_hsbc': 'HSBC',
+                  'mx_banamex': 'Citibanamex',
+                  'mx_scotiabank': 'Scotiabank',
+                  'mx_inbursa': 'Inbursa',
+                  'mx_banregio': 'Banregio',
+                  'mx_afirme': 'Afirme'
+                };
+                return bankNames[code] || code || '';
+              };
+              
+              const bankCode = loan.bank || md?.depositData?.bank || md?.payment_method_bank_name || md?.bank || '';
+              const bankDisplay = getBankDisplayName(bankCode);
+              const accountNumber = loan.accountNumber || md?.depositData?.clabe || md?.payment_method_clabe || md?.clabe || '';
+
+              const phoneCountry = user.phone_country_code || '+52';
+              const fullPhone = phone !== '-' && phone ? `${phoneCountry}${phone.replace(/^\+\d+/, '')}` : '-';
+              const formattedBirthDate = birthDate ? (() => {
+                try {
+                  const d = new Date(birthDate);
+                  return d.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' }).replace(/^\w/, c => c.toUpperCase());
+                } catch { return birthDate; }
+              })() : '-';
+
+              setFormData({
+                firstName,
+                lastName,
+                address,
+                birthDate: formattedBirthDate,
+                phone: fullPhone,
+                bank: bankDisplay,
+                accountNumber
+              });
+              setLoading(false);
+            });
+        });
     }
-  }, [loan]);
+  }, [open, loan]);
 
   if (!loan) return null;
+
+  const readonlyField = (label: string, value: string) => (
+    <div>
+      <Label className="text-xs text-muted-foreground">{label}</Label>
+      <p className="text-sm font-medium mt-0.5 py-1.5">{value || '-'}</p>
+    </div>
+);
+
+  const handleResend = async () => {
+    if (!loanId) return;
+    setResending(true);
+    try {
+      const resp = await increscendoApiFetch('/signnow-remind', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ loan_id: loanId }),
+      });
+      const data = await resp.json().catch(() => null);
+      if (!resp.ok) throw data || new Error('SignNow remind error');
+      onResend(formData);
+      onOpenChange(false);
+    } catch (err) {
+      console.error('Error reenviando firma:', err);
+      alert('Error al reenviar la firma');
+    } finally {
+      setResending(false);
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -47,78 +141,42 @@ export const ResendContractModal = ({ open, onOpenChange, loan, onResend, onSave
         <DialogHeader>
           <DialogTitle>Reenviar Contrato</DialogTitle>
           <DialogDescription>
-            Editar datos del cliente antes de reenviar - {loan.id}
+            Datos del cliente para el contrato - {loan.id}
           </DialogDescription>
         </DialogHeader>
 
         <div className="grid grid-cols-2 gap-4">
-          <div>
-            <Label>Nombres</Label>
-            <Input
-              value={formData.firstName}
-              onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-            />
-          </div>
-          <div>
-            <Label>Apellidos</Label>
-            <Input
-              value={formData.lastName}
-              onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-            />
-          </div>
-          <div className="col-span-2">
-            <Label>Dirección</Label>
-            <Input
-              value={formData.address}
-              onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-            />
-          </div>
-          <div>
-            <Label>Fecha de Nacimiento</Label>
-            <Input
-              type="date"
-              value={formData.birthDate}
-              onChange={(e) => setFormData({ ...formData, birthDate: e.target.value })}
-            />
-          </div>
-          <div>
-            <Label>Teléfono</Label>
-            <Input
-              value={formData.phone}
-              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-            />
-          </div>
-          <div>
-            <Label>Banco</Label>
-            <Input
-              value={formData.bank}
-              onChange={(e) => setFormData({ ...formData, bank: e.target.value })}
-            />
-          </div>
-          <div>
-            <Label>Cuenta/CLABE</Label>
-            <Input
-              value={formData.accountNumber}
-              onChange={(e) => setFormData({ ...formData, accountNumber: e.target.value })}
-            />
-          </div>
+          {loading ? (
+            <div className="col-span-2 text-center py-8">
+              <p className="text-muted-foreground">Cargando datos del cliente...</p>
+            </div>
+          ) : (
+            <>
+              {readonlyField("Nombres", formData.firstName)}
+              {readonlyField("Apellidos", formData.lastName)}
+              <div className="col-span-2">
+                {readonlyField("Dirección", formData.address)}
+              </div>
+              {readonlyField("Fecha de Nacimiento", formData.birthDate)}
+              {readonlyField("Teléfono", formData.phone)}
+              {readonlyField("Banco", formData.bank)}
+              {readonlyField("Cuenta/CLABE", formData.accountNumber ? `••••${formData.accountNumber.slice(-4)}` : '-')}
+            </>
+          )}
         </div>
 
         <DialogFooter className="gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancelar
+            Cerrar
           </Button>
-          <Button variant="secondary" onClick={() => { onSave(formData); onOpenChange(false); }}>
-            Guardar
-          </Button>
-          <Button onClick={() => { onResend(formData); onOpenChange(false); }}>
-            Reenviar
+          <Button onClick={handleResend} disabled={resending || !loanId}>
+            {resending ? 'Reenviando...' : 'Reenviar Firma'}
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  );
-};
+);
+  };
 
 interface AttachContractModalProps {
   open: boolean;
@@ -168,7 +226,7 @@ export const AttachContractModal = ({ open, onOpenChange, loan, onConfirm }: Att
               </Button>
             </label>
           </div>
-          
+
           {files.length > 0 && (
             <div className="space-y-2">
               <p className="text-sm font-medium">Archivos seleccionados:</p>
