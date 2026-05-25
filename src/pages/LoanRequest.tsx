@@ -1,8 +1,5 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/AppSidebar";
-import { Chatbot } from "@/components/Chatbot";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,12 +10,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DollarSign, CheckCircle2, AlertTriangle, ArrowRight, Calendar } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import { authService } from "@/utils/auth";
+import { useAuth } from "@/contexts/AuthContext";
+import { Chatbot } from "@/components/Chatbot";
 
 const MIN_INSTALLMENTS = 3;
 
 const LoanRequest = () => {
   const navigate = useNavigate();
+  const { userId } = useAuth();
   const [loanAmount, setLoanAmount] = useState("");
   const [installments, setInstallments] = useState("12");
   const [estimatedPayment, setEstimatedPayment] = useState(0);
@@ -26,7 +25,7 @@ const LoanRequest = () => {
   const [paymentSchedule, setPaymentSchedule] = useState<any[]>([]);
   const [userMembership, setUserMembership] = useState<any | null>(null);
   const [membershipTitle, setMembershipTitle] = useState<string | null>(null);
-  const [interestRate, setInterestRate] = useState(0.2); // Default 42% anual = 0.42 (as decimal)
+  const [interestRate, setInterestRate] = useState(0.42); // Default 42% anual
 
   // Limpiar resume_loan_id del localStorage cuando se monta el componente
   useEffect(() => {
@@ -125,13 +124,12 @@ const LoanRequest = () => {
   useEffect(() => {
     const loadUserMembership = async () => {
       try {
-        const user = authService.getCurrentUser();
-        if (!user?.id) return;
+        if (!userId) return;
 
         const { data: umRow, error } = await supabase
           .from('user_memberships')
           .select('id, membership_plan_id, status, started_at, expires_at')
-          .eq('user_id', user.id)
+          .eq('user_id', userId)
           .eq('status', 'active')
           .order('expires_at', { ascending: false })
           .limit(1)
@@ -173,21 +171,9 @@ const LoanRequest = () => {
   }, []);
 
   return (
-    <SidebarProvider>
-      <div className="min-h-screen flex w-full">
-        <AppSidebar />
-        
-        <main className="flex-1">
-          <header className="h-14 sm:h-16 border-b border-border bg-card flex items-center px-3 sm:px-4 md:px-6 gap-2 sm:gap-4 fixed md:sticky top-0 z-10 w-full md:w-auto">
-            <SidebarTrigger />
-            <div className="flex-1 min-w-0">
-              <h1 className="text-lg sm:text-xl md:text-2xl font-bold truncate">Solicitar Préstamo</h1>
-            </div>
-          </header>
-
-          <div className="p-4 sm:p-6 md:p-8 max-w-4xl mx-auto space-y-4 sm:space-y-6 pt-16 sm:pt-20 md:pt-6">
-            {/* Membership Status Alert (shows only if user has an active membership) */}
-            {userMembership && (
+    <>
+      <div className="p-4 sm:p-6 max-w-4xl mx-auto space-y-4 sm:space-y-6">
+        {userMembership && (
               <Card className="border-success bg-success/5">
                 <CardContent className="flex flex-row items-center gap-3 sm:gap-4 p-4">
                   <CheckCircle2 className="h-5 w-5 sm:h-6 sm:w-6 text-success flex-shrink-0" />
@@ -204,9 +190,9 @@ const LoanRequest = () => {
             )}
 
             {/* Loan Calculator */}
-            <Card className="shadow-md">
-              <CardHeader className="px-4 sm:px-6 py-4">
-                <CardTitle className="flex items-center gap-2 text-base sm:text-xl">
+            <Card className="shadow-soft">
+              <CardHeader className="p-4 sm:p-6">
+                <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
                   <DollarSign className="h-4 w-4 sm:h-5 sm:w-5" />
                   Simulador de Préstamo
                 </CardTitle>
@@ -214,7 +200,7 @@ const LoanRequest = () => {
                   Ingresa el monto deseado y visualiza tus pagos mensuales
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4 px-4 sm:px-6 pb-4 sm:pb-6">
+              <CardContent className="p-4 sm:p-6 space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="amount" className="text-sm">Monto del Préstamo</Label>
                   <div className="relative">
@@ -225,7 +211,7 @@ const LoanRequest = () => {
                       placeholder="10000"
                       value={loanAmount}
                       onChange={(e) => handleAmountChange(e.target.value)}
-                      className="pl-7 text-base sm:text-lg font-semibold h-11"
+                      className="pl-7 text-base sm:text-lg font-semibold h-10"
                     />
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2">
@@ -246,7 +232,7 @@ const LoanRequest = () => {
                 <div className="space-y-2">
                   <Label htmlFor="installments" className="text-sm">Número de Cuotas</Label>
                   <Select value={installments} onValueChange={handleInstallmentsChange}>
-                    <SelectTrigger id="installments" className="h-11">
+                    <SelectTrigger id="installments" className="h-10">
                       <SelectValue placeholder="Selecciona el número de cuotas" />
                     </SelectTrigger>
                     <SelectContent>
@@ -284,7 +270,7 @@ const LoanRequest = () => {
                     </div>
                     <Button 
                       variant="outline" 
-                      className="w-full mt-2 text-xs sm:text-sm h-9 sm:h-10"
+                      className="w-full mt-2 text-xs sm:text-sm h-10"
                       onClick={generatePaymentSchedule}
                     >
                       <Calendar className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
@@ -306,25 +292,24 @@ const LoanRequest = () => {
                   </div>
                 </div>
 
-                <Button 
-                  className="w-full h-11 sm:h-12 text-sm sm:text-base"
-                  disabled={!loanAmount}
-                  size="lg"
-                  onClick={handleStartLoanProcess}
-                >
+<Button 
+                    className="w-full h-10 text-sm"
+                    disabled={!loanAmount}
+                    size="lg"
+                    onClick={handleStartLoanProcess}
+                  >
                   Solicitar préstamo
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </CardContent>
             </Card>
           </div>
-        </main>
 
         <Chatbot />
 
         {/* Payment Schedule Simulation Dialog */}
         <Dialog open={simulationDialogOpen} onOpenChange={setSimulationDialogOpen}>
-          <DialogContent className="w-[calc(100%-2rem)] sm:max-w-2xl md:max-w-4xl p-4 sm:p-6 flex flex-col max-h-[90vh] rounded-2xl">
+          <DialogContent className="w-[calc(100%-2rem)] sm:max-w-2xl md:max-w-4xl p-4 sm:p-6 flex flex-col max-h-[90vh]">
             <DialogHeader className="pb-3">
               <DialogTitle className="text-base sm:text-lg">Cronograma de Pagos</DialogTitle>
               <DialogDescription className="text-xs sm:text-sm">
@@ -349,8 +334,8 @@ const LoanRequest = () => {
               </div>
             </div>
               
-            <div className="overflow-x-auto overflow-y-auto -mx-4 sm:mx-0 px-4 sm:px-0 mt-3 flex-1">
-              <Table className="min-w-[600px]">
+<div className="overflow-x-auto mt-3 flex-1">
+                      <Table className="w-full">
                 <TableHeader className="sticky top-0 bg-background z-10">
                   <TableRow>
                     <TableHead className="text-[10px] sm:text-xs w-14">Cuota</TableHead>
@@ -377,8 +362,7 @@ const LoanRequest = () => {
             </div>
           </DialogContent>
         </Dialog>
-      </div>
-    </SidebarProvider>
+    </>
   );
 };
 

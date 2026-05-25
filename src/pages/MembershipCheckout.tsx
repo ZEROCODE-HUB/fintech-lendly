@@ -1,7 +1,5 @@
 import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/AppSidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,8 +27,8 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { defaultMemberships } from "@/data/memberships";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/contexts/AuthContext";
 import { increscendoApiFetch } from "@/lib/increscendoApi";
-import { authService } from "@/utils/auth";
 
 interface LocationState {
   membershipId?: string;
@@ -42,6 +40,7 @@ const MembershipCheckout = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
+  const { userId } = useAuth();
 
   const state = (location.state || {}) as LocationState;
   const membershipId = state?.membershipId;
@@ -65,6 +64,7 @@ const MembershipCheckout = () => {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewData, setPreviewData] = useState<any | null>(null);
   const [cardErrorOpen, setCardErrorOpen] = useState(false);
+  const [noConektaModalOpen, setNoConektaModalOpen] = useState(false);
 
   const isMissingCardError = (value: unknown) => {
     const text = typeof value === 'string' ? value : JSON.stringify(value ?? '');
@@ -149,22 +149,27 @@ const MembershipCheckout = () => {
     // Call local acquire-membership endpoint and show preview or error modal
     (async () => {
       try {
-        const currentUser = authService.getCurrentUser();
-        if (!currentUser?.id) throw new Error('Usuario no autenticado');
+        if (!userId) throw new Error('Usuario no autenticado');
 
         setAcquiring(true);
         const resp = await increscendoApiFetch('/acquire-membership', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ user_id: currentUser.id, membership_plan_id: membership.id }),
+          body: JSON.stringify({ user_id: userId, membership_plan_id: membership.id }),
         });
 
         const json = await resp.json().catch(() => null);
+
+        const hasConektaError = json?.error?.includes?.('ref_conekta') || json?.message?.includes?.('ref_conekta') || JSON.stringify(json).includes('ref_conekta');
 
         if (!resp.ok || !json) {
           console.error('[acquire-membership] Error', resp.status, json);
           if (isMissingCardError(json) || isMissingCardError((json as any)?.message)) {
             setCardErrorOpen(true);
+            return;
+          }
+          if (hasConektaError) {
+            setNoConektaModalOpen(true);
             return;
           }
           toast({ title: 'Error', description: 'Error al comunicarse con el servicio de membresías', variant: 'destructive' });
@@ -180,14 +185,17 @@ const MembershipCheckout = () => {
           const msg = json.message || JSON.stringify(json);
           if (isMissingCardError(msg)) {
             setCardErrorOpen(true);
+          } else if (msg.includes('ref_conekta')) {
+            setNoConektaModalOpen(true);
           } else {
             toast({ title: 'Error', description: msg, variant: 'destructive' });
           }
         }
       } catch (err) {
         console.error('[MembershipCheckout] acquire', err);
-        if (isMissingCardError(err instanceof Error ? err.message : err)) {
-          setCardErrorOpen(true);
+        const errMsg = err instanceof Error ? err.message : JSON.stringify(err);
+        if (isMissingCardError(err) || errMsg.includes('ref_conekta')) {
+          setNoConektaModalOpen(true);
         } else {
           toast({ title: 'Error', description: (err instanceof Error) ? err.message : 'Error al adquirir la membresía', variant: 'destructive' });
         }
@@ -211,28 +219,16 @@ const MembershipCheckout = () => {
   };
 
   return (
-    <SidebarProvider>
-      <div className="min-h-screen flex w-full">
-        <AppSidebar />
-
-        <main className="flex-1">
-          <header className="h-16 border-b border-border bg-card flex items-center px-4 sm:px-6 gap-4 fixed md:sticky top-0 z-10 w-full md:w-auto">
-            <SidebarTrigger />
-            <div className="flex-1">
-              <h1 className="text-lg sm:text-2xl font-bold">Checkout Membresía</h1>
-            </div>
-          </header>
-
-          <div className="p-4 sm:p-6 max-w-3xl mx-auto space-y-4 sm:space-y-6 pt-20 md:pt-6">
-            {/* Order Summary */}
-            <Card className="shadow-medium">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Receipt className="h-5 w-5 text-primary" />
-                  Resumen del Pedido
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
+    <>
+      <div className="p-4 sm:p-6 max-w-3xl mx-auto space-y-4 sm:space-y-6">
+        <Card className="shadow-soft">
+          <CardHeader className="p-4 sm:p-6">
+            <CardTitle className="flex items-center gap-2">
+              <Receipt className="h-5 w-5 text-primary" />
+              Resumen del Pedido
+            </CardTitle>
+          </CardHeader>
+              <CardContent className="p-4 sm:p-6 pt-0">
                 <div className="flex items-center justify-between p-4 bg-gradient-to-br from-primary/10 to-accent/30 rounded-xl">
                   <div className="flex items-center gap-4">
                     <div className="h-14 w-14 rounded-full bg-gradient-hero flex items-center justify-center">
@@ -253,14 +249,14 @@ const MembershipCheckout = () => {
             </Card>
 
             {/* Coupon Section */}
-            <Card className="shadow-medium">
-              <CardHeader>
+            <Card className="shadow-soft">
+              <CardHeader className="p-4 sm:p-6">
                 <CardTitle className="flex items-center gap-2">
                   <Tag className="h-5 w-5 text-primary" />
                   Cupón de Descuento
                 </CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-4 sm:p-6 pt-0">
                 {appliedCoupon ? (
                   <div className="flex items-center justify-between p-4 bg-success/10 border border-success/30 rounded-xl">
                     <div className="flex items-center gap-3">
@@ -292,14 +288,14 @@ const MembershipCheckout = () => {
             </Card>
 
             {/* Billing Data */}
-            <Card className="shadow-medium">
-              <CardHeader>
+            <Card className="shadow-soft">
+              <CardHeader className="p-4 sm:p-6">
                 <CardTitle className="flex items-center gap-2">
                   <CreditCard className="h-5 w-5 text-primary" />
                   Datos de Facturación
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="p-4 sm:p-6 pt-0 space-y-4">
                 <div className="flex items-center space-x-3">
                   <Checkbox
                     id="request-invoice"
@@ -338,14 +334,14 @@ const MembershipCheckout = () => {
             </Card>
 
             {/* Terms and Conditions Section */}
-            <Card className="shadow-medium">
-              <CardHeader>
+            <Card className="shadow-soft">
+              <CardHeader className="p-4 sm:p-6">
                 <CardTitle className="flex items-center gap-2">
                   <FileText className="h-5 w-5 text-primary" />
                   Términos y Condiciones
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="p-4 sm:p-6 pt-0 space-y-4">
                 <div className="flex items-start space-x-3">
                   <Checkbox
                     id="terms-accepted"
@@ -381,8 +377,8 @@ const MembershipCheckout = () => {
             </Card>
 
             {/* Total and Payment */}
-            <Card className="shadow-elegant border-2 border-primary/20">
-              <CardContent className="pt-6">
+            <Card className="shadow-soft border-2 border-primary/20">
+              <CardContent className="p-4 sm:p-6">
                 <div className="space-y-3">
                   <div className="flex justify-between text-muted-foreground">
                     <span>Subtotal</span>
@@ -442,12 +438,10 @@ const MembershipCheckout = () => {
               </CardContent>
             </Card>
           </div>
-        </main>
-      </div>
 
       {/* Terms and Conditions Modal */}
       <Dialog open={termsModalOpen} onOpenChange={setTermsModalOpen}>
-        <DialogContent className="max-w-[calc(100%-2rem)] md:max-w-2xl max-h-[85vh] flex flex-col rounded-2xl">
+        <DialogContent className="max-w-[95vw] md:max-w-2xl max-h-[85vh] flex flex-col p-4 sm:p-6">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-xl">
               <FileText className="h-5 w-5 text-primary" />
@@ -666,7 +660,23 @@ const MembershipCheckout = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </SidebarProvider>
+
+      {/* No conekta modal: muestra cuando el usuario no tiene ref_conekta */}
+      <Dialog open={noConektaModalOpen} onOpenChange={setNoConektaModalOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Agrega un método de pago</DialogTitle>
+            <DialogDescription>
+              Para adquirir esta membresía necesitas agregar primero una tarjeta en Métodos de Pago.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setNoConektaModalOpen(false)}>Cerrar</Button>
+            <Button onClick={() => { setNoConektaModalOpen(false); navigate('/payment-methods'); }}>Ir a Métodos de Pago</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 };
 

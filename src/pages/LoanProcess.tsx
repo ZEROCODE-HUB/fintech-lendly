@@ -1,7 +1,5 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/AppSidebar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,7 +30,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { defaultMemberships } from "@/data/memberships";
 import { useToast } from "@/hooks/use-toast";
-import { authService } from "@/utils/auth";
+import { useAuth } from "@/contexts/AuthContext";
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '@/lib/supabaseConfig';
 import { supabase } from "@/lib/supabase";
 import { increscendoApiFetch } from "@/lib/increscendoApi";
@@ -101,6 +99,7 @@ const LoanProcess = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
+  const { userId } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isApproved, setIsApproved] = useState(false);
@@ -116,6 +115,7 @@ const LoanProcess = () => {
   const [institutions, setInstitutions] = useState<Institution[]>([]);
   const [loadingInstitutions, setLoadingInstitutions] = useState<boolean>(true);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Get loan data from navigation state or use defaults (guard against partial state)
   const navState: any = (location && (location.state as any)) || {};
@@ -399,13 +399,16 @@ const LoanProcess = () => {
   // Map API error messages to Spanish user-friendly messages
   const getErrorMessage = (errorData: any): string => {
     // Extract the error message, prioritizing details.message
-    const detailedMessage = errorData?.details?.message || '';
-    const errorMessage = (detailedMessage || errorData?.error || errorData?.message || '').toLowerCase().trim();
+    const detailedMessage = errorData?.details?.message || errorData?.message || '';
+    const errorMessage = (detailedMessage || errorData?.error || '').toLowerCase().trim();
 
     // Map common errors (all keys in lowercase for case-insensitive matching)
     const errorMap: Record<string, string> = {
-      'bank account already registered': 'Esta cuenta bancaria ya ha sido registrada. Por favor, usa otra CLABE.',
+      'clabe': 'La CLABE no es válida. Verifica que tenga 18 dígitos.',
       'invalid clabe': 'La CLABE proporcionada no es válida. Verifica los 18 dígitos.',
+      'clabe is invalid': 'La CLABE no es válida. Verifica que tenga 18 dígitos.',
+      'bank account number does not follow the correct format': 'El número de cuenta no tiene el formato correcto. Verifica los datos.',
+      'bank account already registered': 'Esta cuenta bancaria ya ha sido registrada. Por favor, usa otra CLABE.',
       'invalid bank': 'El banco seleccionado no es válido. Por favor, selecciona otro.',
       'user not found': 'Usuario no encontrado. Por favor, intenta de nuevo.',
       'failed to create payment method': 'No se pudo crear el método de pago. Verifica los datos e intenta de nuevo.',
@@ -414,6 +417,14 @@ const LoanProcess = () => {
       'missing required fields': 'Faltan campos requeridos. Revisa la información ingresada.',
       'unauthorized': 'No estás autorizado para realizar esta acción.',
       'bad request': 'Los datos enviados no son válidos. Revisa la información.',
+      'error': 'Ocurrió un error. Por favor, intenta de nuevo.',
+      'network': 'Error de conexión. Verifica tu internet.',
+      'timeout': 'La solicitud tardó demasiado. Intenta de nuevo.',
+      'not found': 'No se encontró el recurso. Intenta de nuevo.',
+      'conflict': 'Ya existe un registro con estos datos.',
+      'unprocessable entity': 'Los datos no son válidos. Revisa la información.',
+      'internal server error': 'Error del servidor. Intenta más tarde.',
+      'service unavailable': 'Servicio temporalmente unavailable. Intenta más tarde.',
     };
 
     // Check if error message matches any known pattern (case-insensitive)
@@ -431,7 +442,7 @@ const LoanProcess = () => {
       return errorData.error;
     }
 
-    return 'No se pudo crear la solicitud. Intenta de nuevo.';
+    return 'Ocurrió un error. Por favor, intenta de nuevo.';
   };
 
   // Upload file to Supabase Storage and return public URL
@@ -440,7 +451,7 @@ const LoanProcess = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user?.id) throw new Error('User not authenticated');
 
-      const filePath = `${folder}/${user.id}/${fileName}`;
+      const filePath = `${folder}/${userId}/${fileName}`;
       const { error: uploadError, data } = await supabase.storage
         .from('documents')
         .upload(filePath, file, { upsert: true });
@@ -462,9 +473,7 @@ const LoanProcess = () => {
   // Save user documents and metadata to users table (called after loan is created)
   const uploadDocumentsAfterLoanCreation = async (): Promise<boolean> => {
     try {
-      const { authService } = await import('@/utils/auth');
-      const user = authService.getCurrentUser();
-      if (!user?.id) return false;
+      if (!userId) return false;
 
       // Upload documents
       const ineFileTimestamp = Date.now();
@@ -488,7 +497,7 @@ const LoanProcess = () => {
           selfie_url: selfieWithIneUrl || undefined,
           metadata: updatedMetadata,
         })
-        .eq('id', user.id);
+        .eq('id', userId);
 
       if (updateError) throw updateError;
 
@@ -511,16 +520,14 @@ const LoanProcess = () => {
 
   const createLoanRecord = async () => {
     try {
-      const { authService } = await import('@/utils/auth');
-      const user = authService.getCurrentUser();
-      if (!user?.id) {
+      if (!userId) {
         toast({ title: 'Error', description: 'Usuario no autenticado.', variant: 'destructive' });
         return;
       }
 
       // Build payload with required fields only (without document URLs)
       const payload: any = {
-        user_id: user.id,
+        user_id: userId,
         amount: Number(loanAmount) || 0,
         installments: Number(loanInstallments) || 12,
         monthly_payment: Number(monthlyPayment) || 0,
@@ -576,14 +583,7 @@ const LoanProcess = () => {
       return result.loan;
     } catch (err) {
       console.error(err);
-      let errorDesc = 'Ocurrió un error al crear la solicitud.';
-
-      if (err instanceof TypeError) {
-        errorDesc = 'No se pudo conectar con el servidor. Verifica tu conexión a internet.';
-      } else if (err instanceof Error) {
-        errorDesc = err.message || errorDesc;
-      }
-
+      const errorDesc = getErrorMessage(err);
       toast({ title: 'Error', description: errorDesc, variant: 'destructive' });
       return null;
     }
@@ -726,7 +726,7 @@ const LoanProcess = () => {
         const { data, error } = await supabase
           .from('payment_methods')
           .select('id, bank_name, clabe, last_digits, validation_status, is_default, created_at')
-          .eq('user_id', user.id)
+          .eq('user_id', userId)
           .eq('type', 'bank')
           .order('is_default', { ascending: false })
           .order('created_at', { ascending: false });
@@ -812,7 +812,9 @@ const LoanProcess = () => {
 
       let loan = currentLoan;
       if (!loan) {
+        setIsSubmitting(true);
         loan = await createLoanRecord();
+        setIsSubmitting(false);
         if (!loan) return; // creation failed
       }
 
@@ -941,14 +943,12 @@ const LoanProcess = () => {
         }
 
         // fetch user membership
-        const { authService } = await import('@/utils/auth');
-        const user = authService.getCurrentUser();
-        if (!user?.id) return;
+        if (!userId) return;
 
         const { data: umRow } = await supabase
           .from('user_memberships')
           .select('id, membership_plan_id, status, started_at, expires_at')
-          .eq('user_id', user.id)
+          .eq('user_id', userId)
           .eq('status', 'active')
           .order('expires_at', { ascending: false })
           .limit(1)
@@ -1013,14 +1013,12 @@ const LoanProcess = () => {
   useEffect(() => {
     const loadUserProfile = async () => {
       try {
-        const { authService } = await import('@/utils/auth');
-        const user = authService.getCurrentUser();
-        if (!user?.id) return;
+        if (!userId) return;
 
         const { data, error } = await supabase
           .from('users')
           .select('first_name, last_name, address, birth_date, phone, ine_key, curp, phone_country_code')
-          .eq('id', user.id)
+          .eq('id', userId)
           .maybeSingle();
 
         if (error) throw error;
@@ -1947,19 +1945,17 @@ const LoanProcess = () => {
   };
 
   return (
-    <SidebarProvider>
-      <div className="min-h-screen flex w-full">
-        <AppSidebar />
+    <div className="p-4 sm:p-6 md:p-8 max-w-4xl mx-auto">
+      {isSubmitting && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-card rounded-xl p-8 max-w-sm mx-4 text-center shadow-2xl">
+            <div className="animate-spin h-12 w-12 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4" />
+            <h3 className="text-lg font-semibold mb-2">Procesando solicitud</h3>
+            <p className="text-sm text-muted-foreground">Estamos creando tu solicitud. Por favor espera...</p>
+          </div>
+        </div>
+      )}
 
-        <main className="flex-1 overflow-x-hidden">
-          <header className="h-14 sm:h-16 border-b border-border bg-card flex items-center px-3 sm:px-4 md:px-6 gap-2 sm:gap-4 fixed md:sticky top-0 z-10 w-full md:w-auto">
-            <SidebarTrigger />
-            <div className="flex-1 min-w-0">
-              <h1 className="text-lg sm:text-xl md:text-2xl font-bold truncate">Proceso de Préstamo</h1>
-            </div>
-          </header>
-
-          <div className="p-4 sm:p-6 md:p-8 max-w-4xl mx-auto pt-16 sm:pt-20 md:pt-0">
             {/* Stepper */}
             <Stepper />
 
@@ -2006,9 +2002,6 @@ const LoanProcess = () => {
               </Button>
             </div>
           </div>
-        </main>
-      </div>
-    </SidebarProvider>
   );
 };
 

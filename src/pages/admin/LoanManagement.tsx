@@ -1,6 +1,5 @@
-import { useState, useEffect } from "react";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/AppSidebar";
+import { useState, useEffect, useMemo } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -8,12 +7,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Eye, CheckCircle, XCircle, CheckCircle2, Edit, MoreHorizontal, Send, FileText, DollarSign, Bell, TrendingDown, RefreshCw, Calendar } from "lucide-react";
+import { Eye, CheckCircle, XCircle, CheckCircle2, Edit, MoreHorizontal, Send, FileText, DollarSign, Bell, TrendingDown, RefreshCw, Calendar, Star } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Skeleton } from "@/components/ui/skeleton";
 import PaymentScheduleModal from '@/components/admin/loans/modals/PaymentScheduleModal';
 import { useToast } from "@/hooks/use-toast";
 
 import { ColumnConfig, PendingLoan, ContractLoan, DisbursementLoan, OverdueLoan } from "@/types/loans";
+import { useAdminPendingLoans, useAdminContractLoans, useAdminDisbursementLoans, useAdminActiveLoans, useAdminOverdueLoans, useAdminHistoryLoans } from "@/hooks/useLoans";
 import { supabase } from "@/lib/supabase";
 import { authService } from '@/utils/auth';
 import { increscendoApiFetch } from "@/lib/increscendoApi";
@@ -24,20 +25,20 @@ import { ResendContractModal, AttachContractModal } from "@/components/admin/loa
 import { ModifyDisbursementModal, ConfirmDisbursementModal } from "@/components/admin/loans/modals/DisbursementModals";
 import { SendReminderModal, SellPortfolioModal, UpdateInstallmentsModal } from "@/components/admin/loans/modals/OverdueModals";
 import { jsPDF } from "jspdf";
+import * as XLSX from "xlsx";
 
 const defaultPendingColumns: ColumnConfig[] = [
-  { key: 'id', label: 'ID Préstamo', visible: true },
+  { key: 'id', label: 'ID', visible: true },
   { key: 'firstName', label: 'Nombres', visible: true },
   { key: 'lastName', label: 'Apellidos', visible: true },
-  { key: 'requestDate', label: 'F. Solicitud', visible: true },
   { key: 'amount', label: 'Monto', visible: true },
   { key: 'installments', label: 'Cuotas', visible: true },
-  { key: 'membership', label: 'Membresía', visible: true },
-  // { key: 'accountVerification', label: 'Verificación cuenta', visible: false },
-  { key: 'ine', label: 'INE', visible: true },
-  { key: 'consent', label: 'Consentimiento', visible: true },
-  { key: 'curp', label: 'CURP', visible: true },
   { key: 'preApproval', label: 'Pre-Aprob.', visible: true },
+  { key: 'membership', label: 'Membresía', visible: true },
+  { key: 'ine', label: 'INE', visible: true },
+  { key: 'curp', label: 'CURP', visible: true },
+  { key: 'consent', label: 'Consentimiento', visible: false },
+  { key: 'requestDate', label: 'F. Solicitud', visible: true },
   { key: 'actions', label: 'Acciones', visible: true },
 ];
 
@@ -45,78 +46,80 @@ const defaultContractColumns: ColumnConfig[] = [
   { key: 'id', label: 'ID', visible: true },
   { key: 'firstName', label: 'Nombres', visible: true },
   { key: 'lastName', label: 'Apellidos', visible: true },
-  { key: 'requestDate', label: 'F. Solicitud', visible: true },
   { key: 'amount', label: 'Monto', visible: true },
   { key: 'installments', label: 'Cuotas', visible: true },
+  { key: 'signatureStatus', label: 'Estado Firma', visible: true },
   { key: 'membership', label: 'Membresía', visible: true },
   { key: 'ine', label: 'INE', visible: true },
-  { key: 'consent', label: 'Consentimiento', visible: true },
   { key: 'curp', label: 'CURP', visible: true },
-  { key: 'preApproval', label: 'Pre-Aprob.', visible: true },
-  { key: 'signatureStatus', label: 'Estado Firma', visible: true },
+  { key: 'consent', label: 'Consentimiento', visible: false },
   { key: 'resend', label: 'Reenviar', visible: true },
   { key: 'attach', label: 'Adjuntar', visible: true },
+  { key: 'preApproval', label: 'Pre-Aprob.', visible: false },
+  { key: 'requestDate', label: 'F. Solicitud', visible: false },
 ];
 
 const defaultDisbursementColumns: ColumnConfig[] = [
   { key: 'id', label: 'ID', visible: true },
   { key: 'firstName', label: 'Nombres', visible: true },
   { key: 'lastName', label: 'Apellidos', visible: true },
-  { key: 'requestDate', label: 'F. Solicitud', visible: true },
   { key: 'amount', label: 'Monto', visible: true },
   { key: 'installments', label: 'Cuotas', visible: true },
   { key: 'bank', label: 'Banco', visible: true },
   { key: 'accountNumber', label: 'Cta/CLABE', visible: true },
-  { key: 'consent', label: 'Consentimiento', visible: true },
-  { key: 'ine', label: 'INE', visible: true },
-  { key: 'curp', label: 'CURP', visible: true },
-  { key: 'contractStatus', label: 'Est. Contrato', visible: true },
   { key: 'disbursementStatus', label: 'Est. Desembolso', visible: true },
-  { key: 'actions', label: 'Acciones', visible: true },
+  { key: 'contractStatus', label: 'Est. Contrato', visible: true },
+  { key: 'membership', label: 'Membresía', visible: false },
+  { key: 'ine', label: 'INE', visible: false },
+  { key: 'curp', label: 'CURP', visible: false },
+  { key: 'consent', label: 'Consentimiento', visible: false },
+  { key: 'preApproval', label: 'Pre-Aprob.', visible: false },
+  { key: 'requestDate', label: 'F. Solicitud', visible: false },
 ];
 
 const defaultActiveColumns: ColumnConfig[] = [
   { key: 'id', label: 'ID', visible: true },
   { key: 'firstName', label: 'Nombres', visible: true },
   { key: 'lastName', label: 'Apellidos', visible: true },
-  { key: 'requestDate', label: 'F. Solicitud', visible: true },
   { key: 'amount', label: 'Monto', visible: true },
   { key: 'installments', label: 'Cuotas', visible: true },
   { key: 'paidInstallments', label: 'Cuot. Pagadas', visible: true },
-  { key: 'ine', label: 'INE', visible: true },
-  { key: 'consent', label: 'Consentimiento', visible: true },
-  { key: 'lastPaymentDate', label: 'F. Últ. Pago', visible: true },
   { key: 'status', label: 'Estado', visible: true },
-  { key: 'actions', label: 'Acciones', visible: true },
+  { key: 'membership', label: 'Membresía', visible: false },
+  { key: 'ine', label: 'INE', visible: false },
+  { key: 'consent', label: 'Consentimiento', visible: false },
+  { key: 'lastPaymentDate', label: 'F. Últ. Pago', visible: false },
+  { key: 'requestDate', label: 'F. Solicitud', visible: false },
 ];
 
 const defaultOverdueColumns: ColumnConfig[] = [
   { key: 'id', label: 'ID', visible: true },
   { key: 'firstName', label: 'Nombres', visible: true },
   { key: 'lastName', label: 'Apellidos', visible: true },
-  { key: 'requestDate', label: 'F. Solicitud', visible: true },
   { key: 'amount', label: 'Monto', visible: true },
   { key: 'installments', label: 'Cuotas', visible: true },
   { key: 'paidInstallments', label: 'Cuot. Pagadas', visible: true },
-  { key: 'ine', label: 'INE', visible: true },
-  { key: 'consent', label: 'Consentimiento', visible: true },
-  { key: 'lastPaymentDate', label: 'F. Últ. Pago', visible: true },
   { key: 'status', label: 'Estado', visible: true },
-  { key: 'actions', label: 'Acciones', visible: true },
+  { key: 'membership', label: 'Membresía', visible: false },
+  { key: 'ine', label: 'INE', visible: false },
+  { key: 'consent', label: 'Consentimiento', visible: false },
+  { key: 'lastPaymentDate', label: 'F. Últ. Pago', visible: false },
+  { key: 'requestDate', label: 'F. Solicitud', visible: false },
 ];
 
 const defaultHistoryColumns: ColumnConfig[] = [
   { key: 'id', label: 'ID', visible: true },
   { key: 'firstName', label: 'Nombres', visible: true },
   { key: 'lastName', label: 'Apellidos', visible: true },
-  { key: 'requestDate', label: 'F. Solicitud', visible: true },
   { key: 'amount', label: 'Monto', visible: true },
   { key: 'installments', label: 'Cuotas', visible: true },
   { key: 'paidInstallments', label: 'Cuot. Pagadas', visible: true },
-  { key: 'ine', label: 'INE', visible: true },
-  { key: 'consent', label: 'Consentimiento', visible: true },
-  { key: 'lastPaymentDate', label: 'F. Últ. Pago', visible: true },
   { key: 'status', label: 'Estado', visible: true },
+  { key: 'membership', label: 'Membresía', visible: false },
+  { key: 'ine', label: 'INE', visible: false },
+  { key: 'consent', label: 'Consentimiento', visible: false },
+  { key: 'lastPaymentDate', label: 'F. Últ. Pago', visible: false },
+  { key: 'requestDate', label: 'F. Solicitud', visible: false },
 ];
 
 type PaymentRow = {
@@ -142,6 +145,18 @@ const formatShortDate = (date: Date) => {
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const year = date.getFullYear();
   return `${day}/${month}/${year}`;
+};
+
+const formatDisplayDate = (dateStr: string) => {
+  if (!dateStr) return '-';
+  try {
+    const date = new Date(dateStr + 'T00:00:00');
+    const day = String(date.getDate()).padStart(2, '0');
+    const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+    return `${day} ${months[date.getMonth()]} ${date.getFullYear()}`;
+  } catch {
+    return dateStr;
+  }
 };
 
 const normalizeMonthlyRate = (annualRate: number) => {
@@ -272,58 +287,35 @@ const generateLoanSchedulePdfBase64 = (loan: any) => {
 
 const LoanManagement = () => {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
-  // Real data from Supabase
-  const [pendingLoansData, setPendingLoansData] = useState<any[]>([]);
-  const [contractLoansData, setContractLoansData] = useState<any[]>([]);
-  const [disbursementLoansData, setDisbursementLoansData] = useState<any[]>([]);
-  const [activeLoansData, setActiveLoansData] = useState<any[]>([]);
-  const [overdueLoansData, setOverdueLoansData] = useState<any[]>([]);
-  const [historyLoansData, setHistoryLoansData] = useState<any[]>([]);
-  // Per-tab loading and pagination
   const [activeTab, setActiveTab] = useState<string>('pending');
   const pageSize = 5;
 
   const [pendingPage, setPendingPage] = useState(1);
-  const [pendingTotal, setPendingTotal] = useState(0);
-  const [pendingLoading, setPendingLoading] = useState(false);
-
   const [contractPage, setContractPage] = useState(1);
-  const [contractTotal, setContractTotal] = useState(0);
-  const [contractLoading, setContractLoading] = useState(false);
-
   const [disbursementPage, setDisbursementPage] = useState(1);
-  const [disbursementTotal, setDisbursementTotal] = useState(0);
-  const [disbursementLoading, setDisbursementLoading] = useState(false);
-
   const [activePage, setActivePage] = useState(1);
-  const [activeTotal, setActiveTotal] = useState(0);
-  const [activeLoading, setActiveLoading] = useState(false);
-
   const [overduePage, setOverduePage] = useState(1);
-  const [overdueTotal, setOverdueTotal] = useState(0);
-  const [overdueLoading, setOverdueLoading] = useState(false);
-
   const [historyPage, setHistoryPage] = useState(1);
-  const [historyTotal, setHistoryTotal] = useState(0);
-  const [historyLoading, setHistoryLoading] = useState(false);
+
+  useEffect(() => {
+    const handleFocus = () => {
+      queryClient.invalidateQueries({ queryKey: ['loans', 'admin'] });
+    };
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [queryClient]);
 
   const mapLoan = (l: any) => {
     const user = l.users ?? {};
     const latestSignature = Array.isArray(l.loan_signatures) && l.loan_signatures.length ? l.loan_signatures[0] : null;
     const latestDisbursement = Array.isArray(l.loan_disbursements) && l.loan_disbursements.length ? l.loan_disbursements[0] : null;
 
-    let membershipVal = '';
-    if (user.user_memberships && Array.isArray(user.user_memberships) && user.user_memberships.length > 0 && user.user_memberships[0]?.membership_plans?.name) {
-      membershipVal = user.user_memberships[0].membership_plans.name;
-    } else {
-      const rawMembership = l.metadata?.membership;
-      membershipVal = typeof rawMembership === 'string'
-        ? rawMembership
-        : (rawMembership && typeof rawMembership === 'object'
-          ? (rawMembership.name ?? rawMembership.title ?? '')
-          : '');
-    }
+    const userMemberships = user.user_memberships;
+    const membershipPlan = Array.isArray(userMemberships) && userMemberships.length > 0 ? userMemberships[0]?.membership_plans : null;
+    const membershipVal = membershipPlan?.name || l.metadata?.membership?.name || l.metadata?.membership?.title || l.metadata?.membership || '';
+    const membershipRaw = membershipPlan || null;
 
     const paidAmount = Number(l.metadata?.paid_amount ?? 0);
     const amt = Number(l.amount ?? 0);
@@ -370,11 +362,13 @@ const LoanManagement = () => {
       email: user.email ?? '',
       firstName: user.first_name ?? '',
       lastName: user.last_name ?? '',
+      phone: user.phone ?? '',
       requestDate: l.applied_at ? new Date(l.applied_at).toISOString().slice(0, 10) : (l.created_at ? new Date(l.created_at).toISOString().slice(0, 10) : ''),
       amount: l.amount,
       installments: l.installments,
       paidInstallments,
       membership: membershipVal,
+      membershipRaw,
       ineNumber: user.ine_key ?? l.metadata?.ine_key ?? '',
       curpNumber: user.curp ?? l.metadata?.curp ?? '',
       preApproval: l.metadata?.pre_approval ?? (l.status === 'pending' ? 'En Revisión' : 'Aprobado'),
@@ -389,8 +383,32 @@ const LoanManagement = () => {
       overdue: overdueFlag,
       status: friendlyStatus,
       raw: l,
+      userRaw: user,
     };
   };
+
+  const { data: pendingData, isLoading: pendingLoading } = useAdminPendingLoans(pendingPage);
+  const { data: contractData, isLoading: contractLoading } = useAdminContractLoans(contractPage);
+  const { data: disbursementData, isLoading: disbursementLoading } = useAdminDisbursementLoans(disbursementPage);
+  const { data: activeData, isLoading: activeLoading } = useAdminActiveLoans(activePage);
+  const { data: overdueData, isLoading: overdueLoading } = useAdminOverdueLoans();
+  const { data: historyData, isLoading: historyLoading } = useAdminHistoryLoans(historyPage);
+
+  const pendingLoansData = pendingData?.loans.map(mapLoan) ?? [];
+  const pendingTotal = pendingData?.total ?? 0;
+  const contractLoansData = contractData?.loans.map(mapLoan) ?? [];
+  const contractTotal = contractData?.total ?? 0;
+  const disbursementLoansData = disbursementData?.loans.map(mapLoan) ?? [];
+  const disbursementTotal = disbursementData?.total ?? 0;
+  const activeLoansData = activeData?.loans.map(mapLoan) ?? [];
+  const activeTotal = activeData?.total ?? 0;
+  const overdueLoansData = overdueData?.loans.filter((l: any) => {
+    const mapped = mapLoan(l);
+    return mapped.overdue;
+  }) ?? [];
+  const overdueTotal = overdueLoansData.length;
+  const historyLoansData = historyData?.loans.map(mapLoan) ?? [];
+  const historyTotal = historyData?.total ?? 0;
 
   const renderSkeletonRows = (columns: ColumnConfig[]) => {
     const visibleCols = columns.filter(c => c.visible).length || 6;
@@ -468,158 +486,35 @@ const LoanManagement = () => {
     );
   };
 
-  const reloadCurrentTab = async () => {
+  const reloadCurrentTab = () => {
     switch (activeTab) {
-      case 'pending': return await loadPending(pendingPage);
-      case 'contract': return await loadContract(contractPage);
-      case 'disbursement': return await loadDisbursement(disbursementPage);
-      case 'active': return await loadActive(activePage);
-      case 'overdue': return await loadOverdue(overduePage);
-      case 'history': return await loadHistory(historyPage);
-      default: return;
+      case 'pending':
+        queryClient.invalidateQueries({ queryKey: ['loans', 'admin', 'pending'] });
+        setPendingPage(1);
+        break;
+      case 'contract':
+        queryClient.invalidateQueries({ queryKey: ['loans', 'admin', 'contract'] });
+        setContractPage(1);
+        break;
+      case 'disbursement':
+        queryClient.invalidateQueries({ queryKey: ['loans', 'admin', 'disbursement'] });
+        setDisbursementPage(1);
+        break;
+      case 'active':
+        queryClient.invalidateQueries({ queryKey: ['loans', 'admin', 'active'] });
+        setActivePage(1);
+        break;
+      case 'overdue':
+        queryClient.invalidateQueries({ queryKey: ['loans', 'admin', 'overdue'] });
+        setOverduePage(1);
+        break;
+      case 'history':
+        queryClient.invalidateQueries({ queryKey: ['loans', 'admin', 'history'] });
+        setHistoryPage(1);
+        break;
+      default: break;
     }
   };
-
-  const loadPending = async (page = 1) => {
-    setPendingLoading(true);
-    try {
-      const from = (page - 1) * pageSize;
-      const to = from + pageSize - 1;
-      const { data, error, count } = await supabase
-        .from('loans')
-        .select('id, loan_number, amount, installments, monthly_payment, interest_rate, total_to_pay, status, status_consent, applied_at, created_at, approved_at, signed_at, disbursed_at, metadata, user_id, users(first_name,last_name,ine_key,curp,phone,email,user_memberships(membership_plans(name))), loan_signatures(*), loan_disbursements(*)', { count: 'exact' })
-        .in('status', ['pending', 'under_review', 'cancelled'])
-        .order('created_at', { ascending: false })
-        .range(from, to);
-
-      if (error) throw error;
-      const mapped = (data || []).map(mapLoan);
-      setPendingLoansData(mapped);
-      setPendingTotal(count || mapped.length);
-      setPendingPage(page);
-    } catch (err) {
-      console.error('Error loading pending loans', err);
-      toast({ title: 'Error', description: 'No se pudieron cargar las solicitudes pendientes.' });
-    } finally { setPendingLoading(false); }
-  };
-
-  const loadContract = async (page = 1) => {
-    setContractLoading(true);
-    try {
-      const from = (page - 1) * pageSize;
-      const to = from + pageSize - 1;
-      const { data, error, count } = await supabase
-        .from('loans')
-        .select('id, loan_number, amount, installments, monthly_payment, interest_rate, total_to_pay, status, status_consent, applied_at, created_at, approved_at, signed_at, disbursed_at, metadata, user_id, users(first_name,last_name,ine_key,curp,phone,email,user_memberships(membership_plans(name))), loan_signatures(*), loan_disbursements(*)', { count: 'exact' })
-        .in('status', ['approved', 'signed'])
-        .order('created_at', { ascending: false })
-        .range(from, to);
-
-      if (error) throw error;
-      const mapped = (data || []).map(mapLoan);
-      setContractLoansData(mapped);
-      setContractTotal(count || mapped.length);
-      setContractPage(page);
-    } catch (err) {
-      console.error('Error loading contract loans', err);
-      toast({ title: 'Error', description: 'No se pudieron cargar las firmas.' });
-    } finally { setContractLoading(false); }
-  };
-
-  const loadDisbursement = async (page = 1) => {
-    setDisbursementLoading(true);
-    try {
-      const from = (page - 1) * pageSize;
-      const to = from + pageSize - 1;
-      const { data, error, count } = await supabase
-        .from('loans')
-        .select('id, loan_number, amount, installments, monthly_payment, interest_rate, total_to_pay, status, status_consent, applied_at, created_at, approved_at, signed_at, disbursed_at, metadata, user_id, users(first_name,last_name,ine_key,curp,phone,email,user_memberships(membership_plans(name))), loan_signatures(*), loan_disbursements(*)', { count: 'exact' })
-        .in('status', ['signed', 'disbursed'])
-        .order('created_at', { ascending: false })
-        .range(from, to);
-
-      if (error) throw error;
-      const mapped = (data || []).map(mapLoan);
-      setDisbursementLoansData(mapped);
-      setDisbursementTotal(count || mapped.length);
-      setDisbursementPage(page);
-    } catch (err) {
-      console.error('Error loading disbursement loans', err);
-      toast({ title: 'Error', description: 'No se pudieron cargar los desembolsos.' });
-    } finally { setDisbursementLoading(false); }
-  };
-
-  const loadActive = async (page = 1) => {
-    setActiveLoading(true);
-    try {
-      const from = (page - 1) * pageSize;
-      const to = from + pageSize - 1;
-      const { data, error, count } = await supabase
-        .from('loans')
-        .select('id, loan_number, amount, installments, monthly_payment, interest_rate, total_to_pay, status, status_consent, applied_at, created_at, approved_at, signed_at, disbursed_at, metadata, user_id, users(first_name,last_name,ine_key,curp,phone,email,user_memberships(membership_plans(name))), loan_signatures(*), loan_disbursements(*)', { count: 'exact' })
-        .eq('status', 'active')
-        .order('created_at', { ascending: false })
-        .range(from, to);
-
-      if (error) throw error;
-      const mapped = (data || []).map(mapLoan);
-      setActiveLoansData(mapped);
-      setActiveTotal(count || mapped.length);
-      setActivePage(page);
-    } catch (err) {
-      console.error('Error loading active loans', err);
-      toast({ title: 'Error', description: 'No se pudieron cargar los préstamos activos.' });
-    } finally { setActiveLoading(false); }
-  };
-
-  const loadOverdue = async (page = 1) => {
-    setOverdueLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from('loans')
-        .select('id, loan_number, amount, installments, monthly_payment, interest_rate, total_to_pay, status, status_consent, applied_at, created_at, approved_at, signed_at, disbursed_at, metadata, user_id, users(first_name,last_name,ine_key,curp,phone,email,user_memberships(membership_plans(name))), loan_signatures(*), loan_disbursements(*)')
-        .eq('status', 'active')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      const mapped = (data || []).map(mapLoan);
-      const filtered = mapped.filter(m => m.overdue);
-      const from = (page - 1) * pageSize;
-      const paginated = filtered.slice(from, from + pageSize);
-      setOverdueLoansData(paginated);
-      setOverdueTotal(filtered.length);
-      setOverduePage(page);
-    } catch (err) {
-      console.error('Error loading overdue loans', err);
-      toast({ title: 'Error', description: 'No se pudieron cargar los préstamos atrasados.' });
-    } finally { setOverdueLoading(false); }
-  };
-
-  const loadHistory = async (page = 1) => {
-    setHistoryLoading(true);
-    try {
-      const from = (page - 1) * pageSize;
-      const to = from + pageSize - 1;
-      const { data, error, count } = await supabase
-        .from('loans')
-        .select('id, loan_number, amount, installments, monthly_payment, interest_rate, total_to_pay, status, status_consent, applied_at, created_at, approved_at, signed_at, disbursed_at, metadata, user_id, users(first_name,last_name,ine_key,curp,phone,email,user_memberships(membership_plans(name))), loan_signatures(*), loan_disbursements(*)', { count: 'exact' })
-        .in('status', ['closed', 'cancelled'])
-        .order('created_at', { ascending: false })
-        .range(from, to);
-
-      if (error) throw error;
-      const mapped = (data || []).map(mapLoan);
-      setHistoryLoansData(mapped);
-      setHistoryTotal(count || mapped.length);
-      setHistoryPage(page);
-    } catch (err) {
-      console.error('Error loading history loans', err);
-      toast({ title: 'Error', description: 'No se pudo cargar el historial.' });
-    } finally { setHistoryLoading(false); }
-  };
-
-  // load default tab once
-  useEffect(() => { loadPending(1); }, []);
 
   // Filter states for each tab
   const [pendingSearch, setPendingSearch] = useState('');
@@ -652,6 +547,7 @@ const LoanManagement = () => {
   const [modifyModal, setModifyModal] = useState<{ open: boolean; loan: any | null }>({ open: false, loan: null });
   const [approveDialog, setApproveDialog] = useState<{ open: boolean; loan: any | null }>({ open: false, loan: null });
   const [rejectDialog, setRejectDialog] = useState<{ open: boolean; loan: any | null }>({ open: false, loan: null });
+  const [approvingState, setApprovingState] = useState<{ open: boolean; message: string }>({ open: false, message: '' });
 
   const [resendModal, setResendModal] = useState<{ open: boolean; loan: any | null }>({ open: false, loan: null });
   const [attachModal, setAttachModal] = useState<{ open: boolean; loan: any | null }>({ open: false, loan: null });
@@ -664,17 +560,127 @@ const LoanManagement = () => {
   const [updateInstallmentsModal, setUpdateInstallmentsModal] = useState<{ open: boolean; loan: any | null }>({ open: false, loan: null });
   const [scheduleModal, setScheduleModal] = useState<{ open: boolean; loan: any | null }>({ open: false, loan: null });
 
+  useEffect(() => {
+    if (detailsModal.open && detailsModal.loan?.uuid) {
+      const existingInterestRate = detailsModal.loan?.raw?.interest_rate;
+      supabase
+        .from('loans')
+        .select(`
+          *,
+          users(id, first_name, last_name, email, phone, ine_key, curp, address, birth_date, avatar_url)
+        `)
+        .eq('id', detailsModal.loan.uuid)
+        .single()
+        .then(({ data, error }) => {
+          if (!error && data) {
+            supabase
+              .from('user_memberships')
+              .select('*, membership_plans(id, name, price, active, features)')
+              .eq('user_id', data.user_id)
+              .eq('status', 'active')
+              .maybeSingle()
+              .then(({ data: membershipData }) => {
+                const updatedUser = membershipData 
+                  ? { ...data.users, user_memberships: [membershipData] }
+                  : data.users;
+                const preservedData = {
+                  ...data,
+                  interest_rate: data.interest_rate ?? existingInterestRate ?? 0.20
+                };
+                setDetailsModal(prev => ({ 
+                  ...prev, 
+                  loan: { 
+                    ...prev.loan, 
+                    raw: { 
+                      ...prev.loan?.raw,
+                      ...preservedData, 
+                      users: updatedUser 
+                    } 
+                  } 
+                }));
+              });
+          }
+        });
+    }
+  }, [detailsModal.open]);
+
   const exportToExcel = () => {
-    toast({ title: "Exportando...", description: "El archivo Excel se descargará en breve." });
+    const tabNames: Record<string, string> = {
+      pending: 'Pendientes',
+      contract: 'Firma',
+      disbursement: 'Desembolso',
+      active: 'Activos',
+      overdue: 'Atrasados',
+      history: 'Historial',
+    };
+    const tabData: Record<string, { data: any[]; columns: ColumnConfig[] }> = {
+      pending: { data: pendingLoansData, columns: pendingColumns },
+      contract: { data: contractLoansData, columns: contractColumns },
+      disbursement: { data: disbursementLoansData, columns: disbursementColumns },
+      active: { data: activeLoansData, columns: activeColumns },
+      overdue: { data: overdueLoansData, columns: overdueColumns },
+      history: { data: historyLoansData, columns: historyColumns },
+    };
+    const { data: exportData, columns: exportColumns } = tabData[activeTab] || { data: [], columns: [] };
+    const visibleCols = exportColumns.filter(c => c.visible && !['actions', 'consent', 'resend', 'attach', 'preApproval', 'signatureStatus', 'disbursementStatus', 'contractStatus'].includes(c.key));
+    const exportRows = exportData.map(loan => {
+      const row: Record<string, string | number> = {};
+      visibleCols.forEach(col => {
+        const key = col.key;
+        let value = (loan as Record<string, any>)[key];
+        if (key === 'amount') value = `$${Number(value).toLocaleString('es-MX', { minimumFractionDigits: 2 })}`;
+        else if (key === 'requestDate') value = loan.requestDate;
+        else if (key === 'lastPaymentDate') value = loan.lastPaymentDate || 'N/A';
+        else if (key === 'nextPaymentDate') value = loan.nextPaymentDate || 'N/A';
+        else if (key === 'paidInstallments') value = `${loan.paidInstallments}/${loan.installments}`;
+        else if (key === 'ine') value = loan.ineNumber || 'N/A';
+        else if (key === 'curp') value = loan.curpNumber || 'N/A';
+        else if (key === 'membership') value = loan.membership || 'N/A';
+        else if (key === 'bank') value = loan.bank || 'N/A';
+        else if (key === 'accountNumber') value = loan.accountNumber || 'N/A';
+        row[col.label] = value ?? '';
+      });
+      return row;
+    });
+    if (exportRows.length === 0) {
+      toast({ title: "Sin datos", description: "No hay datos para exportar en esta pestaña." });
+      return;
+    }
+    const ws = XLSX.utils.json_to_sheet(exportRows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, tabNames[activeTab] || 'Préstamos');
+    XLSX.writeFile(wb, `prestamos-${activeTab}-${new Date().toISOString().slice(0, 10)}.xlsx`);
+    toast({ title: "Exportado", description: `Archivo Excel descargado (${exportRows.length} registros).` });
   };
+
+  const APPROVE_MESSAGES = [
+    'Verificando consentimiento bancario...',
+    'Validando información del cliente...',
+    'Preparando contrato digital...',
+    'Enviando invitación de firma...',
+    'Finalizando proceso de aprobación...',
+  ];
 
   const handleApproveLoan = async () => {
     const loan = approveDialog.loan;
     if (!loan) return;
-    const loadingToast = toast({ title: 'Cargando...', description: 'Aprobando solicitud.' });
     const loanId = loan.uuid ?? loan.raw?.id ?? loan.id;
+    
+    setApproveDialog({ open: false, loan: null });
+    setApprovingState({ open: true, message: 'Iniciando aprobación...' });
+    
+    let messageIndex = 0;
+    const updateMessage = () => {
+      setApprovingState(prev => ({ ...prev, message: APPROVE_MESSAGES[messageIndex] || APPROVE_MESSAGES[APPROVE_MESSAGES.length - 1] }));
+      messageIndex = Math.min(messageIndex + 1, APPROVE_MESSAGES.length - 1);
+    };
+    
+    const messageInterval = setInterval(updateMessage, 2000);
+    updateMessage();
+    
     try {
       if (loanId) {
+        setApprovingState(prev => ({ ...prev, message: 'Verificando consentimiento bancario...' }));
         const consentsResp = await increscendoApiFetch('/belvo/consents', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -686,6 +692,7 @@ const LoanManagement = () => {
         }
       }
 
+      setApprovingState(prev => ({ ...prev, message: 'Actualizando estado del préstamo...' }));
       const { error } = await supabase
         .from('loans')
         .update({ status: 'approved', approved_at: new Date().toISOString() })
@@ -712,12 +719,15 @@ const LoanManagement = () => {
 
       if (loan.email) {
         try {
+          setApprovingState(prev => ({ ...prev, message: 'Preparando documento de contrato...' }));
           const optionalPdfBase64 = generateLoanSchedulePdfBase64(loan);
           const optionalPdfName = `cronograma-${loan.id ?? loan.uuid ?? 'prestamo'}.pdf`;
+          setApprovingState(prev => ({ ...prev, message: 'Enviando invitación de firma...' }));
           const resp = await increscendoApiFetch('/signnow-invite', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
+              loan_id: loanId,
               recipient_email: loan.email,
               optional_pdf_base64: optionalPdfBase64,
               optional_pdf_name: optionalPdfName,
@@ -732,18 +742,48 @@ const LoanManagement = () => {
           } catch (e) {
             console.error('[admin] failed to save signnow_invite metadata', e);
           }
-          toast({ title: 'Contrato enviado', description: 'Se envió la invitación de firma por correo.' });
         } catch (e) {
           console.warn('[admin] signnow invite error', e);
-          toast({ title: 'Aviso', description: 'La solicitud se aprobó, pero no se pudo enviar la invitación de firma.' });
         }
       }
-      loadingToast.update({ id: loadingToast.id, title: 'Aprobado', description: `La solicitud ${loan.id} pasó a estado Aprobado (firma pendiente).` });
-      setApproveDialog({ open: false, loan: null });
+      clearInterval(messageInterval);
+      setApprovingState({ open: false, message: '' });
+      toast({ title: 'Aprobado', description: `La solicitud ${loan.id} pasó a estado Aprobado (firma pendiente).` });
       await reloadCurrentTab();
     } catch (err) {
+      clearInterval(messageInterval);
       console.error('Error aprobando solicitud', err);
-      loadingToast.update({ id: loadingToast.id, title: 'Error', description: 'No se pudo aprobar la solicitud.', variant: 'destructive' });
+      setApprovingState({ open: false, message: '' });
+      toast({ title: 'Error', description: 'No se pudo aprobar la solicitud.', variant: 'destructive' });
+    }
+  };
+
+  const handleTestSignNow = async () => {
+    const loan = detailsModal.loan as any;
+    if (!loan?.email) {
+      toast({ title: "Error", description: "No hay email disponible", variant: "destructive" });
+      return;
+    }
+    const loanId = loan.uuid ?? loan.raw?.id ?? loan.id;
+    try {
+      const optionalPdfBase64 = generateLoanSchedulePdfBase64(loan);
+      const optionalPdfName = `cronograma-${loan.id ?? loan.uuid ?? 'prestamo'}.pdf`;
+      const resp = await increscendoApiFetch('/signnow-invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          loan_id: loanId,
+          recipient_email: loan.email,
+          optional_pdf_base64: optionalPdfBase64,
+          optional_pdf_name: optionalPdfName,
+        }),
+      });
+      const data = await resp.json().catch(() => null);
+      if (!resp.ok) throw data || new Error('SignNow error');
+      toast({ title: "Test OK", description: `SignNow invite: ${JSON.stringify(data)}` });
+    } catch (err) {
+      console.error('SignNow test error', err);
+      toast({ title: "Error", description: "Falló el test de SignNow", variant: "destructive" });
     }
   };
 
@@ -883,6 +923,12 @@ const LoanManagement = () => {
 
   const getStatusBadge = (status: string) => {
     switch (status) {
+      case 'pending': return <Badge className="bg-warning/20 text-warning border-warning whitespace-nowrap">Pendiente</Badge>;
+      case 'approved': return <Badge className="bg-success/20 text-success border-success whitespace-nowrap">Aprobado</Badge>;
+      case 'contract': return <Badge className="bg-info/20 text-info border-info whitespace-nowrap">En Firma</Badge>;
+      case 'signed': return <Badge className="bg-info/20 text-info border-info whitespace-nowrap">Firmado</Badge>;
+      case 'disbursed': return <Badge className="bg-success/20 text-success border-success whitespace-nowrap">Desembolsado</Badge>;
+      case 'active': return <Badge className="bg-success/20 text-success border-success whitespace-nowrap">Activo</Badge>;
       case 'Al día': return <Badge className="bg-success/20 text-success border-success whitespace-nowrap">{status}</Badge>;
       case 'Atrasado': return <Badge className="bg-warning/20 text-warning border-warning whitespace-nowrap">{status}</Badge>;
       case 'Urgente': return <Badge className="bg-danger/20 text-danger border-danger whitespace-nowrap">{status}</Badge>;
@@ -897,43 +943,20 @@ const LoanManagement = () => {
     columns.find(c => c.key === key)?.visible ?? true;
 
   return (
-    <SidebarProvider>
-      <div className="min-h-screen flex w-full">
-        <AppSidebar />
-
-        <main className="flex-1 overflow-x-hidden">
-          <header className="border-b border-border bg-card fixed md:sticky top-0 z-10 w-full md:w-auto">
-            <div className="flex items-center h-14 sm:h-16 px-4 sm:px-6 gap-3">
-              <SidebarTrigger />
-              <div className="flex-1 min-w-0">
-                <h1 className="text-xl sm:text-2xl font-bold truncate">Gestión de Préstamos</h1>
-              </div>
+    <div className="p-4 sm:p-6 md:px-6 lg:p-8">
+      <Tabs value={activeTab} onValueChange={(v) => {
+            setActiveTab(v);
+          }} className="w-full">
+            <div className="overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0 mb-4 sm:mb-6">
+              <TabsList className="inline-flex w-auto min-w-full sm:grid sm:w-full sm:max-w-4xl sm:grid-cols-6">
+                <TabsTrigger value="pending" className="text-xs sm:text-sm whitespace-nowrap">Pendiente</TabsTrigger>
+                <TabsTrigger value="contract" className="text-xs sm:text-sm whitespace-nowrap">Firma</TabsTrigger>
+                <TabsTrigger value="disbursement" className="text-xs sm:text-sm whitespace-nowrap">Desembolso</TabsTrigger>
+                <TabsTrigger value="active" className="text-xs sm:text-sm whitespace-nowrap">Activos</TabsTrigger>
+                <TabsTrigger value="overdue" className="text-xs sm:text-sm whitespace-nowrap">Atrasados</TabsTrigger>
+                <TabsTrigger value="history" className="text-xs sm:text-sm whitespace-nowrap">Historial</TabsTrigger>
+              </TabsList>
             </div>
-          </header>
-
-          <div className="p-4 sm:p-6 md:px-6 lg:p-8">
-            <Tabs value={activeTab} onValueChange={(v) => {
-              setActiveTab(v);
-              switch (v) {
-                case 'pending': loadPending(1); break;
-                case 'contract': loadContract(1); break;
-                case 'disbursement': loadDisbursement(1); break;
-                case 'active': loadActive(1); break;
-                case 'overdue': loadOverdue(1); break;
-                case 'history': loadHistory(1); break;
-                default: break;
-              }
-            }} className="w-full">
-              <div className="overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0 mb-4 sm:mb-6">
-                <TabsList className="inline-flex w-auto min-w-full sm:grid sm:w-full sm:max-w-4xl sm:grid-cols-6">
-                  <TabsTrigger value="pending" className="text-xs sm:text-sm whitespace-nowrap">Pendiente</TabsTrigger>
-                  <TabsTrigger value="contract" className="text-xs sm:text-sm whitespace-nowrap">Firma</TabsTrigger>
-                  <TabsTrigger value="disbursement" className="text-xs sm:text-sm whitespace-nowrap">Desembolso</TabsTrigger>
-                  <TabsTrigger value="active" className="text-xs sm:text-sm whitespace-nowrap">Activos</TabsTrigger>
-                  <TabsTrigger value="overdue" className="text-xs sm:text-sm whitespace-nowrap">Atrasados</TabsTrigger>
-                  <TabsTrigger value="history" className="text-xs sm:text-sm whitespace-nowrap">Historial</TabsTrigger>
-                </TabsList>
-              </div>
 
               {/* PENDIENTE Tab */}
               <TabsContent value="pending">
@@ -957,65 +980,47 @@ const LoanManagement = () => {
                       <Table>
                         <TableHeader>
                           <TableRow>
-                            {isColumnVisible(pendingColumns, 'id') && <TableHead>ID Préstamo</TableHead>}
+                            {isColumnVisible(pendingColumns, 'id') && <TableHead>ID</TableHead>}
                             {isColumnVisible(pendingColumns, 'firstName') && <TableHead>Nombres</TableHead>}
                             {isColumnVisible(pendingColumns, 'lastName') && <TableHead>Apellidos</TableHead>}
-                            {isColumnVisible(pendingColumns, 'requestDate') && <TableHead>F. Solicitud</TableHead>}
                             {isColumnVisible(pendingColumns, 'amount') && <TableHead>Monto</TableHead>}
                             {isColumnVisible(pendingColumns, 'installments') && <TableHead>Cuotas</TableHead>}
-                            {isColumnVisible(pendingColumns, 'membership') && <TableHead>Membresía</TableHead>}
-                            {/* {isColumnVisible(pendingColumns, 'accountVerification') && <TableHead>Verificación cuenta</TableHead>} */}
-                            {isColumnVisible(pendingColumns, 'ine') && <TableHead>INE</TableHead>}
-                            {isColumnVisible(pendingColumns, 'consent') && <TableHead>Consentimiento</TableHead>}
-                            {isColumnVisible(pendingColumns, 'curp') && <TableHead>CURP</TableHead>}
                             {isColumnVisible(pendingColumns, 'preApproval') && <TableHead>Pre-Aprob.</TableHead>}
+                            {isColumnVisible(pendingColumns, 'membership') && <TableHead>Membresía</TableHead>}
+                            {isColumnVisible(pendingColumns, 'ine') && <TableHead>INE</TableHead>}
+                            {isColumnVisible(pendingColumns, 'curp') && <TableHead>CURP</TableHead>}
+                            {isColumnVisible(pendingColumns, 'consent') && <TableHead>Consentimiento</TableHead>}
+                            {isColumnVisible(pendingColumns, 'requestDate') && <TableHead>F. Solicitud</TableHead>}
                             {isColumnVisible(pendingColumns, 'actions') && <TableHead>Acciones</TableHead>}
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {pendingLoading ? renderSkeletonRows(pendingColumns) : (
-                            pendingLoansData.filter(l =>
-                              l.firstName.toLowerCase().includes(pendingSearch.toLowerCase()) ||
-                              l.lastName.toLowerCase().includes(pendingSearch.toLowerCase()) ||
-                              String(l.id).toLowerCase().includes(pendingSearch.toLowerCase())
-                            ).map((loan) => (
+                          {pendingLoading ? renderSkeletonRows(pendingColumns) : pendingLoansData.length === 0 ? (
+                              <TableRow>
+                                <TableCell colSpan={pendingColumns.filter(c => c.visible).length || 12} className="text-center py-12">
+                                  <div className="flex flex-col items-center gap-3">
+                                    <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center">
+                                      <FileText className="h-6 w-6 text-muted-foreground" />
+                                    </div>
+                                    <div>
+                                      <p className="font-medium text-gray-900">No hay solicitudes pendientes</p>
+                                      <p className="text-sm text-muted-foreground mt-1">Las nuevas solicitudes aparecerán aquí</p>
+                                    </div>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            ) : (
+                              pendingLoansData.filter(l =>
+                                (l.firstName ?? '').toLowerCase().includes(pendingSearch.toLowerCase()) ||
+                                (l.lastName ?? '').toLowerCase().includes(pendingSearch.toLowerCase()) ||
+                                String(l.id ?? '').toLowerCase().includes(pendingSearch.toLowerCase())
+                              ).map((loan) => (
                               <TableRow key={loan.id}>
                                 {isColumnVisible(pendingColumns, 'id') && <TableCell className="font-medium whitespace-nowrap">{loan.id}</TableCell>}
                                 {isColumnVisible(pendingColumns, 'firstName') && <TableCell>{loan.firstName}</TableCell>}
                                 {isColumnVisible(pendingColumns, 'lastName') && <TableCell>{loan.lastName}</TableCell>}
-                                {isColumnVisible(pendingColumns, 'requestDate') && <TableCell>{loan.requestDate}</TableCell>}
                                 {isColumnVisible(pendingColumns, 'amount') && <TableCell className="font-semibold">${loan.amount.toLocaleString()}</TableCell>}
                                 {isColumnVisible(pendingColumns, 'installments') && <TableCell>{loan.installments}</TableCell>}
-                                {isColumnVisible(pendingColumns, 'membership') && <TableCell>{loan.membership}</TableCell>}
-                                {/* {isColumnVisible(pendingColumns, 'accountVerification') && (
-                                <TableCell>
-                                  {loan.isAccountVerified ? (
-                                    <CheckCircle2 className="h-5 w-5 text-emerald-500" />
-                                  ) : (
-                                    <XCircle className="h-5 w-5 text-red-500" />
-                                  )}
-                                </TableCell>
-                              )} */}
-                                {isColumnVisible(pendingColumns, 'ine') && (
-                                  <TableCell>
-                                    <Button variant="link" size="sm" className="p-0 h-auto" onClick={() => setIneCurpModal({ open: true, loan, type: 'ine' })}>
-                                      {loan.ineNumber.slice(0, 10)}...
-                                    </Button>
-                                  </TableCell>
-                                )}
-                                {isColumnVisible(pendingColumns, 'consent') && (
-                                  <TableCell>
-                                    {getConsentBadge(loan.status_consent || loan.raw?.status_consent || loan.statusConsent)}
-
-                                  </TableCell>
-                                )}
-                                {isColumnVisible(pendingColumns, 'curp') && (
-                                  <TableCell>
-                                    <Button variant="link" size="sm" className="p-0 h-auto" onClick={() => setIneCurpModal({ open: true, loan, type: 'curp' })}>
-                                      {loan.curpNumber.slice(0, 10)}...
-                                    </Button>
-                                  </TableCell>
-                                )}
                                 {isColumnVisible(pendingColumns, 'preApproval') && (
                                   <TableCell>
                                     {loan?.raw?.status === 'cancelled' || loan?.status === 'Rechazado' ? (
@@ -1025,6 +1030,44 @@ const LoanManagement = () => {
                                     )}
                                   </TableCell>
                                 )}
+                                {isColumnVisible(pendingColumns, 'membership') && (
+                                  <TableCell className="min-w-[120px]">
+                                    <TooltipProvider>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200 cursor-help whitespace-nowrap">
+                                            <Star className="h-3 w-3 mr-1" />{loan.membership || 'Sin membresía'}
+                                          </Badge>
+                                        </TooltipTrigger>
+                                        <TooltipContent side="top" className="max-w-xs">
+                                          <p className="font-semibold">{loan.membership || 'Sin membresía'}</p>
+                                          {loan.membershipRaw?.price && <p className="text-xs text-muted-foreground">${Number(loan.membershipRaw.price).toLocaleString()}</p>}
+                                          {loan.membershipRaw?.active !== false ? <p className="text-xs text-green-600">Activa</p> : <p className="text-xs text-muted-foreground">Inactiva</p>}
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
+                                  </TableCell>
+                                )}
+                                {isColumnVisible(pendingColumns, 'ine') && (
+                                  <TableCell>
+                                    <Button variant="link" size="sm" className="p-0 h-auto" onClick={() => setIneCurpModal({ open: true, loan, type: 'ine' })}>
+                                      {loan.ineNumber?.slice(0, 10) ?? 'N/A'}...
+                                    </Button>
+                                  </TableCell>
+                                )}
+                                {isColumnVisible(pendingColumns, 'curp') && (
+                                  <TableCell>
+                                    <Button variant="link" size="sm" className="p-0 h-auto" onClick={() => setIneCurpModal({ open: true, loan, type: 'curp' })}>
+                                      {loan.curpNumber?.slice(0, 10) ?? 'N/A'}...
+                                    </Button>
+                                  </TableCell>
+                                )}
+                                {isColumnVisible(pendingColumns, 'consent') && (
+                                  <TableCell>
+                                    {getConsentBadge(loan.status_consent || loan.raw?.status_consent || loan.statusConsent)}
+                                  </TableCell>
+                                )}
+                                {isColumnVisible(pendingColumns, 'requestDate') && <TableCell className="whitespace-nowrap">{formatDisplayDate(loan.requestDate)}</TableCell>}
                                 {isColumnVisible(pendingColumns, 'actions') && (
                                   <TableCell>
                                     <div className="flex gap-1">
@@ -1051,7 +1094,7 @@ const LoanManagement = () => {
                     <div className="flex items-center justify-between mt-4">
                       <div className="text-sm text-muted-foreground">Mostrando {(pendingPage - 1) * pageSize + 1} - {Math.min(pendingPage * pageSize, pendingTotal)} de {pendingTotal}</div>
                       <div className="flex items-center gap-2">
-                        {renderPagination(pendingPage, pendingTotal, (p) => loadPending(p))}
+                        {renderPagination(pendingPage, pendingTotal, setPendingPage)}
                       </div>
                     </div>
                   </CardContent>
@@ -1097,25 +1140,56 @@ const LoanManagement = () => {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {contractLoading ? renderSkeletonRows(contractColumns) : (
+                          {contractLoading ? renderSkeletonRows(contractColumns) : contractLoansData.length === 0 ? (
+                            <TableRow>
+                              <TableCell colSpan={contractColumns.filter(c => c.visible).length || 12} className="text-center py-12">
+                                <div className="flex flex-col items-center gap-3">
+                                  <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center">
+                                    <FileText className="h-6 w-6 text-muted-foreground" />
+                                  </div>
+                                  <div>
+                                    <p className="font-medium text-gray-900">No hay contratos por firmar</p>
+                                    <p className="text-sm text-muted-foreground mt-1">Los contratos aprobados aparecerán aquí</p>
+                                  </div>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ) : (
                             contractLoansData.filter(l =>
-                              l.firstName.toLowerCase().includes(contractSearch.toLowerCase()) ||
-                              l.lastName.toLowerCase().includes(contractSearch.toLowerCase()) ||
-                              String(l.id).toLowerCase().includes(contractSearch.toLowerCase())
+                              (l.firstName ?? '').toLowerCase().includes(contractSearch.toLowerCase()) ||
+                              (l.lastName ?? '').toLowerCase().includes(contractSearch.toLowerCase()) ||
+                              String(l.id ?? '').toLowerCase().includes(contractSearch.toLowerCase())
                             ).map((loan) => (
                               <TableRow key={loan.id}>
                                 {isColumnVisible(contractColumns, 'id') && <TableCell className="font-medium whitespace-nowrap">{loan.id}</TableCell>}
                                 {isColumnVisible(contractColumns, 'firstName') && <TableCell>{loan.firstName}</TableCell>}
                                 {isColumnVisible(contractColumns, 'lastName') && <TableCell>{loan.lastName}</TableCell>}
-                                {isColumnVisible(contractColumns, 'requestDate') && <TableCell>{loan.requestDate}</TableCell>}
+                                {isColumnVisible(contractColumns, 'requestDate') && <TableCell className="whitespace-nowrap">{formatDisplayDate(loan.requestDate)}</TableCell>}
                                 {isColumnVisible(contractColumns, 'amount') && <TableCell className="font-semibold">${loan.amount.toLocaleString()}</TableCell>}
                                 {isColumnVisible(contractColumns, 'installments') && <TableCell>{loan.installments}</TableCell>}
-                                {isColumnVisible(contractColumns, 'membership') && <TableCell>{loan.membership}</TableCell>}
-                                {isColumnVisible(contractColumns, 'ine') && <TableCell>{loan.ineNumber.slice(0, 10)}...</TableCell>}
+                                {isColumnVisible(contractColumns, 'membership') && (
+                                  <TableCell className="min-w-[120px]">
+                                    <TooltipProvider>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200 cursor-help whitespace-nowrap">
+                                            <Star className="h-3 w-3 mr-1" />{loan.membership || 'Sin membresía'}
+                                          </Badge>
+                                        </TooltipTrigger>
+                                        <TooltipContent side="top" className="max-w-xs">
+                                          <p className="font-semibold">{loan.membership || 'Sin membresía'}</p>
+                                          {loan.membershipRaw?.price && <p className="text-xs text-muted-foreground">${Number(loan.membershipRaw.price).toLocaleString()}</p>}
+                                          {loan.membershipRaw?.active !== false ? <p className="text-xs text-green-600">Activa</p> : <p className="text-xs text-muted-foreground">Inactiva</p>}
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
+                                  </TableCell>
+                                )}
+                                {isColumnVisible(contractColumns, 'ine') && <TableCell>{loan.ineNumber?.slice(0, 10) ?? 'N/A'}...</TableCell>}
                                 {isColumnVisible(contractColumns, 'consent') && (
                                   <TableCell>{getConsentBadge(loan.status_consent || loan.raw?.status_consent || loan.statusConsent)}</TableCell>
                                 )}
-                                {isColumnVisible(contractColumns, 'curp') && <TableCell>{loan.curpNumber.slice(0, 10)}...</TableCell>}
+                                {isColumnVisible(contractColumns, 'curp') && <TableCell>{loan.curpNumber?.slice(0, 10) ?? 'N/A'}...</TableCell>}
                                 {isColumnVisible(contractColumns, 'preApproval') && (
                                   <TableCell>
                                     <Badge className="bg-success/20 text-success border-success">{loan.preApproval}</Badge>
@@ -1146,7 +1220,7 @@ const LoanManagement = () => {
                     <div className="flex items-center justify-between mt-4">
                       <div className="text-sm text-muted-foreground">Mostrando {(contractPage - 1) * pageSize + 1} - {Math.min(contractPage * pageSize, contractTotal)} de {contractTotal}</div>
                       <div className="flex items-center gap-2">
-                        {renderPagination(contractPage, contractTotal, (p) => loadContract(p))}
+                        {renderPagination(contractPage, contractTotal, setContractPage)}
                       </div>
                     </div>
                   </CardContent>
@@ -1192,17 +1266,31 @@ const LoanManagement = () => {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {disbursementLoading ? renderSkeletonRows(disbursementColumns) : (
+                          {disbursementLoading ? renderSkeletonRows(disbursementColumns) : disbursementLoansData.length === 0 ? (
+                            <TableRow>
+                              <TableCell colSpan={disbursementColumns.filter(c => c.visible).length || 12} className="text-center py-12">
+                                <div className="flex flex-col items-center gap-3">
+                                  <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center">
+                                    <DollarSign className="h-6 w-6 text-muted-foreground" />
+                                  </div>
+                                  <div>
+                                    <p className="font-medium text-gray-900">No hay préstamos por desembolsar</p>
+                                    <p className="text-sm text-muted-foreground mt-1">Los contratos firmados aparecerán aquí</p>
+                                  </div>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ) : (
                             disbursementLoansData.filter(l =>
-                              l.firstName.toLowerCase().includes(disbursementSearch.toLowerCase()) ||
-                              l.lastName.toLowerCase().includes(disbursementSearch.toLowerCase()) ||
-                              String(l.id).toLowerCase().includes(disbursementSearch.toLowerCase())
+                              (l.firstName ?? '').toLowerCase().includes(disbursementSearch.toLowerCase()) ||
+                              (l.lastName ?? '').toLowerCase().includes(disbursementSearch.toLowerCase()) ||
+                              String(l.id ?? '').toLowerCase().includes(disbursementSearch.toLowerCase())
                             ).map((loan) => (
                               <TableRow key={loan.id}>
                                 {isColumnVisible(disbursementColumns, 'id') && <TableCell className="font-medium whitespace-nowrap">{loan.id}</TableCell>}
                                 {isColumnVisible(disbursementColumns, 'firstName') && <TableCell>{loan.firstName}</TableCell>}
                                 {isColumnVisible(disbursementColumns, 'lastName') && <TableCell>{loan.lastName}</TableCell>}
-                                {isColumnVisible(disbursementColumns, 'requestDate') && <TableCell>{loan.requestDate}</TableCell>}
+                                {isColumnVisible(disbursementColumns, 'requestDate') && <TableCell className="whitespace-nowrap">{formatDisplayDate(loan.requestDate)}</TableCell>}
                                 {isColumnVisible(disbursementColumns, 'amount') && <TableCell className="font-semibold">${loan.amount.toLocaleString()}</TableCell>}
                                 {isColumnVisible(disbursementColumns, 'installments') && <TableCell>{loan.installments}</TableCell>}
                                 {isColumnVisible(disbursementColumns, 'bank') && <TableCell>{loan.bank}</TableCell>}
@@ -1210,8 +1298,8 @@ const LoanManagement = () => {
                                 {isColumnVisible(disbursementColumns, 'consent') && (
                                   <TableCell>{getConsentBadge(loan.status_consent || loan.raw?.status_consent || loan.statusConsent)}</TableCell>
                                 )}
-                                {isColumnVisible(disbursementColumns, 'ine') && <TableCell>{loan.ineNumber.slice(0, 10)}...</TableCell>}
-                                {isColumnVisible(disbursementColumns, 'curp') && <TableCell>{loan.curpNumber.slice(0, 10)}...</TableCell>}
+                                {isColumnVisible(disbursementColumns, 'ine') && <TableCell>{loan.ineNumber?.slice(0, 10) ?? 'N/A'}...</TableCell>}
+                                {isColumnVisible(disbursementColumns, 'curp') && <TableCell>{loan.curpNumber?.slice(0, 10) ?? 'N/A'}...</TableCell>}
                                 {isColumnVisible(disbursementColumns, 'contractStatus') && (
                                   <TableCell>
                                     <Badge className="bg-success/20 text-success border-success">{loan.contractStatus}</Badge>
@@ -1242,7 +1330,7 @@ const LoanManagement = () => {
                     <div className="flex items-center justify-between mt-4">
                       <div className="text-sm text-muted-foreground">Mostrando {(disbursementPage - 1) * pageSize + 1} - {Math.min(disbursementPage * pageSize, disbursementTotal)} de {disbursementTotal}</div>
                       <div className="flex items-center gap-2">
-                        {renderPagination(disbursementPage, disbursementTotal, (p) => loadDisbursement(p))}
+                        {renderPagination(disbursementPage, disbursementTotal, setDisbursementPage)}
                       </div>
                     </div>
                   </CardContent>
@@ -1286,23 +1374,37 @@ const LoanManagement = () => {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {activeLoading ? renderSkeletonRows(activeColumns) : (
+                          {activeLoading ? renderSkeletonRows(activeColumns) : activeLoansData.length === 0 ? (
+                            <TableRow>
+                              <TableCell colSpan={activeColumns.filter(c => c.visible).length || 12} className="text-center py-12">
+                                <div className="flex flex-col items-center gap-3">
+                                  <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center">
+                                    <CheckCircle className="h-6 w-6 text-muted-foreground" />
+                                  </div>
+                                  <div>
+                                    <p className="font-medium text-gray-900">No hay préstamos activos</p>
+                                    <p className="text-sm text-muted-foreground mt-1">Los préstamos aprobados aparecerán aquí</p>
+                                  </div>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ) : (
                             activeLoansData.filter(l =>
-                              l.firstName.toLowerCase().includes(activeSearch.toLowerCase()) ||
-                              l.lastName.toLowerCase().includes(activeSearch.toLowerCase()) ||
-                              String(l.id).toLowerCase().includes(activeSearch.toLowerCase())
+                              (l.firstName ?? '').toLowerCase().includes(activeSearch.toLowerCase()) ||
+                              (l.lastName ?? '').toLowerCase().includes(activeSearch.toLowerCase()) ||
+                              String(l.id ?? '').toLowerCase().includes(activeSearch.toLowerCase())
                             ).map((loan) => (
                               <TableRow key={loan.id}>
                                 {isColumnVisible(activeColumns, 'id') && <TableCell className="font-medium whitespace-nowrap">{loan.id}</TableCell>}
                                 {isColumnVisible(activeColumns, 'firstName') && <TableCell>{loan.firstName}</TableCell>}
                                 {isColumnVisible(activeColumns, 'lastName') && <TableCell>{loan.lastName}</TableCell>}
-                                {isColumnVisible(activeColumns, 'requestDate') && <TableCell>{loan.requestDate}</TableCell>}
+                                {isColumnVisible(activeColumns, 'requestDate') && <TableCell className="whitespace-nowrap">{formatDisplayDate(loan.requestDate)}</TableCell>}
                                 {isColumnVisible(activeColumns, 'amount') && <TableCell className="font-semibold">${loan.amount.toLocaleString()}</TableCell>}
                                 {isColumnVisible(activeColumns, 'installments') && <TableCell>{loan.installments}</TableCell>}
                                 {isColumnVisible(activeColumns, 'paidInstallments') && <TableCell>{loan.paidInstallments}/{loan.installments}</TableCell>}
-                                {isColumnVisible(activeColumns, 'ine') && <TableCell>{loan.ineNumber.slice(0, 10)}...</TableCell>}
+                                {isColumnVisible(activeColumns, 'ine') && <TableCell>{loan.ineNumber?.slice(0, 10) ?? 'N/A'}...</TableCell>}
                                 {isColumnVisible(activeColumns, 'consent') && <TableCell>{getConsentBadge(loan.status_consent || loan.raw?.status_consent || loan.statusConsent)}</TableCell>}
-                                {isColumnVisible(activeColumns, 'lastPaymentDate') && <TableCell>{loan.lastPaymentDate}</TableCell>}
+                                {isColumnVisible(activeColumns, 'lastPaymentDate') && <TableCell className="whitespace-nowrap">{formatDisplayDate(loan.lastPaymentDate)}</TableCell>}
                                 {isColumnVisible(activeColumns, 'status') && <TableCell>{getStatusBadge(loan.status)}</TableCell>}
                                 {isColumnVisible(activeColumns, 'actions') && (
                                   <TableCell>
@@ -1341,7 +1443,7 @@ const LoanManagement = () => {
                     <div className="flex items-center justify-between mt-4">
                       <div className="text-sm text-muted-foreground">Mostrando {(activePage - 1) * pageSize + 1} - {Math.min(activePage * pageSize, activeTotal)} de {activeTotal}</div>
                       <div className="flex items-center gap-2">
-                        {renderPagination(activePage, activeTotal, (p) => loadActive(p))}
+                        {renderPagination(activePage, activeTotal, setActivePage)}
                       </div>
                     </div>
                   </CardContent>
@@ -1385,23 +1487,37 @@ const LoanManagement = () => {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {overdueLoading ? renderSkeletonRows(overdueColumns) : (
+                          {overdueLoading ? renderSkeletonRows(overdueColumns) : overdueLoansData.length === 0 ? (
+                            <TableRow>
+                              <TableCell colSpan={overdueColumns.filter(c => c.visible).length || 12} className="text-center py-12">
+                                <div className="flex flex-col items-center gap-3">
+                                  <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center">
+                                    <TrendingDown className="h-6 w-6 text-muted-foreground" />
+                                  </div>
+                                  <div>
+                                    <p className="font-medium text-gray-900">No hay préstamos atrasados</p>
+                                    <p className="text-sm text-muted-foreground mt-1">¡Bien! No hay clientes con pagos vencidos</p>
+                                  </div>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ) : (
                             overdueLoansData.filter(l =>
-                              l.firstName.toLowerCase().includes(overdueSearch.toLowerCase()) ||
-                              l.lastName.toLowerCase().includes(overdueSearch.toLowerCase()) ||
-                              String(l.id).toLowerCase().includes(overdueSearch.toLowerCase())
+                              (l.firstName ?? '').toLowerCase().includes(overdueSearch.toLowerCase()) ||
+                              (l.lastName ?? '').toLowerCase().includes(overdueSearch.toLowerCase()) ||
+                              String(l.id ?? '').toLowerCase().includes(overdueSearch.toLowerCase())
                             ).map((loan) => (
                               <TableRow key={loan.id}>
                                 {isColumnVisible(overdueColumns, 'id') && <TableCell className="font-medium whitespace-nowrap">{loan.id}</TableCell>}
                                 {isColumnVisible(overdueColumns, 'firstName') && <TableCell>{loan.firstName}</TableCell>}
                                 {isColumnVisible(overdueColumns, 'lastName') && <TableCell>{loan.lastName}</TableCell>}
-                                {isColumnVisible(overdueColumns, 'requestDate') && <TableCell>{loan.requestDate}</TableCell>}
+                                {isColumnVisible(overdueColumns, 'requestDate') && <TableCell className="whitespace-nowrap">{formatDisplayDate(loan.requestDate)}</TableCell>}
                                 {isColumnVisible(overdueColumns, 'amount') && <TableCell className="font-semibold">${loan.amount.toLocaleString()}</TableCell>}
                                 {isColumnVisible(overdueColumns, 'installments') && <TableCell>{loan.installments}</TableCell>}
                                 {isColumnVisible(overdueColumns, 'paidInstallments') && <TableCell>{loan.paidInstallments}/{loan.installments}</TableCell>}
-                                {isColumnVisible(overdueColumns, 'ine') && <TableCell>{loan.ineNumber.slice(0, 10)}...</TableCell>}
+                                {isColumnVisible(overdueColumns, 'ine') && <TableCell>{loan.ineNumber?.slice(0, 10) ?? 'N/A'}...</TableCell>}
                                 {isColumnVisible(overdueColumns, 'consent') && <TableCell>{getConsentBadge(loan.status_consent || loan.raw?.status_consent || loan.statusConsent)}</TableCell>}
-                                {isColumnVisible(overdueColumns, 'lastPaymentDate') && <TableCell>{loan.lastPaymentDate}</TableCell>}
+                                {isColumnVisible(overdueColumns, 'lastPaymentDate') && <TableCell className="whitespace-nowrap">{formatDisplayDate(loan.lastPaymentDate)}</TableCell>}
                                 {isColumnVisible(overdueColumns, 'status') && <TableCell>{getStatusBadge(loan.status)}</TableCell>}
                                 {isColumnVisible(overdueColumns, 'actions') && (
                                   <TableCell>
@@ -1436,7 +1552,7 @@ const LoanManagement = () => {
                     <div className="flex items-center justify-between mt-4">
                       <div className="text-sm text-muted-foreground">Mostrando {(overduePage - 1) * pageSize + 1} - {Math.min(overduePage * pageSize, overdueTotal)} de {overdueTotal}</div>
                       <div className="flex items-center gap-2">
-                        {renderPagination(overduePage, overdueTotal, (p) => loadOverdue(p))}
+                        {renderPagination(overduePage, overdueTotal, setOverduePage)}
                       </div>
                     </div>
                   </CardContent>
@@ -1479,23 +1595,37 @@ const LoanManagement = () => {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {historyLoading ? renderSkeletonRows(historyColumns) : (
+                          {historyLoading ? renderSkeletonRows(historyColumns) : historyLoansData.length === 0 ? (
+                            <TableRow>
+                              <TableCell colSpan={historyColumns.filter(c => c.visible).length || 12} className="text-center py-12">
+                                <div className="flex flex-col items-center gap-3">
+                                  <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center">
+                                    <FileText className="h-6 w-6 text-muted-foreground" />
+                                  </div>
+                                  <div>
+                                    <p className="font-medium text-gray-900">No hay historial de préstamos</p>
+                                    <p className="text-sm text-muted-foreground mt-1">Los préstamos cerrados aparecerán aquí</p>
+                                  </div>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ) : (
                             historyLoansData.filter(l =>
-                              l.firstName.toLowerCase().includes(historySearch.toLowerCase()) ||
-                              l.lastName.toLowerCase().includes(historySearch.toLowerCase()) ||
-                              String(l.id).toLowerCase().includes(historySearch.toLowerCase())
+                              (l.firstName ?? '').toLowerCase().includes(historySearch.toLowerCase()) ||
+                              (l.lastName ?? '').toLowerCase().includes(historySearch.toLowerCase()) ||
+                              String(l.id ?? '').toLowerCase().includes(historySearch.toLowerCase())
                             ).map((loan) => (
                               <TableRow key={loan.id}>
                                 {isColumnVisible(historyColumns, 'id') && <TableCell className="font-medium whitespace-nowrap">{loan.id}</TableCell>}
                                 {isColumnVisible(historyColumns, 'firstName') && <TableCell>{loan.firstName}</TableCell>}
                                 {isColumnVisible(historyColumns, 'lastName') && <TableCell>{loan.lastName}</TableCell>}
-                                {isColumnVisible(historyColumns, 'requestDate') && <TableCell>{loan.requestDate}</TableCell>}
+                                {isColumnVisible(historyColumns, 'requestDate') && <TableCell className="whitespace-nowrap">{formatDisplayDate(loan.requestDate)}</TableCell>}
                                 {isColumnVisible(historyColumns, 'amount') && <TableCell className="font-semibold">${loan.amount.toLocaleString()}</TableCell>}
                                 {isColumnVisible(historyColumns, 'installments') && <TableCell>{loan.installments}</TableCell>}
                                 {isColumnVisible(historyColumns, 'paidInstallments') && <TableCell>{loan.paidInstallments}/{loan.installments}</TableCell>}
-                                {isColumnVisible(historyColumns, 'ine') && <TableCell>{loan.ineNumber.slice(0, 10)}...</TableCell>}
+                                {isColumnVisible(historyColumns, 'ine') && <TableCell>{loan.ineNumber?.slice(0, 10) ?? 'N/A'}...</TableCell>}
                                 {isColumnVisible(historyColumns, 'consent') && <TableCell>{getConsentBadge(loan.status_consent || loan.raw?.status_consent || loan.statusConsent)}</TableCell>}
-                                {isColumnVisible(historyColumns, 'lastPaymentDate') && <TableCell>{loan.lastPaymentDate}</TableCell>}
+                                {isColumnVisible(historyColumns, 'lastPaymentDate') && <TableCell className="whitespace-nowrap">{formatDisplayDate(loan.lastPaymentDate)}</TableCell>}
                                 {isColumnVisible(historyColumns, 'status') && <TableCell>{getStatusBadge(loan.status)}</TableCell>}
                               </TableRow>
                             )))}
@@ -1505,15 +1635,13 @@ const LoanManagement = () => {
                     <div className="flex items-center justify-between mt-4">
                       <div className="text-sm text-muted-foreground">Mostrando {(historyPage - 1) * pageSize + 1} - {Math.min(historyPage * pageSize, historyTotal)} de {historyTotal}</div>
                       <div className="flex items-center gap-2">
-                        {renderPagination(historyPage, historyTotal, (p) => loadHistory(p))}
+                        {renderPagination(historyPage, historyTotal, setHistoryPage)}
                       </div>
                     </div>
                   </CardContent>
                 </Card>
               </TabsContent>
             </Tabs>
-          </div>
-        </main>
 
         {/* Modals */}
         <INECURPModal
@@ -1521,8 +1649,6 @@ const LoanManagement = () => {
           onOpenChange={(open) => setIneCurpModal(prev => ({ ...prev, open }))}
           loan={ineCurpModal.loan}
           type={ineCurpModal.type}
-          onSave={() => toast({ title: "Guardado", description: "Los datos se guardaron correctamente." })}
-          onValidate={() => toast({ title: "Validación", description: "Documento marcado como validado." })}
         />
 
         <ModifyLoanModal
@@ -1530,112 +1656,169 @@ const LoanManagement = () => {
           onOpenChange={(open) => setModifyModal(prev => ({ ...prev, open }))}
           loan={modifyModal.loan}
           onSend={() => toast({ title: "Enviado", description: "La propuesta ha sido enviada al cliente." })}
+          onSave={(updatedLoan) => {
+            setModifyModal(prev => ({ ...prev, loan: updatedLoan }));
+            queryClient.invalidateQueries({ queryKey: ['loans', 'admin'] });
+            queryClient.invalidateQueries({ queryKey: ['admin-loans'] });
+            toast({ title: "Guardado", description: "Los cambios han sido guardados." });
+          }}
         />
 
-        <AlertDialog open={detailsModal.open} onOpenChange={(open) => setDetailsModal(prev => ({ ...prev, open }))}>
-          <AlertDialogContent className="max-w-3xl">
-            <AlertDialogHeader>
-              <AlertDialogTitle>Detalle de solicitud</AlertDialogTitle>
-              <AlertDialogDescription>
-                Informacion general y datos capturados por el cliente.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
+<AlertDialog open={detailsModal.open} onOpenChange={(open) => setDetailsModal(prev => ({ ...prev, open }))}>
+          <AlertDialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto p-5 bg-white">
             {(() => {
               const loan = detailsModal.loan as any;
               const md = loan?.raw?.metadata ?? {};
+              const user = loan?.raw?.users ?? {};
+              const userMembership = user.user_memberships?.[0]?.membership_plans ?? {};
               const personal = md.personalData ?? {};
-              const deposit = md.depositData ?? {};
-              const disbursement = md.disbursementData ?? {};
-              const membership = md.membership ?? {};
+
+              const firstName = user.first_name || personal.firstName || '';
+              const lastName = user.last_name || personal.lastName || '';
+              const fullName = `${firstName} ${lastName}`.trim() || 'Usuario';
+              const userInitial = firstName?.[0]?.toUpperCase() || '?';
+              const profileColor = ['bg-blue-500', 'bg-green-500', 'bg-purple-500', 'bg-pink-500', 'bg-indigo-500', 'bg-red-500', 'bg-yellow-500', 'bg-teal-500'][Math.abs((loan?.id ?? '')?.charCodeAt(0) ?? 0) % 8];
+
+              const phone = user.phone || personal.phone || '-';
+              const phoneCountry = user.phone_country_code || '+52';
+              const fullPhone = phone !== '-' ? `${phoneCountry}${phone.replace(/^\+\d+/, '')}` : '-';
+              const birthDate = user.birth_date ? formatDisplayDate(new Date(user.birth_date).toISOString().slice(0, 10)) : (personal.birthDate ? formatDisplayDate(personal.birthDate) : '-');
+              const ineKey = user.ine_key || personal.ineKey || '-';
+              const curp = user.curp || personal.curp || '-';
+              const address = user.address || personal.address || '-';
+              const email = user.email || personal.email || '-';
+
+              const membershipName = userMembership.name || loan?.membership || 'Sin membresía';
+              const membershipColor = userMembership.color || 'bg-gray-100';
+              const membershipIcon = userMembership.icon || '★';
+              const loanInterestRateDecimal = Number(loan?.raw?.interest_rate ?? loan?.interest_rate) || 0.20;
+
+              const loanAmount = Number(loan?.amount ?? 0);
+              const loanInstallments = Number(loan?.installments ?? 0);
+              const calculatedMonthlyPayment = loan?.monthly_payment 
+                ? Number(loan.monthly_payment) 
+                : (loanAmount > 0 && loanInstallments > 0 
+                  ? (loanAmount * (loanInterestRateDecimal / 12) * Math.pow(1 + loanInterestRateDecimal / 12, loanInstallments)) / (Math.pow(1 + loanInterestRateDecimal / 12, loanInstallments) - 1)
+                  : null);
+
               return (
-                <div className="space-y-5">
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <div className="rounded-lg border border-border bg-muted/30 p-3">
-                      <p className="text-[11px] text-muted-foreground">Solicitud</p>
-                      <p className="text-sm font-medium">{loan?.id ?? '-'}</p>
+                <div className="space-y-4">
+                  {/* Profile Header */}
+                  <div className="flex items-center gap-4 pb-4 border-b border-gray-200">
+                    {user.avatar_url ? (
+                      <img src={user.avatar_url} alt={fullName} className="w-12 h-12 rounded-full object-cover shadow-sm" />
+                    ) : (
+                      <div className={`w-12 h-12 rounded-full ${profileColor} flex items-center justify-center text-white text-lg font-bold shadow-sm`}>
+                        {userInitial}
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-base font-bold truncate">{fullName}</h3>
+                      <p className="text-xs text-muted-foreground truncate">{email}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className={`text-[10px] ${membershipColor} px-2 py-0.5 rounded-full font-medium flex items-center gap-1`}>
+                          <span>{membershipIcon}</span> {membershipName}
+                        </span>
+                      </div>
                     </div>
-                    <div className="rounded-lg border border-border bg-muted/30 p-3">
-                      <p className="text-[11px] text-muted-foreground">Monto</p>
-                      <p className="text-sm font-medium">${Number(loan?.amount ?? 0).toLocaleString()} MXN</p>
-                    </div>
-                    <div className="rounded-lg border border-border bg-muted/30 p-3">
-                      <p className="text-[11px] text-muted-foreground">Plazo</p>
-                      <p className="text-sm font-medium">{loan?.installments ?? '-'} cuotas</p>
-                    </div>
-                  </div>
-
-                  <div>
-                    <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2">Datos personales</p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div className="rounded-lg border border-border bg-muted/30 p-3">
-                        <p className="text-[11px] text-muted-foreground">Nombre</p>
-                        <p className="text-sm font-medium">{`${personal.firstName ?? ''} ${personal.lastName ?? ''}`.trim() || '-'}</p>
-                      </div>
-                      <div className="rounded-lg border border-border bg-muted/30 p-3">
-                        <p className="text-[11px] text-muted-foreground">Telefono</p>
-                        <p className="text-sm font-medium">{personal.phone || '-'}</p>
-                      </div>
-                      <div className="rounded-lg border border-border bg-muted/30 p-3">
-                        <p className="text-[11px] text-muted-foreground">Direccion</p>
-                        <p className="text-sm font-medium">{personal.address || '-'}</p>
-                      </div>
-                      <div className="rounded-lg border border-border bg-muted/30 p-3">
-                        <p className="text-[11px] text-muted-foreground">Fecha de nacimiento</p>
-                        <p className="text-sm font-medium">{personal.birthDate || '-'}</p>
-                      </div>
-                      <div className="rounded-lg border border-border bg-muted/30 p-3">
-                        <p className="text-[11px] text-muted-foreground">INE</p>
-                        <p className="text-sm font-medium">{personal.ineKey || loan?.ineNumber || '-'}</p>
-                      </div>
-                      <div className="rounded-lg border border-border bg-muted/30 p-3">
-                        <p className="text-[11px] text-muted-foreground">CURP</p>
-                        <p className="text-sm font-medium">{personal.curp || loan?.curpNumber || '-'}</p>
-                      </div>
+                    <div className="bg-gray-50 rounded-xl px-3 py-2 text-right">
+                      <p className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wider">Total Préstamo</p>
+                      <p className="text-xl font-black text-primary">${Number(loan?.amount ?? 0).toLocaleString()}</p>
+                      <p className="text-[9px] text-muted-foreground">MXN</p>
                     </div>
                   </div>
 
-                  <div>
-                    <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2">Cuenta bancaria</p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div className="rounded-lg border border-border bg-muted/30 p-3">
-                        <p className="text-[11px] text-muted-foreground">Banco</p>
-                        <p className="text-sm font-medium">{deposit.bank || '-'}</p>
+                  {/* Loan Summary Cards */}
+                  <div className="grid grid-cols-4 gap-2">
+                    <div className="border border-gray-200 rounded-lg p-2.5 text-center bg-white">
+                      <p className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wider mb-0.5">Plazo</p>
+                      <p className="text-lg font-bold">{loan?.installments ?? '-'}</p>
+                      <p className="text-[9px] text-muted-foreground">cuotas</p>
+                    </div>
+                    <div className="border border-gray-200 rounded-lg p-2.5 text-center bg-white">
+                      <p className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wider mb-0.5">Cuota Mensual</p>
+                      <p className="text-base font-bold">${calculatedMonthlyPayment ? Number(calculatedMonthlyPayment).toLocaleString() : '-'}</p>
+                    </div>
+                    <div className="border border-gray-200 rounded-lg p-2.5 text-center bg-white">
+                      <p className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wider mb-0.5">Solicitud</p>
+                      <p className="text-sm font-bold font-mono">{loan?.id ? String(loan.id).slice(-6) : '-'}</p>
+                    </div>
+                    <div className="border border-gray-200 rounded-lg p-2.5 text-center bg-white">
+                      <p className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wider mb-0.5">Estatus</p>
+                      <p className="text-sm font-bold">{getStatusBadge(loan?.status || '-')}</p>
+                    </div>
+                  </div>
+
+                  {/* Personal Data */}
+                  <div className="space-y-2">
+                    <h4 className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Datos Personales</h4>
+                    <div className="grid grid-cols-4 gap-2">
+                      <div className="border border-gray-200 rounded-lg p-2 bg-white">
+                        <p className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wider mb-0.5">Teléfono</p>
+                        <p className="text-xs font-bold font-mono">{fullPhone}</p>
                       </div>
-                      <div className="rounded-lg border border-border bg-muted/30 p-3">
-                        <p className="text-[11px] text-muted-foreground">CLABE</p>
-                        <p className="text-sm font-medium">{deposit.clabe || '-'}</p>
+                      <div className="border border-gray-200 rounded-lg p-2 bg-white">
+                        <p className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wider mb-0.5">Fecha Nac.</p>
+                        <p className="text-xs font-bold">{birthDate}</p>
+                      </div>
+                      <div className="border border-gray-200 rounded-lg p-2 bg-white">
+                        <p className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wider mb-0.5">INE</p>
+                        <p className="text-xs font-bold font-mono">{ineKey}</p>
+                      </div>
+                      <div className="border border-gray-200 rounded-lg p-2 bg-white">
+                        <p className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wider mb-0.5">CURP</p>
+                        <p className="text-xs font-bold font-mono">{curp}</p>
+                      </div>
+                      <div className="border border-gray-200 rounded-lg p-2 bg-white col-span-4">
+                        <p className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wider mb-0.5">Dirección</p>
+                        <p className="text-xs font-bold truncate">{address}</p>
                       </div>
                     </div>
                   </div>
 
-                  <div>
-                    <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2">Cuenta de desembolso</p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div className="rounded-lg border border-border bg-muted/30 p-3">
-                        <p className="text-[11px] text-muted-foreground">Banco</p>
-                        <p className="text-sm font-medium">{disbursement.bank || '-'}</p>
-                      </div>
-                      <div className="rounded-lg border border-border bg-muted/30 p-3">
-                        <p className="text-[11px] text-muted-foreground">CLABE</p>
-                        <p className="text-sm font-medium">{disbursement.clabe || '-'}</p>
+                  {/* Bank Account */}
+                  {loan?.bank || loan?.accountNumber ? (
+                    <div className="space-y-2">
+                      <h4 className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Cuenta Bancaria</h4>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="border border-gray-200 rounded-lg p-2 bg-white">
+                          <p className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wider mb-0.5">Banco</p>
+                          <p className="text-xs font-bold">{loan?.bank || '-'}</p>
+                        </div>
+                        <div className="border border-gray-200 rounded-lg p-2 bg-white">
+                          <p className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wider mb-0.5">CLABE</p>
+                          <p className="text-xs font-bold font-mono">{loan?.accountNumber ? `••••${loan.accountNumber.slice(-4)}` : '-'}</p>
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  ) : null}
 
-                  <div>
-                    <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2">Membresia</p>
-                    <div className="rounded-lg border border-border bg-muted/30 p-3">
-                      <p className="text-[11px] text-muted-foreground">Detalle</p>
-                      <p className="text-sm font-medium">
-                        {membership?.name || membership?.title || membership?.membership_plan_id || loan?.membership || '-'}
-                      </p>
+                  {/* Membership Details */}
+                  {loan?.membershipRaw?.name ? (
+                    <div className="space-y-2">
+                      <h4 className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Membresía</h4>
+                      <div className="grid grid-cols-3 gap-2">
+                        <div className="border border-gray-200 rounded-lg p-2 bg-white">
+                          <p className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wider mb-0.5">Plan</p>
+                          <p className="text-xs font-bold">{loan.membershipRaw.name}</p>
+                        </div>
+                        <div className="border border-gray-200 rounded-lg p-2 bg-white">
+                          <p className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wider mb-0.5">Tasa Anual</p>
+                          <p className="text-xs font-bold">{(loanInterestRateDecimal * 100).toFixed(2)}%</p>
+                        </div>
+                        <div className="border border-gray-200 rounded-lg p-2 bg-white">
+                          <p className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wider mb-0.5">Estatus</p>
+                          <p className="text-xs font-bold">{loan.membershipRaw.active !== false ? 'Activa' : 'Inactiva'}</p>
+                        </div>
+                      </div>
                     </div>
-                  </div>
+                  ) : null}
                 </div>
               );
             })()}
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cerrar</AlertDialogCancel>
+            <AlertDialogFooter className="gap-2 mt-4 pt-3 border-t border-gray-200">
+              <Button variant="outline" onClick={handleTestSignNow}>Test SignNow</Button>
+              <AlertDialogCancel onClick={() => setDetailsModal({ open: false, loan: null })} className="gap-2">Cerrar</AlertDialogCancel>
               <AlertDialogAction
                 className="bg-danger hover:bg-danger/90"
                 onClick={() => {
@@ -1698,7 +1881,6 @@ const LoanManagement = () => {
           onOpenChange={(open) => setResendModal(prev => ({ ...prev, open }))}
           loan={resendModal.loan}
           onResend={() => toast({ title: "Reenviado", description: "El contrato ha sido reenviado al cliente." })}
-          onSave={() => toast({ title: "Guardado", description: "Los datos se guardaron correctamente." })}
         />
 
         <AttachContractModal
@@ -1747,9 +1929,18 @@ const LoanManagement = () => {
           onOpenChange={(open) => setScheduleModal(prev => ({ ...prev, open }))}
           loan={scheduleModal.loan}
         />
+
+        {approvingState.open && (
+          <div className="fixed inset-0 z-[100] bg-black/60 flex items-center justify-center">
+            <div className="bg-white rounded-xl p-8 max-w-sm w-full mx-4 text-center shadow-2xl">
+              <div className="animate-spin h-12 w-12 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4" />
+              <h3 className="text-lg font-bold text-gray-900 mb-2">Aprobando Solicitud</h3>
+              <p className="text-sm text-muted-foreground">{approvingState.message}</p>
+            </div>
+          </div>
+        )}
       </div>
-    </SidebarProvider>
-  );
-};
+    );
+  };
 
 export default LoanManagement;

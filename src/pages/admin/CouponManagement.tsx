@@ -1,15 +1,14 @@
 import { useState, useEffect } from "react";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/AppSidebar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Plus, Trash2, Edit } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { authService } from "@/utils/auth";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/contexts/AuthContext";
 
 type Coupon = {
   id: string;
@@ -30,6 +29,11 @@ const CouponManagement = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [editing, setEditing] = useState<Coupon | null>(null);
   const [form, setForm] = useState({ code: "", discount_percent: "", discount_amount: "", max_redemptions: "", starts_at: "", ends_at: "" });
+  const [discountType, setDiscountType] = useState<'percent' | 'amount' | ''>('');
+  const resetForm = () => {
+    setForm({ code: "", discount_percent: "", discount_amount: "", max_redemptions: "", starts_at: "", ends_at: "" });
+    setDiscountType('');
+  };
 
   const toDatetimeLocal = (iso?: string | null) => {
     if (!iso) return "";
@@ -39,13 +43,15 @@ const CouponManagement = () => {
     return local.toISOString().slice(0, 16);
   };
 
+  const { userRole } = useAuth();
+
   useEffect(() => {
-    if (!authService.isAdmin()) {
+    if (userRole !== 'admin') {
       toast({ title: 'Acceso denegado', description: 'No tienes permisos para acceder', variant: 'destructive' });
       return;
     }
     fetchCoupons();
-  }, []);
+  }, [userRole]);
 
   const fetchCoupons = async () => {
     setLoading(true);
@@ -72,7 +78,7 @@ const CouponManagement = () => {
       if (error) throw error;
       toast({ title: 'Cupón creado' });
       setIsOpen(false);
-      setForm({ code: "", discount_percent: "", discount_amount: "", max_redemptions: "" });
+      resetForm()
       await fetchCoupons();
     } catch (err) {
       console.error('[CouponManagement] create', err);
@@ -93,24 +99,13 @@ const CouponManagement = () => {
   };
 
   return (
-    <SidebarProvider>
-      <div className="min-h-screen flex w-full">
-        <AppSidebar />
-        <main className="flex-1">
-          <header className="h-16 border-b border-border bg-card flex items-center px-6 gap-4 fixed md:sticky top-0 z-10 w-full md:w-auto">
-            <SidebarTrigger />
-            <div className="flex-1">
-              <h1 className="text-xl sm:text-2xl font-bold truncate">Gestión de Cupones</h1>
-            </div>
-          </header>
-
-          <div className="p-4 sm:p-6 pt-16 sm:pt-20 md:pt-0 space-y-4 sm:space-y-6">
-            {/* Header Section */}
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex-1">
-                <h2 className="text-lg sm:text-xl font-semibold">Cupones de Descuento</h2>
-                <p className="text-xs sm:text-sm text-muted-foreground mt-1">Crea y administra cupones de descuento</p>
-              </div>
+    <>
+      <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex-1">
+            <h2 className="text-lg sm:text-xl font-semibold">Cupones de Descuento</h2>
+            <p className="text-xs sm:text-sm text-muted-foreground mt-1">Crea y administra cupones de descuento</p>
+          </div>
               <Dialog open={isOpen} onOpenChange={(open) => { if (!open) { setEditing(null); setForm({ code: "", discount_percent: "", discount_amount: "", max_redemptions: "", starts_at: "", ends_at: "" }); } setIsOpen(open); }}>
                 <DialogTrigger asChild>
                   <Button onClick={() => { setEditing(null); setForm({ code: "", discount_percent: "", discount_amount: "", max_redemptions: "", starts_at: "", ends_at: "" }); setIsOpen(true); }} className="text-xs sm:text-sm h-9 sm:h-10 w-fit px-3 sm:px-4 flex-shrink-0">
@@ -130,18 +125,36 @@ const CouponManagement = () => {
                     </div>
                     <div className="grid grid-cols-2 gap-2 sm:gap-3">
                       <div className="grid gap-2">
-                        <Label className="text-xs sm:text-sm">Descuento %</Label>
-                        <Input value={form.discount_percent} onChange={(e) => {
-                          const val = e.target.value;
-                          setForm((prev) => ({ ...prev, discount_percent: val, discount_amount: val ? "" : prev.discount_amount }));
-                        }} type="number" placeholder="10" className="text-sm" />
+                        <Label className="text-xs sm:text-sm">Tipo de Descuento</Label>
+                        <Select value={discountType} onValueChange={(v: 'percent' | 'amount' | '') => {
+                          setDiscountType(v);
+                          if (v === 'percent') setForm((prev) => ({ ...prev, discount_percent: prev.discount_percent || '', discount_amount: '' }));
+                          else if (v === 'amount') setForm((prev) => ({ ...prev, discount_amount: prev.discount_amount || '', discount_percent: '' }));
+                          else setForm((prev) => ({ ...prev, discount_percent: '', discount_amount: '' }));
+                        }}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecciona tipo" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="percent">Porcentaje (%)</SelectItem>
+                            <SelectItem value="amount">Monto ($ MXN)</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
                       <div className="grid gap-2">
-                        <Label className="text-xs sm:text-sm">Descuento $</Label>
-                        <Input value={form.discount_amount} onChange={(e) => {
-                          const val = e.target.value;
-                          setForm((prev) => ({ ...prev, discount_amount: val, discount_percent: val ? "" : prev.discount_percent }));
-                        }} type="number" placeholder="50" className="text-sm" />
+                        <Label className="text-xs sm:text-sm">Valor del Descuento</Label>
+                        <Input
+                          value={discountType === 'percent' ? form.discount_percent : form.discount_amount}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            if (discountType === 'percent') setForm((prev) => ({ ...prev, discount_percent: val }));
+                            else if (discountType === 'amount') setForm((prev) => ({ ...prev, discount_amount: val }));
+                          }}
+                          type="number"
+                          placeholder={discountType === 'percent' ? '10' : discountType === 'amount' ? '50' : 'Selecciona tipo primero'}
+                          className="text-sm"
+                          disabled={!discountType}
+                        />
                       </div>
                     </div>
                     <div className="grid gap-2">
@@ -162,8 +175,8 @@ const CouponManagement = () => {
                   <DialogFooter className="flex gap-2 sm:gap-3 flex-col-reverse sm:flex-row">
                     <Button variant="outline" onClick={() => { setIsOpen(false); setEditing(null); }} className="text-sm">Cancelar</Button>
                     <Button onClick={async () => {
-                      if (form.discount_percent && form.discount_amount) {
-                        return toast({ title: 'Error', description: 'Usa sólo porcentaje o monto, no ambos', variant: 'destructive' });
+                      if (!discountType || (!form.discount_percent && !form.discount_amount)) {
+                        return toast({ title: 'Error', description: 'Selecciona el tipo e ingresa el valor del descuento', variant: 'destructive' });
                       }
                       if (form.starts_at && form.ends_at) {
                         const s = new Date(form.starts_at);
@@ -221,9 +234,9 @@ const CouponManagement = () => {
             </div>
 
             {/* Table Section */}
-            <div className="rounded-lg border bg-card shadow-sm overflow-hidden">
-              <div className="overflow-x-auto -mx-4 sm:mx-0">
-                <div className="inline-block min-w-full px-4 sm:px-0">
+            <div className="rounded-lg border bg-card shadow-soft overflow-hidden">
+              <div className="overflow-x-auto">
+                <div className="inline-block min-w-full">
                   <Table className="w-full">
                   <TableHeader>
                     <TableRow className="hover:bg-transparent bg-gradient-to-r from-secondary/50 to-secondary/30 border-b-2">
@@ -282,6 +295,7 @@ const CouponManagement = () => {
                               <Button size="sm" variant="outline" onClick={() => {
                                 setEditing(c);
                                 setForm({ code: c.code, discount_percent: c.discount_percent ? String(c.discount_percent) : "", discount_amount: c.discount_amount ? String(c.discount_amount) : "", max_redemptions: c.max_redemptions ? String(c.max_redemptions) : "", starts_at: toDatetimeLocal(c.starts_at), ends_at: toDatetimeLocal(c.ends_at) });
+                                setDiscountType(c.discount_percent ? 'percent' : c.discount_amount ? 'amount' : '');
                                 setIsOpen(true);
                               }} className="h-7 w-7 p-0 hover:bg-blue-50" title="Editar">
                                 <Edit className="h-3 w-3" />
@@ -297,14 +311,12 @@ const CouponManagement = () => {
                     )}
                   </TableBody>
                 </Table>
-                </div>
               </div>
             </div>
           </div>
-        </main>
-      </div>
-    </SidebarProvider>
-  );
+        </div>
+      </>
+    );
 };
 
 export default CouponManagement;

@@ -2,7 +2,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { CreditCard, Banknote, ArrowRight, Loader } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
-import logoFull from "@/assets/logo-full.png";
+import logoFull from "@/assets/logo-full.webp";
 import { increscendoApiFetch } from "@/lib/increscendoApi";
 
 const ServiceSelection = () => {

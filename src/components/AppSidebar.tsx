@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
-import { Home, CreditCard, DollarSign, History, Users, Bell, LayoutDashboard, Cog, Wallet, User, Crown, LogOut, Tag } from "lucide-react";
+import { Home, CreditCard, DollarSign, History, Users, Bell, LayoutDashboard, Cog, Wallet, User, Crown, LogOut, Tag, MoreHorizontal } from "lucide-react";
 import { NavLink, useNavigate, useLocation } from "react-router-dom";
-import { authService } from "@/utils/auth";
 import { supabase } from "@/lib/supabase";
-import logoIcon from "@/assets/logo-icon.jpeg";
-import logoSidebar from "@/assets/logo-sidebar.png";
+import logoIcon from "@/assets/logo-icon.webp";
+import logoSidebar from "@/assets/logo-sidebar.webp";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -46,28 +46,46 @@ const adminItems = [
 
 export function AppSidebar() {
   const { state } = useSidebar();
+  const { user, signOut, userRole: authUserRole } = useAuth();
   const isCollapsed = state === "collapsed";
   const navigate = useNavigate();
   const location = useLocation();
-  const currentUser = authService.getCurrentUser();
-  const isAdmin = currentUser?.role === 'admin';
-  const isAdminRoute = location.pathname.startsWith('/admin/');
-  const showAdminMenu = isAdmin && (isAdminRoute || location.pathname === '/mi-cuenta');
-  const showClientMenu = !showAdminMenu;
+  const isAdmin = authUserRole === 'admin';
+  const isClient = authUserRole === 'client';
+  const showAdminMenu = isAdmin;
+  const showClientMenu = isClient;
   const [showLoanOnboarding, setShowLoanOnboarding] = useState(false);
   const [userFirstName, setUserFirstName] = useState('');
   const [userLastName, setUserLastName] = useState('');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<string>('client');
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [isLoaded, setIsLoaded] = useState(false);
 
-  // Cargar nombres y foto del usuario desde Supabase
+  // Cargar datos del localStorage primero, luego de la DB y sincronizar
   useEffect(() => {
     const loadUserData = async () => {
-      if (!currentUser?.id) return;
+      // 1. Cargar primero del localStorage (rápido, para evitar parpadeo)
+      try {
+        const stored = localStorage.getItem('increscendo_user');
+        if (stored) {
+          const data = JSON.parse(stored);
+          setUserFirstName(data.firstName || '');
+          setUserLastName(data.lastName || '');
+          setAvatarUrl(data.avatar || null);
+          setUserRole(data.role || 'client');
+        }
+      } catch (e) { /* ignore */ }
+
+      setIsLoaded(true);
+
+      // 2. Si hay usuario logueado, cargar de la DB y actualizar localStorage
+      if (!user?.id) return;
       try {
         const { data, error } = await supabase
           .from('users')
-          .select('first_name, last_name, avatar_url')
-          .eq('id', currentUser.id)
+          .select('first_name, last_name, avatar_url, role')
+          .eq('id', user.id)
           .maybeSingle();
 
         if (error) {
@@ -76,9 +94,29 @@ export function AppSidebar() {
         }
 
         if (data) {
-          setUserFirstName(data.first_name || '');
-          setUserLastName(data.last_name || '');
-          setAvatarUrl(data.avatar_url || null);
+          const newFirstName = data.first_name || '';
+          const newLastName = data.last_name || '';
+          const newAvatarUrl = data.avatar_url || null;
+          const newRole = data.role || 'client';
+
+          setUserFirstName(newFirstName);
+          setUserLastName(newLastName);
+          setAvatarUrl(newAvatarUrl);
+          setUserRole(newRole);
+
+          // 3. Sincronizar al localStorage
+          try {
+            const stored = localStorage.getItem('increscendo_user');
+            const currentData = stored ? JSON.parse(stored) : {};
+            const updated = {
+              ...currentData,
+              firstName: newFirstName,
+              lastName: newLastName,
+              avatar: newAvatarUrl,
+              role: newRole,
+            };
+            localStorage.setItem('increscendo_user', JSON.stringify(updated));
+          } catch (e) { /* ignore */ }
         }
       } catch (e) {
         console.warn('[AppSidebar] failed to load user data', e);
@@ -86,7 +124,40 @@ export function AppSidebar() {
     };
 
     loadUserData();
-  }, [currentUser?.id]);
+  }, [user?.id, refreshKey]);
+
+  // Escuchar cambios en localStorage (para refrescar cuando se actualiza el perfil en otra página)
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'increscendo_user' && e.newValue) {
+        try {
+          const userData = JSON.parse(e.newValue);
+          setUserFirstName(userData.firstName || '');
+          setUserLastName(userData.lastName || '');
+          setAvatarUrl(userData.avatar || null);
+          setUserRole(userData.role || 'client');
+        } catch (err) {
+          console.warn('[Sidebar] failed to parse user data from storage', err);
+        }
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+
+  // Función para refrescar los datos del usuario (llamar desde otros componentes)
+  const refreshUserData = () => {
+    setRefreshKey(prev => prev + 1);
+  };
+
+  // Exponer refreshUserData globalmente para que MyAccount pueda llamarlo
+  useEffect(() => {
+    (window as any).refreshSidebarUserData = refreshUserData;
+    return () => {
+      delete (window as any).refreshSidebarUserData;
+    };
+  }, []);
 
   const isRouteActive = (url: string) => {
     return location.pathname === url || location.pathname.startsWith(url + '/');
@@ -95,35 +166,31 @@ export function AppSidebar() {
   const getNavClass = ({ isActive }: { isActive: boolean }) => {
     console.log('[Sidebar] getNavClass - isActive:', isActive, 'pathname:', location.pathname);
     return isActive
-      ? "!bg-blue-500/20 !text-white font-semibold"
+      ? "bg-[#223f6c] text-white font-semibold"
       : "hover:bg-sidebar-accent/50";
   };
 
   const handleLogout = async () => {
     try {
-      // sign out via supabase and clear local storage
-      // import lazily to avoid circular deps
-      const { signOut } = await import('@/lib/session');
       await signOut();
     } catch (err) {
       console.error('Error during logout', err);
     }
-    navigate('/auth');
+    window.location.href = '/auth';
   };
 
   const getUserInitial = () => {
     if (userFirstName || userLastName) {
       return (userFirstName.charAt(0) + userLastName.charAt(0)).toUpperCase();
     }
-    const name = currentUser?.name || 'Usuario';
-    return name.charAt(0).toUpperCase();
+    return 'U';
   };
 
   const getUserDisplayName = () => {
     if (userFirstName || userLastName) {
       return `${userFirstName} ${userLastName}`.trim();
     }
-    return currentUser?.name || 'Usuario';
+    return 'Usuario';
   };
 
   const handleMenuClick = (item: typeof menuItems[0], e: React.MouseEvent) => {
@@ -141,16 +208,22 @@ export function AppSidebar() {
           {!isCollapsed && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="flex items-center gap-3 w-full group cursor-pointer focus:outline-none hover:bg-sidebar-accent/30 rounded-lg p-2 -m-2 transition-colors">
+                <button className="flex items-center gap-3 w-full group cursor-pointer focus:outline-none rounded-lg p-2 -m-2 transition-all hover:bg-sidebar-accent/30">
                   <Avatar className="h-12 w-12 ring-2 ring-success/40 ring-offset-2 ring-offset-sidebar-background transition-all group-hover:ring-success/60 group-hover:scale-105 flex-shrink-0">
-                    <AvatarImage src={avatarUrl || currentUser?.avatar} alt={currentUser?.name} />
+                    <AvatarImage src={avatarUrl || user?.user_metadata?.avatar_url} alt={user?.email} className="object-cover" />
                     <AvatarFallback className="bg-success text-white text-lg font-bold">
                       {getUserInitial()}
                     </AvatarFallback>
                   </Avatar>
-                  <span className="text-base font-semibold text-sidebar-foreground group-hover:text-success transition-colors truncate">
-                    {getUserDisplayName()}
-                  </span>
+                  <div className="flex flex-col items-start min-w-0 flex-1">
+                    <span className="text-base font-semibold text-sidebar-foreground truncate  transition-colors">
+                      {getUserDisplayName()}
+                    </span>
+                    <span className="text-xs text-sidebar-foreground/60 capitalize">
+                      {userRole === 'admin' ? 'Administrador' : 'Cliente'}
+                    </span>
+                  </div>
+                  <MoreHorizontal className="h-5 w-5 text-sidebar-foreground/40 group-hover:text-sidebar-foreground/70 transition-colors flex-shrink-0" />
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" sideOffset={8} className="w-48 bg-popover border border-border shadow-lg z-50">
@@ -175,13 +248,19 @@ export function AppSidebar() {
           {isCollapsed && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="flex justify-center w-full focus:outline-none">
+                <button className="flex flex-col items-center justify-center w-full gap-2 focus:outline-none hover:bg-sidebar-accent/30 rounded-lg py-2 -my-2 transition-all">
                   <Avatar className="h-10 w-10 ring-2 ring-success/40 ring-offset-1 ring-offset-sidebar-background hover:ring-success/60 transition-all cursor-pointer">
-                    <AvatarImage src={avatarUrl || currentUser?.avatar} alt={currentUser?.name} />
+                    <AvatarImage src={avatarUrl || user?.user_metadata?.avatar_url} alt={user?.email} className="object-cover" />
                     <AvatarFallback className="bg-success text-white text-sm font-bold">
                       {getUserInitial()}
                     </AvatarFallback>
                   </Avatar>
+                  <div className="flex flex-col items-center gap-1">
+                    <span className="text-[10px] text-sidebar-foreground/60 capitalize">
+                      {userRole === 'admin' ? 'Admin' : 'Cliente'}
+                    </span>
+                    <MoreHorizontal className="h-4 w-4 text-sidebar-foreground/40 hover:text-sidebar-foreground/70 transition-colors" />
+                  </div>
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent side="right" align="start" className="w-48 bg-popover border border-border shadow-lg z-50">
@@ -215,26 +294,27 @@ export function AppSidebar() {
                   {menuItems.map((item) => {
                     console.log('[Sidebar Client] Item:', item.title, 'URL:', item.url, 'Current Path:', location.pathname);
                     return (
-                    <SidebarMenuItem key={item.title}>
-                      {(item as any).isOnboarding ? (
-                        <button
-                          onClick={(e) => handleMenuClick(item, e)}
-                          className={`flex items-center gap-3 w-full px-3 py-3 md:py-2 rounded-md hover:bg-sidebar-accent/50 min-h-[48px] md:min-h-0`}
-                        >
-                          <item.icon className="h-5 w-5 flex-shrink-0" />
-                          {!isCollapsed && <span className="text-sm md:text-xs">{item.title}</span>}
-                        </button>
-                      ) : (
-                        <NavLink to={item.url} end className={({ isActive }) => {
-                          console.log('[Sidebar NavLink]', item.title, 'isActive:', isActive, 'url:', item.url, 'pathname:', location.pathname);
-                          return `flex items-center gap-3 w-full px-3 py-3 md:py-2 rounded-md min-h-[48px] md:min-h-0 ${getNavClass({ isActive })}`;
-                        }}>
-                          <item.icon className="h-5 w-5 flex-shrink-0" />
-                          {!isCollapsed && <span className="text-sm md:text-xs">{item.title}</span>}
-                        </NavLink>
-                      )}
-                    </SidebarMenuItem>
-                  )})}
+                      <SidebarMenuItem key={item.title}>
+                        {(item as any).isOnboarding ? (
+                          <button
+                            onClick={(e) => handleMenuClick(item, e)}
+                            className={`flex items-center gap-3 w-full px-3 py-3 md:py-2 rounded-md hover:bg-sidebar-accent/50`}
+                          >
+                            <item.icon className="h-5 w-5 flex-shrink-0" />
+                            {!isCollapsed && <span className="text-sm md:text-xs">{item.title}</span>}
+                          </button>
+                        ) : (
+                          <NavLink to={item.url} end className={({ isActive }) => {
+                            console.log('[Sidebar NavLink]', item.title, 'isActive:', isActive, 'url:', item.url, 'pathname:', location.pathname);
+                            return `flex items-center gap-3 w-full px-3 py-3 md:py-2 rounded-md ${getNavClass({ isActive })}`;
+                          }}>
+                            <item.icon className="h-5 w-5 flex-shrink-0" />
+                            {!isCollapsed && <span className="text-sm md:text-xs">{item.title}</span>}
+                          </NavLink>
+                        )}
+                      </SidebarMenuItem>
+                    )
+                  })}
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>
@@ -244,7 +324,7 @@ export function AppSidebar() {
               <SidebarGroupContent>
                 <SidebarMenu>
                   <SidebarMenuItem>
-                    <NavLink to="/notifications" end className={({ isActive }) => `flex items-center gap-3 w-full px-3 py-3 md:py-2 rounded-md min-h-[48px] md:min-h-0 ${getNavClass({ isActive })}`}>
+                    <NavLink to="/notifications" end className={({ isActive }) => `flex items-center gap-3 w-full px-3 py-3 md:py-2 rounded-md ${getNavClass({ isActive })}`}>
                       <Bell className="h-5 w-5 flex-shrink-0" />
                       {!isCollapsed && <span className="text-sm md:text-xs">Notificaciones</span>}
                     </NavLink>
@@ -255,7 +335,7 @@ export function AppSidebar() {
           </>
         )}
 
-        {/* Admin Section - visible para admins en rutas /admin y en /mi-cuenta */}
+        {/* Admin Section - visible solo para admins */}
         {showAdminMenu && (
           <>
             <SidebarGroup>
@@ -264,7 +344,7 @@ export function AppSidebar() {
                 <SidebarMenu>
                   {adminItems.map((item) => (
                     <SidebarMenuItem key={item.title}>
-                      <NavLink to={item.url} end className={({ isActive }) => `flex items-center gap-3 w-full px-3 py-3 md:py-2 rounded-md min-h-[48px] md:min-h-0 ${getNavClass({ isActive })}`}>
+                      <NavLink to={item.url} end className={({ isActive }) => `flex items-center gap-3 w-full px-3 py-3 md:py-2 rounded-md ${getNavClass({ isActive })}`}>
                         <item.icon className="h-5 w-5 flex-shrink-0" />
                         {!isCollapsed && <span className="text-sm md:text-xs">{item.title}</span>}
                       </NavLink>
@@ -279,7 +359,7 @@ export function AppSidebar() {
               <SidebarGroupContent>
                 <SidebarMenu>
                   <SidebarMenuItem>
-                    <NavLink to="/notifications" end className={({ isActive }) => `flex items-center gap-3 w-full px-3 py-3 md:py-2 rounded-md min-h-[48px] md:min-h-0 ${getNavClass({ isActive })}`}>
+                    <NavLink to="/notifications" end className={({ isActive }) => `flex items-center gap-3 w-full px-3 py-3 md:py-2 rounded-md ${getNavClass({ isActive })}`}>
                       <Bell className="h-5 w-5 flex-shrink-0" />
                       {!isCollapsed && <span className="text-sm md:text-xs">Notificaciones</span>}
                     </NavLink>

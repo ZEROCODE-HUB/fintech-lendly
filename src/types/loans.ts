@@ -1,5 +1,6 @@
 export interface LoanBase {
   id: string;
+  user_id?: string;
   firstName: string;
   lastName: string;
   requestDate: string;
