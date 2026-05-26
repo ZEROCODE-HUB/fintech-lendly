@@ -36,16 +36,36 @@ const Dashboard: React.FC = () => {
   const nextPaymentInfo = useMemo(() => {
     const activeLoan = loans.find(l => l.status === 'active');
     if (!activeLoan) return null;
-    
-    const metadata = activeLoan.metadata as Record<string, unknown> || {};
-    if (metadata.next_payment_date) {
-      return {
-        date: (metadata.next_payment_date as string).slice(0, 10),
-        amount: Number(activeLoan.amount ?? 0) / Number(activeLoan.installments ?? 12),
-        loanId: activeLoan.id,
-      };
-    }
-    return null;
+
+    const amount = Number(activeLoan.amount ?? 0);
+    const installments = Number(activeLoan.installments ?? 12);
+    const paidAmount = Number(activeLoan.metadata?.paid_amount ?? 0);
+    const monthlyPayment = installments > 0 ? amount / installments : 0;
+    const paidInstallments = monthlyPayment > 0 ? Math.floor(paidAmount / monthlyPayment) : 0;
+
+    const approvedDate = activeLoan.approved_at
+      ? new Date(activeLoan.approved_at)
+      : activeLoan.applied_at
+        ? new Date(activeLoan.applied_at)
+        : new Date();
+
+    const nextInstallmentNumber = paidInstallments + 1;
+    if (nextInstallmentNumber > installments) return null;
+
+    const nextDueDate = new Date(approvedDate);
+    nextDueDate.setMonth(nextDueDate.getMonth() + nextInstallmentNumber);
+
+    const nextPaymentDate = nextDueDate.toLocaleDateString('es-MX', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
+
+    return {
+      date: nextPaymentDate,
+      amount: Math.round(monthlyPayment),
+      loanId: activeLoan.id,
+    };
   }, [loans]);
 
   const clientName = useMemo(() => {

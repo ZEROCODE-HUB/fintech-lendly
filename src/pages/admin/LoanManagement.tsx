@@ -1462,10 +1462,10 @@ const LoanManagement = () => {
                                       <Bell className="h-4 w-4 mr-2" />
                                       Enviar recordatorio
                                     </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => setUpdateInstallmentsModal({ open: true, loan })}>
+                                    {/* <DropdownMenuItem onClick={() => setUpdateInstallmentsModal({ open: true, loan })}>
                                       <RefreshCw className="h-4 w-4 mr-2" />
                                       Actualizar cuotas
-                                    </DropdownMenuItem>
+                                    </DropdownMenuItem> */}
                                   </DropdownMenuContent>
                                 </DropdownMenu>
                               </div>
