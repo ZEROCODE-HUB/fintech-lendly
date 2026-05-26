@@ -119,6 +119,7 @@ export const PaymentScheduleModal = ({ open, onOpenChange, loan }: Props) => {
                     <TableHead className="hidden sm:table-cell text-xs sm:text-sm">Capital</TableHead>
                     <TableHead className="hidden lg:table-cell text-xs sm:text-sm">Interés</TableHead>
                     <TableHead className="text-xs sm:text-sm">Saldo</TableHead>
+                    <TableHead className="text-xs sm:text-sm">Estado</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -130,6 +131,13 @@ export const PaymentScheduleModal = ({ open, onOpenChange, loan }: Props) => {
                       <TableCell className="hidden sm:table-cell text-xs sm:text-sm whitespace-nowrap">${r.principal.toLocaleString()}</TableCell>
                       <TableCell className="hidden lg:table-cell text-xs sm:text-sm whitespace-nowrap">${r.interest.toLocaleString()}</TableCell>
                       <TableCell className="font-medium text-xs sm:text-sm whitespace-nowrap">${r.balance.toLocaleString()}</TableCell>
+                      <TableCell>
+                        {r.status === 'paid' ? (
+                          <Badge className="bg-success/20 text-success border-success text-xs">Pagado</Badge>
+                        ) : (
+                          <Badge className="bg-warning/20 text-warning border-warning text-xs">Pendiente</Badge>
+                        )}
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

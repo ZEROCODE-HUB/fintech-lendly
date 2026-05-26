@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, LayoutDashboard } from 'lucide-react';
 
 interface AppHeaderProps {
   title?: string;
@@ -16,7 +16,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
 }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user } = useAuth();
+  const { userRole } = useAuth();
 
   const getPageTitle = () => {
     if (title) return title;
@@ -39,6 +39,8 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
     return '';
   };
 
+  const isClient = userRole === 'client';
+
   return (
     <header className="h-14 sm:h-16 border-b border-border bg-card flex items-center px-4 sm:px-6 gap-3 fixed md:sticky top-0 z-10 w-full">
       <SidebarTrigger />
@@ -47,6 +49,17 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
           {getPageTitle()}
         </h1>
       </div>
+      {isClient && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate('/service-selection')}
+            className="gap-1.5 text-xs sm:text-sm shrink-0 text-primary"
+          >
+            <LayoutDashboard className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+            <span className="hidden md:inline">Servicios</span>
+          </Button>
+      )}
       {showBackButton && (
         <Button
           variant="ghost"

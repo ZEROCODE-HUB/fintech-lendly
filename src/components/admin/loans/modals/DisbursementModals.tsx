@@ -108,7 +108,7 @@ export const ConfirmDisbursementModal = ({ open, onOpenChange, loan, onConfirm }
             </div>
             <div className="flex justify-between">
               <span className="text-sm text-muted-foreground">Banco:</span>
-              <span className="font-medium">{loan.bank}</span>
+              <span className="font-medium">{loan.bankName || loan.bank}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-sm text-muted-foreground">Cuenta:</span>

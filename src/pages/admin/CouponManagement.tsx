@@ -46,6 +46,7 @@ const CouponManagement = () => {
   const { userRole } = useAuth();
 
   useEffect(() => {
+    if (userRole === null || userRole === undefined) return;
     if (userRole !== 'admin') {
       toast({ title: 'Acceso denegado', description: 'No tienes permisos para acceder', variant: 'destructive' });
       return;

@@ -13,34 +13,14 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { increscendoApiFetch } from "@/lib/increscendoApi";
 
-type ConektaTokenResponse = {
-  id: string;
-};
-
-type ConektaErrorResponse = {
-  message?: string;
-  message_to_purchaser?: string;
-};
-
-type ConektaCardPayload = {
-  card: {
-    number: string;
-    name: string;
-    exp_year: string;
-    exp_month: string;
-    cvc: string;
-  };
-};
-
+type ConektaTokenResponse = { id: string };
+type ConektaErrorResponse = { message?: string; message_to_purchaser?: string };
+type ConektaCardPayload = { card: { number: string; name: string; exp_year: string; exp_month: string; cvc: string } };
 type ConektaSDK = {
   setPublicKey: (key: string) => void;
   setLanguage: (language: string) => void;
   Token: {
-    create: (
-      payload: ConektaCardPayload,
-      successHandler: (token: ConektaTokenResponse) => void,
-      errorHandler: (error: ConektaErrorResponse) => void
-    ) => void;
+    create: (payload: ConektaCardPayload, successHandler: (token: ConektaTokenResponse) => void, errorHandler: (error: ConektaErrorResponse) => void) => void;
   };
 };
 
@@ -56,13 +36,10 @@ const MAX_CARD_DIGITS = 19;
 const MAX_CARD_INPUT_LENGTH = 23;
 const MAX_CVV_LENGTH = 4;
 const MAX_CARDHOLDER_LENGTH = 80;
+const CLABE_LENGTH = 18;
 
-const DEFAULT_TEST_CARD = {
-  cardNumber: "4242 4242 4242 4242",
-  expiry: "12/30",
-  cvv: "123",
-  cardholder: "Tarjeta Prueba",
-};
+type BankOption = { id: string; name: string };
+type Institution = { id: string; name: string; status?: string };
 
 const PaymentMethods = () => {
   const { userId } = useAuth();
@@ -77,13 +54,14 @@ const PaymentMethods = () => {
   const [isTokenizingCard, setIsTokenizingCard] = useState(false);
   const [isConektaReady, setIsConektaReady] = useState(false);
   const [paymentMethods, setPaymentMethods] = useState<any[]>([]);
+  const [banks, setBanks] = useState<BankOption[]>([]);
+  const [loadingBanks, setLoadingBanks] = useState(false);
 
-  // Form states for adding/editing
   const [formData, setFormData] = useState({
-    cardNumber: DEFAULT_TEST_CARD.cardNumber,
-    expiry: DEFAULT_TEST_CARD.expiry,
-    cvv: DEFAULT_TEST_CARD.cvv,
-    cardholder: DEFAULT_TEST_CARD.cardholder,
+    cardNumber: "",
+    expiry: "",
+    cvv: "",
+    cardholder: "",
     bankName: "",
     clabe: "",
     accountHolder: "",
@@ -92,87 +70,65 @@ const PaymentMethods = () => {
   const openAddDialog = () => {
     setSelectedMethod(null);
     setMethodType("card");
-    setFormData({
-      cardNumber: DEFAULT_TEST_CARD.cardNumber,
-      expiry: DEFAULT_TEST_CARD.expiry,
-      cvv: DEFAULT_TEST_CARD.cvv,
-      cardholder: DEFAULT_TEST_CARD.cardholder,
-      bankName: "",
-      clabe: "",
-      accountHolder: "",
-    });
+    setFormData({ cardNumber: "", expiry: "", cvv: "", cardholder: "", bankName: "", clabe: "", accountHolder: "" });
     setAddDialogOpen(true);
   };
 
-  // Load payment methods on mount
   useEffect(() => {
     loadPaymentMethods();
+    loadBanks();
   }, []);
 
   useEffect(() => {
-    if (!conektaPublicKey) {
-      return;
-    }
-
-    if (window.Conekta) {
-      window.Conekta.setPublicKey(conektaPublicKey);
-      window.Conekta.setLanguage("es");
-      setIsConektaReady(true);
-      return;
-    }
-
+    if (!conektaPublicKey) return;
+    if (window.Conekta) { window.Conekta.setPublicKey(conektaPublicKey); window.Conekta.setLanguage("es"); setIsConektaReady(true); return; }
     const existingScript = document.getElementById(CONEKTA_SCRIPT_ID) as HTMLScriptElement | null;
-    if (existingScript) {
-      existingScript.addEventListener("load", () => {
-        if (window.Conekta) {
-          window.Conekta.setPublicKey(conektaPublicKey);
-          window.Conekta.setLanguage("es");
-          setIsConektaReady(true);
-        }
-      });
-      return;
-    }
-
+    if (existingScript) { existingScript.addEventListener("load", () => { if (window.Conekta) { window.Conekta.setPublicKey(conektaPublicKey); window.Conekta.setLanguage("es"); setIsConektaReady(true); } }); return; }
     const script = document.createElement("script");
     script.id = CONEKTA_SCRIPT_ID;
     script.src = CONEKTA_SCRIPT_URL;
     script.async = true;
-    script.onload = () => {
-      if (window.Conekta) {
-        window.Conekta.setPublicKey(conektaPublicKey);
-        window.Conekta.setLanguage("es");
-        setIsConektaReady(true);
-      }
-    };
+    script.onload = () => { if (window.Conekta) { window.Conekta.setPublicKey(conektaPublicKey); window.Conekta.setLanguage("es"); setIsConektaReady(true); } };
     document.body.appendChild(script);
-
-    return () => {
-      script.onload = null;
-    };
+    return () => { script.onload = null; };
   }, [conektaPublicKey]);
+
+  const loadBanks = async () => {
+    try {
+      setLoadingBanks(true);
+      const resp = await increscendoApiFetch('/belvo/institutions');
+      if (!resp.ok) throw new Error('Error loading banks');
+      const data = await resp.json();
+      const bankList: BankOption[] = Array.isArray(data) ? data.filter((b: Institution) => b?.status === 'active' && b?.name).map((b: Institution) => ({ id: b.id, name: b.name })) : [];
+      setBanks(bankList);
+    } catch {
+      setBanks([
+        { id: "mx_santander", name: "Santander" },
+        { id: "mx_bbva", name: "BBVA" },
+        { id: "mx_banamex", name: "Citibanamex" },
+        { id: "mx_banorte", name: "Banorte" },
+        { id: "mx_hsbc", name: "HSBC" },
+        { id: "mx_scotiabank", name: "Scotiabank" },
+        { id: "mx_inbursa", name: "Inbursa" },
+        { id: "mx_afirme", name: "Afirme" },
+        { id: "mx_bancoppel", name: "Bancoppel" },
+        { id: "mx_azteca", name: "Banco Azteca" },
+      ]);
+    } finally {
+      setLoadingBanks(false);
+    }
+  };
 
   const loadPaymentMethods = async () => {
     try {
       setIsLoading(true);
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
-
-      const { data, error } = await supabase
-        .from('payment_methods')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('is_default', { ascending: false })
-        .order('created_at', { ascending: false });
-
+      const { data, error } = await supabase.from('payment_methods').select('*').eq('user_id', user.id).order('is_default', { ascending: false }).order('created_at', { ascending: false });
       if (error) throw error;
       setPaymentMethods(data || []);
     } catch (err) {
-      console.error('Error loading payment methods:', err);
-      toast({
-        title: "Error",
-        description: "No se pudieron cargar los métodos de pago",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "No se pudieron cargar los métodos de pago", variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
@@ -182,70 +138,28 @@ const PaymentMethods = () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('No user logged in');
-
-      // Llamada al endpoint externo para marcar la tarjeta por defecto
-      const resp = await increscendoApiFetch('/set-default-card', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: user.id, default_payment_source_id: method.token }),
-      });
-
+      const resp = await increscendoApiFetch('/set-default-card', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user_id: user.id, default_payment_source_id: method.token }) });
       const json = await resp.json().catch(() => null);
-      if (!resp.ok || !json || json.ok !== true) {
-        console.error('[External set-default-card] Error', resp.status, json);
-        const msg = json?.message || 'Error al establecer la tarjeta predeterminada';
-        throw new Error(msg);
-      }
-
-      toast({
-        title: "Método Predeterminado Actualizado",
-        description: "Este método será usado para cobros automáticos.",
-      });
-
+      if (!resp.ok || !json || json.ok !== true) throw new Error(json?.message || 'Error al establecer predeterminado');
+      toast({ title: "Método Predeterminado", description: "Este método será usado para cobros automáticos." });
       await loadPaymentMethods();
     } catch (err) {
-      console.error('Error updating default method:', err);
-      toast({
-        title: "Error",
-        description: err instanceof Error ? err.message : "No se pudo actualizar el método predeterminado",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: err instanceof Error ? err.message : "No se pudo actualizar", variant: "destructive" });
     }
   };
 
-  const handleEdit = (method: any) => {
-    setSelectedMethod(method);
-    setEditDialogOpen(true);
-  };
-
-  const handleDelete = (method: any) => {
-    setSelectedMethod(method);
-    setDeleteDialogOpen(true);
-  };
+  const handleEdit = (method: any) => { setSelectedMethod(method); setEditDialogOpen(true); };
+  const handleDelete = (method: any) => { setSelectedMethod(method); setDeleteDialogOpen(true); };
 
   const confirmDelete = async () => {
     try {
-      const { error } = await supabase
-        .from('payment_methods')
-        .delete()
-        .eq('id', selectedMethod?.id);
-
+      const { error } = await supabase.from('payment_methods').delete().eq('id', selectedMethod?.id);
       if (error) throw error;
-
       await loadPaymentMethods();
-      toast({
-        title: "Método Eliminado",
-        description: "El método de pago ha sido eliminado.",
-        variant: "destructive",
-      });
+      toast({ title: "Método Eliminado", description: "El método de pago ha sido eliminado." });
       setDeleteDialogOpen(false);
     } catch (err) {
-      console.error('Error deleting payment method:', err);
-      toast({
-        title: "Error",
-        description: "No se pudo eliminar el método de pago",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "No se pudo eliminar", variant: "destructive" });
     }
   };
 
@@ -256,192 +170,89 @@ const PaymentMethods = () => {
 
       if (methodType === 'card') {
         if (!formData.cardNumber || !formData.expiry || !formData.cardholder || !formData.cvv) {
-          toast({
-            title: "Error",
-            description: "Por favor completa todos los campos requeridos",
-            variant: "destructive",
-          });
-          return;
+          toast({ title: "Campos requeridos", description: "Completa todos los campos", variant: "destructive" }); return;
         }
-
-        if (!conektaPublicKey) {
-          toast({
-            title: "Configuracion Incompleta",
-            description: "Falta configurar VITE_CONEKTA_PUBLIC_KEY",
-            variant: "destructive",
-          });
-          return;
+        if (!conektaPublicKey || !isConektaReady || !window.Conekta) {
+          toast({ title: "Servicio no disponible", description: "No se pudo inicializar Conekta", variant: "destructive" }); return;
         }
-
-        if (!isConektaReady || !window.Conekta) {
-          toast({
-            title: "Servicio No Disponible",
-            description: "No se pudo inicializar Conekta. Intenta de nuevo en unos segundos.",
-            variant: "destructive",
-          });
-          return;
-        }
-
         if (!validateExpiry(formData.expiry)) {
-          toast({
-            title: "Error",
-            description: "La fecha de vencimiento es inválida o la tarjeta está expirada",
-            variant: "destructive",
-          });
-          return;
+          toast({ title: "Vencimiento inválido", description: "La tarjeta está expirada o la fecha es incorrecta", variant: "destructive" }); return;
         }
-
         const cardNumber = formData.cardNumber.replace(/\s+/g, "");
         const [expMonthRaw, expYearRaw] = formData.expiry.split("/");
         const expMonth = expMonthRaw?.trim() || "";
         const expYear = expYearRaw?.trim() || "";
         const cvv = formData.cvv.trim();
-
         if (!isValidCardNumber(cardNumber)) {
-          toast({
-            title: "Error",
-            description: "El numero de tarjeta no tiene un formato valido",
-            variant: "destructive",
-          });
-          return;
+          toast({ title: "Tarjeta inválida", description: "El número de tarjeta no es válido", variant: "destructive" }); return;
         }
-
         if (!/^\d{3,4}$/.test(cvv)) {
-          toast({
-            title: "Error",
-            description: "El CVV debe tener 3 o 4 digitos",
-            variant: "destructive",
-          });
-          return;
+          toast({ title: "CVV inválido", description: "El CVV debe tener 3 o 4 dígitos", variant: "destructive" }); return;
         }
 
         setIsTokenizingCard(true);
-
-        const maskedKey = conektaPublicKey ? `${conektaPublicKey.slice(0, 7)}***${conektaPublicKey.slice(-4)}` : "missing";
-        console.log("[Conekta] Iniciando tokenizacion", {
-          origin: window.location.origin,
-          key: maskedKey,
-          cardType: detectCardType(cardNumber),
-        });
-
-        // Security note: tokenize only with Conekta.js in the browser.
-        // Do not send raw PAN/CVV to backend or call Conekta /tokens from server without PCI scope.
         const token = await new Promise<ConektaTokenResponse>((resolve, reject) => {
           window.Conekta!.Token.create(
-            {
-              card: {
-                number: cardNumber,
-                name: formData.cardholder.trim(),
-                exp_year: expYear,
-                exp_month: expMonth,
-                cvc: cvv,
-              },
-            },
-            (tokenResponse) => {
-              console.log("[Conekta] Tokenizacion exitosa", { tokenId: tokenResponse.id });
-              resolve(tokenResponse);
-            },
-            (errorResponse) => {
-              console.error("[Conekta] Tokenizacion fallida", errorResponse);
-              const errorMessage = errorResponse.message_to_purchaser || errorResponse.message || "No se pudo tokenizar la tarjeta";
-              reject(new Error(errorMessage));
-            }
+            { card: { number: cardNumber, name: formData.cardholder.trim(), exp_year: expYear, exp_month: expMonth, cvc: cvv } },
+            (tokenResponse) => resolve(tokenResponse),
+            (errorResponse) => reject(new Error(errorResponse.message_to_purchaser || errorResponse.message || "Tokenización fallida"))
           );
         });
 
-        // Enviar token al endpoint externo que añade la tarjeta
-        console.log("[Conekta] Token recibido", { tokenId: token.id });
-        try {
-          const resp = await increscendoApiFetch('/add-card', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ supabase_id: user.id, token_id: token.id }),
-          });
-
-          const json = await resp.json().catch(() => null);
-
-          if (!resp.ok || !json || json.ok !== true) {
-            console.error('[External add-card] Error', resp.status, json);
-            const msg = json?.message || 'Error al registrar la tarjeta en el servicio externo';
-            throw new Error(msg);
-          }
-
-          console.log('[External add-card] Success', json);
-          toast({
-            title: 'Tarjeta agregada',
-            description: 'La tarjeta fue agregada correctamente.',
-          });
-
-          // Cerrar modal y recargar métodos desde la base de datos
-          setAddDialogOpen(false);
-          await loadPaymentMethods();
-          return;
-        } catch (postErr) {
-          console.error('Error enviando token al servicio externo:', postErr);
-          toast({
-            title: 'Error',
-            description: (postErr instanceof Error) ? postErr.message : 'Fallo al agregar la tarjeta',
-            variant: 'destructive',
-          });
-          return;
-        }
+        const resp = await increscendoApiFetch('/add-card', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ supabase_id: user.id, token_id: token.id }) });
+        const json = await resp.json().catch(() => null);
+        if (!resp.ok || !json || json.ok !== true) throw new Error(json?.message || 'Error al registrar la tarjeta');
+        toast({ title: 'Tarjeta agregada', description: 'La tarjeta fue agregada correctamente.' });
+        setAddDialogOpen(false);
+        await loadPaymentMethods();
       } else {
         if (!formData.bankName || !formData.clabe || !formData.accountHolder) {
-          toast({
-            title: "Error",
-            description: "Por favor completa todos los campos requeridos",
-            variant: "destructive",
-          });
-          return;
+          toast({ title: "Campos requeridos", description: "Completa todos los campos", variant: "destructive" }); return;
         }
-
+        if (!/^\d{18}$/.test(formData.clabe)) {
+          toast({ title: "CLABE inválida", description: "La CLABE debe tener exactamente 18 dígitos", variant: "destructive" }); return;
+        }
         const lastDigits = formData.clabe.slice(-4);
-        const { error } = await supabase
-          .from('payment_methods')
-          .insert({
-            user_id: user.id,
-            type: 'bank',
-            bank_name: formData.bankName,
-            last_digits: lastDigits,
-            clabe: formData.clabe,
-            holder_name: formData.accountHolder,
-            validation_status: 'pendiente',
-          });
-
+        const { error } = await supabase.from('payment_methods').insert({
+          user_id: user.id, type: 'bank', bank_name: formData.bankName, last_digits: lastDigits, clabe: formData.clabe, holder_name: formData.accountHolder, validation_status: 'pendiente',
+        });
         if (error) throw error;
+        toast({ title: "Método agregado", description: "La cuenta bancaria fue agregada exitosamente." });
+        setAddDialogOpen(false);
+        await loadPaymentMethods();
       }
-
-      await loadPaymentMethods();
-      toast({
-        title: "Método Agregado",
-        description: "El método de pago ha sido agregado exitosamente.",
-      });
-      setAddDialogOpen(false);
-      setFormData({
-        cardNumber: "",
-        expiry: "",
-        cvv: "",
-        cardholder: "",
-        bankName: "",
-        clabe: "",
-        accountHolder: "",
-      });
     } catch (err) {
       console.error('Error adding payment method:', err);
-      const errorMessage = err instanceof Error ? err.message : "No se pudo agregar el método de pago";
-      const isPotentialConekta403 = /could not be processed|connectivity issue|forbidden/i.test(errorMessage);
-
-      toast({
-        title: "Error",
-        description: isPotentialConekta403
-          ? "Conekta rechazo la tokenizacion (403). Verifica VITE_CONEKTA_PUBLIC_KEY, modo test/live y estado de tu cuenta en dashboard."
-          : errorMessage,
-        variant: "destructive",
-      });
+      const errMsg = err instanceof Error ? err.message : "No se pudo agregar el método de pago";
+      toast({ title: "Error", description: errMsg, variant: "destructive" });
     } finally {
       setIsTokenizingCard(false);
+    }
+  };
+
+  const confirmEdit = async () => {
+    try {
+      if (selectedMethod.type === 'card') {
+        if (!formData.expiry || !formData.cardholder) {
+          toast({ title: "Campos requeridos", description: "Completa todos los campos", variant: "destructive" }); return;
+        }
+        if (!validateExpiry(formData.expiry)) {
+          toast({ title: "Vencimiento inválido", description: "La fecha de vencimiento es inválida", variant: "destructive" }); return;
+        }
+        const { error } = await supabase.from('payment_methods').update({ expiry: formData.expiry, holder_name: formData.cardholder }).eq('id', selectedMethod.id);
+        if (error) throw error;
+      } else {
+        if (!formData.accountHolder) {
+          toast({ title: "Campo requerido", description: "Completa el nombre del titular", variant: "destructive" }); return;
+        }
+        const { error } = await supabase.from('payment_methods').update({ holder_name: formData.accountHolder }).eq('id', selectedMethod.id);
+        if (error) throw error;
+      }
+      await loadPaymentMethods();
+      toast({ title: "Método Actualizado", description: "El método de pago fue actualizado." });
+      setEditDialogOpen(false);
+    } catch (err) {
+      toast({ title: "Error", description: "No se pudo actualizar", variant: "destructive" });
     }
   };
 
@@ -453,632 +264,287 @@ const PaymentMethods = () => {
     return "Tarjeta";
   };
 
-  const normalizeCardNumber = (value: string): string => {
-    return value.replace(/\D/g, "").slice(0, MAX_CARD_DIGITS);
-  };
+  const normalizeCardNumber = (value: string): string => value.replace(/\D/g, "").slice(0, MAX_CARD_DIGITS);
 
   const formatCardNumber = (value: string): string => {
     const digits = normalizeCardNumber(value);
-
-    // American Express usually uses 4-6-5 grouping.
     if (/^3[47]/.test(digits)) {
       const parts = [digits.slice(0, 4), digits.slice(4, 10), digits.slice(10, 15)].filter(Boolean);
       return parts.join(" ");
     }
-
     return digits.match(/.{1,4}/g)?.join(" ") ?? "";
-  };
-
-  const getExpectedCardLengths = (cardNumber: string): number[] => {
-    const digits = cardNumber.replace(/\D/g, "");
-
-    if (/^3[47]/.test(digits)) return [15]; // Amex
-    if (/^4/.test(digits)) return [13, 16, 19]; // Visa
-    if (/^(5[1-5]|2[2-7])/.test(digits)) return [16]; // Mastercard
-    if (/^(30[0-5]|36|38|39)/.test(digits)) return [14]; // Diners Club
-    if (/^6(?:011|5)/.test(digits)) return [16, 19]; // Discover
-
-    // Unknown issuer: allow common PAN lengths.
-    return [13, 14, 15, 16, 17, 18, 19];
   };
 
   const passesLuhnCheck = (cardNumber: string): boolean => {
     const digits = cardNumber.replace(/\D/g, "");
-    let sum = 0;
-    let shouldDouble = false;
-
+    let sum = 0, shouldDouble = false;
     for (let i = digits.length - 1; i >= 0; i -= 1) {
       let digit = Number(digits[i]);
       if (Number.isNaN(digit)) return false;
-
-      if (shouldDouble) {
-        digit *= 2;
-        if (digit > 9) digit -= 9;
-      }
-
+      if (shouldDouble) { digit *= 2; if (digit > 9) digit -= 9; }
       sum += digit;
       shouldDouble = !shouldDouble;
     }
-
     return sum % 10 === 0;
   };
 
   const isValidCardNumber = (cardNumber: string): boolean => {
     const digits = cardNumber.replace(/\D/g, "");
     if (!/^\d+$/.test(digits)) return false;
-
-    const expectedLengths = getExpectedCardLengths(digits);
-    if (!expectedLengths.includes(digits.length)) return false;
-
+    const expected = (/^3[47]/.test(digits)) ? [15] : (/^4/.test(digits)) ? [13, 16, 19] : (/^(5[1-5]|2[2-7])/.test(digits)) ? [16] : [13, 14, 15, 16, 17, 18, 19];
+    if (!expected.includes(digits.length)) return false;
     return passesLuhnCheck(digits);
   };
 
-  const handleCardNumberChange = (value: string) => {
-    setFormData({ ...formData, cardNumber: formatCardNumber(value) });
-  };
-
-  const handleCvvChange = (value: string) => {
-    const onlyDigits = value.replace(/\D/g, "").slice(0, MAX_CVV_LENGTH);
-    setFormData({ ...formData, cvv: onlyDigits });
-  };
-
-  const handleCardholderChange = (value: string) => {
-    setFormData({ ...formData, cardholder: value.slice(0, MAX_CARDHOLDER_LENGTH) });
-  };
-
-  const confirmEdit = async () => {
-    try {
-      if (selectedMethod.type === 'card') {
-        if (!formData.expiry || !formData.cardholder) {
-          toast({
-            title: "Error",
-            description: "Por favor completa todos los campos requeridos",
-            variant: "destructive",
-          });
-          return;
-        }
-
-        if (!validateExpiry(formData.expiry)) {
-          toast({
-            title: "Error",
-            description: "La fecha de vencimiento es inválida o la tarjeta está expirada",
-            variant: "destructive",
-          });
-          return;
-        }
-
-        const { error } = await supabase
-          .from('payment_methods')
-          .update({
-            expiry: formData.expiry,
-            holder_name: formData.cardholder,
-          })
-          .eq('id', selectedMethod.id);
-
-        if (error) throw error;
-      } else {
-        if (!formData.accountHolder) {
-          toast({
-            title: "Error",
-            description: "Por favor completa todos los campos requeridos",
-            variant: "destructive",
-          });
-          return;
-        }
-
-        const { error } = await supabase
-          .from('payment_methods')
-          .update({
-            holder_name: formData.accountHolder,
-          })
-          .eq('id', selectedMethod.id);
-
-        if (error) throw error;
-      }
-
-      await loadPaymentMethods();
-      toast({
-        title: "Método Actualizado",
-        description: "El método de pago ha sido actualizado.",
-      });
-      setEditDialogOpen(false);
-    } catch (err) {
-      console.error('Error updating payment method:', err);
-      toast({
-        title: "Error",
-        description: "No se pudo actualizar el método de pago",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const getCardIcon = (cardType: string) => {
-    return <CreditCard className="h-5 w-5" />;
-  };
-
   const formatExpiry = (value: string) => {
-    // Remove non-digits
     const digits = value.replace(/\D/g, '');
-
-    // Limit to 4 digits (MMYY)
     if (digits.length > 4) return formData.expiry;
-
-    // Format as MM/YY
-    if (digits.length <= 2) {
-      return digits;
-    } else {
-      return `${digits.slice(0, 2)}/${digits.slice(2, 4)}`;
-    }
+    if (digits.length <= 2) return digits;
+    return `${digits.slice(0, 2)}/${digits.slice(2, 4)}`;
   };
 
   const validateExpiry = (expiry: string): boolean => {
     if (!expiry || expiry.length !== 5) return false;
-
     const [monthStr, yearStr] = expiry.split('/');
     const month = parseInt(monthStr, 10);
     const year = parseInt(yearStr, 10);
-
-    // Validate month
     if (month < 1 || month > 12) return false;
-
-    // Validate year is not in the past
     const now = new Date();
     const currentYear = now.getFullYear() % 100;
     const currentMonth = now.getMonth() + 1;
-
-    // If year is less than current year, it's expired
     if (year < currentYear) return false;
-
-    // If year is current and month is less than current month, it's expired
     if (year === currentYear && month < currentMonth) return false;
-
     return true;
   };
 
-  const handleExpiryChange = (value: string) => {
-    const formatted = formatExpiry(value);
-    setFormData({ ...formData, expiry: formatted });
-  };
+  const handleCardNumberChange = (value: string) => setFormData({ ...formData, cardNumber: formatCardNumber(value) });
+  const handleCvvChange = (value: string) => setFormData({ ...formData, cvv: value.replace(/\D/g, "").slice(0, MAX_CVV_LENGTH) });
+  const handleCardholderChange = (value: string) => setFormData({ ...formData, cardholder: value.slice(0, MAX_CARDHOLDER_LENGTH) });
+  const handleExpiryChange = (value: string) => setFormData({ ...formData, expiry: formatExpiry(value) });
 
   const cardNumberDigits = formData.cardNumber.replace(/\D/g, "");
   const showInvalidCardNumber = methodType === "card" && cardNumberDigits.length >= 13 && !isValidCardNumber(cardNumberDigits);
+  const clabeInvalid = methodType === "bank" && formData.clabe.length > 0 && formData.clabe.length < 18;
+  const clabeError = methodType === "bank" && formData.clabe.length > 0 && !/^\d+$/.test(formData.clabe);
+
+  const getCardBrandIcon = () => <CreditCard className="h-5 w-5" />;
 
   const PaymentMethodSkeleton = () => (
     <Card className="shadow-soft overflow-hidden">
-      <CardHeader className="p-4 sm:p-6">
-        <div className="flex items-start justify-between">
-          <div className="flex items-center gap-2 sm:gap-3">
-            <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-lg bg-gradient-to-r from-slate-200 via-slate-100 to-slate-200 bg-[length:200%_100%] animate-shimmer flex-shrink-0" />
-            <div className="min-w-0 flex-1">
-              <div className="h-4 w-24 bg-gradient-to-r from-slate-200 via-slate-100 to-slate-200 bg-[length:200%_100%] animate-shimmer rounded mb-2" />
-              <div className="h-3 w-32 bg-gradient-to-r from-slate-200 via-slate-100 to-slate-200 bg-[length:200%_100%] animate-shimmer rounded" />
-            </div>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent className="p-4 sm:p-6 space-y-3">
-        <div className="space-y-3">
-          <div className="flex justify-between">
-            <div className="h-3 w-16 bg-gradient-to-r from-slate-200 via-slate-100 to-slate-200 bg-[length:200%_100%] animate-shimmer rounded" />
-            <div className="h-3 w-20 bg-gradient-to-r from-slate-200 via-slate-100 to-slate-200 bg-[length:200%_100%] animate-shimmer rounded" />
-          </div>
-          <div className="flex justify-between">
-            <div className="h-3 w-16 bg-gradient-to-r from-slate-200 via-slate-100 to-slate-200 bg-[length:200%_100%] animate-shimmer rounded" />
-            <div className="h-3 w-20 bg-gradient-to-r from-slate-200 via-slate-100 to-slate-200 bg-[length:200%_100%] animate-shimmer rounded" />
-          </div>
-        </div>
-        <div className="flex flex-col sm:flex-row gap-2 pt-2 border-t">
-          <div className="flex-1 h-9 bg-gradient-to-r from-slate-200 via-slate-100 to-slate-200 bg-[length:200%_100%] animate-shimmer rounded" />
-          <div className="h-9 w-16 bg-gradient-to-r from-slate-200 via-slate-100 to-slate-200 bg-[length:200%_100%] animate-shimmer rounded" />
-        </div>
-      </CardContent>
+      <CardHeader className="p-4"><div className="flex items-start gap-3"><div className="h-10 w-10 rounded-lg bg-muted animate-pulse" /><div className="flex-1 space-y-2"><div className="h-4 w-24 bg-muted animate-pulse rounded" /><div className="h-3 w-16 bg-muted animate-pulse rounded" /></div></div></CardHeader>
+      <CardContent className="p-4 space-y-3"><div className="flex justify-between"><div className="h-3 w-16 bg-muted animate-pulse rounded" /><div className="h-3 w-16 bg-muted animate-pulse rounded" /></div><div className="flex gap-2 pt-2 border-t"><div className="flex-1 h-9 bg-muted animate-pulse rounded" /><div className="h-9 w-20 bg-muted animate-pulse rounded" /></div></CardContent>
     </Card>
   );
 
   return (
     <>
       <Card className="border-primary bg-accent">
-        <CardContent className="flex items-start gap-3 sm:gap-4 py-3 sm:py-4">
-          <CheckCircle className="h-5 w-5 sm:h-6 sm:w-6 text-primary flex-shrink-0 mt-0.5 sm:mt-1" />
+        <CardContent className="flex items-start gap-3 py-4">
+          <CheckCircle className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
           <div>
-            <p className="font-semibold text-sm sm:text-base">Cobros Automáticos</p>
-            <p className="text-xs sm:text-sm text-muted-foreground">
-              El método marcado como predeterminado será usado para procesar tus pagos automáticos mensualmente.
-            </p>
+            <p className="font-semibold text-sm">Cobros Automáticos</p>
+            <p className="text-xs text-muted-foreground">El método predeterminado se usará para tus pagos automáticos mensuales.</p>
           </div>
         </CardContent>
       </Card>
 
       <div className="flex justify-end mt-3">
-        <Button onClick={openAddDialog} className="gap-2">
-          <Plus className="h-4 w-4" />
-          Agregar Método de Pago
-        </Button>
+        <Button onClick={openAddDialog} className="gap-2"><Plus className="h-4 w-4" />Agregar Método de Pago</Button>
       </div>
 
-      <div className="grid gap-4 sm:gap-6 grid-cols-1 md:grid-cols-2">
-        {isLoading ? (
-          <>
-            <PaymentMethodSkeleton />
-            <PaymentMethodSkeleton />
-          </>
-        ) : paymentMethods.length === 0 ? (
+      <div className="grid gap-4 lg:grid-cols-3">
+        {isLoading ? (<><PaymentMethodSkeleton /><PaymentMethodSkeleton /></>) : paymentMethods.length === 0 ? (
           <Card className="shadow-soft md:col-span-2">
             <CardContent className="py-12 text-center">
               <CreditCard className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
               <h3 className="text-lg font-semibold mb-2">No tienes métodos de pago</h3>
-              <p className="text-muted-foreground mb-4">
-                Agrega un método de pago para facilitar tus cobros automáticos
-              </p>
-              <Button onClick={openAddDialog}>
-                <Plus className="h-4 w-4 mr-2" />
-                Agregar Método de Pago
-              </Button>
+              <p className="text-muted-foreground mb-4">Agrega un método de pago para tus cobros automáticos</p>
+              <Button onClick={openAddDialog}><Plus className="h-4 w-4 mr-2" />Agregar Método</Button>
             </CardContent>
           </Card>
         ) : (
-          <>
-            {paymentMethods.map((method) => (
-              <Card key={method.id} className={`shadow-soft ${method.is_default ? 'border-primary' : ''}`}>
-                <CardHeader className="p-4 sm:p-6">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-2 sm:gap-3">
-                      {method.type === "card" ? (
-                        <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-lg bg-accent flex items-center justify-center flex-shrink-0">
-                          {getCardIcon(method.card_type)}
-                        </div>
-                      ) : (
-                        <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-lg bg-accent flex items-center justify-center flex-shrink-0">
-                          <Building2 className="h-4 w-4 sm:h-5 sm:w-5" />
-                        </div>
-                      )}
-                      <div className="min-w-0">
-                        <CardTitle className="text-sm sm:text-base flex items-center gap-2">
-                          <span className="truncate">{method.type === "card" ? method.card_type : method.bank_name}</span>
-                          {method.is_default && (
-                            <Star className="h-3 w-3 sm:h-4 sm:w-4 text-primary fill-primary flex-shrink-0" />
-                          )}
-                        </CardTitle>
-                        <CardDescription className="text-xs sm:text-sm">
-                          {method.type === "card"
-                            ? `•••• ${method.last_four}`
-                            : `CLABE •••• ${method.last_digits}`
-                          }
-                        </CardDescription>
-                      </div>
+          paymentMethods.map((method) => (
+            <Card key={method.id} className={`shadow-soft flex flex-col ${method.is_default ? 'border-primary' : ''}`}>
+              <CardHeader className="p-4 pb-2">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-lg bg-accent flex items-center justify-center">
+                      {method.type === "card" ? getCardBrandIcon() : <Building2 className="h-5 w-5" />}
+                    </div>
+                    <div>
+                      <CardTitle className="text-sm flex items-center gap-2">
+                        <span className="truncate">{method.type === "card" ? method.card_type : method.bank_name}</span>
+                        {method.is_default && <Star className="h-3 w-3 text-primary fill-primary" />}
+                      </CardTitle>
+                      <CardDescription className="text-xs">
+                        {method.type === "card" ? `•••• ${method.last_four}` : `CLABE •••• ${method.last_digits}`}
+                      </CardDescription>
                     </div>
                   </div>
-                </CardHeader>
-                <CardContent className="p-4 sm:p-6 space-y-3">
-                  <div className="space-y-2 text-sm">
+                </div>
+              </CardHeader>
+              <CardContent className="p-4 pt-0 flex-1 flex flex-col">
+                <div className="space-y-2 text-sm flex-1">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Titular:</span>
+                    <span className="font-medium">{method.holder_name}</span>
+                  </div>
+                  {method.type === "card" && (
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Titular:</span>
-                      <span className="font-medium">{method.holder_name}</span>
+                      <span className="text-muted-foreground">Expira:</span>
+                      <span className="font-medium">{method.expiry}</span>
                     </div>
-                    {method.type === "card" && (
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Expira:</span>
-                        <span className="font-medium">{method.expiry}</span>
-                      </div>
-                    )}
-                    {method.type === "bank" && (
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Estado:</span>
-                        <Badge className={method.validation_status === 'validada' ? 'bg-success/20 text-success border-success' : 'bg-yellow-500/20 text-yellow-700 border-yellow-500'}>
-                          {method.validation_status === "validada" ? "Validada" : "Pendiente"}
-                        </Badge>
-                      </div>
-                    )}
-                    {method.is_default && (
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Estado:</span>
-                        <Badge className="bg-primary/20 text-primary border-primary">
-                          Predeterminado
-                        </Badge>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="flex flex-col sm:flex-row gap-2 pt-2 border-t">
-                    {!method.is_default && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="flex-1 text-xs sm:text-sm"
-                        onClick={() => handleSetDefault(method)}
-                      >
-                        <Star className="h-3 w-3 mr-1" />
-                        <span className="hidden sm:inline">Predeterminado</span>
-                        <span className="sm:hidden">Predeterminado</span>
-                      </Button>
-                    )}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className={`${method.is_default ? "flex-1" : ""} text-xs sm:text-sm`}
-                      onClick={() => {
-                        setSelectedMethod(method);
-                        setMethodType(method.type as 'card' | 'bank');
-                        if (method.type === 'card') {
-                          setFormData({
-                            ...formData,
-                            expiry: method.expiry || "",
-                            cardholder: method.holder_name || "",
-                          });
-                        } else {
-                          setFormData({
-                            ...formData,
-                            accountHolder: method.holder_name || "",
-                          });
-                        }
-                        setEditDialogOpen(true);
-                      }}
-                    >
-                      <Edit className="h-3 w-3 mr-1" />
-                      Editar
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleDelete(method)}
-                      disabled={method.is_default}
-                      className="text-xs sm:text-sm"
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </>
+                  )}
+                  {method.type === "bank" && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Estado:</span>
+                      <Badge className={method.validation_status === 'validada' ? 'bg-success/20 text-success border-success' : 'bg-warning/20 text-warning border-warning'}>
+                        {method.validation_status === "validada" ? "Validada" : "Pendiente"}
+                      </Badge>
+                    </div>
+                  )}
+                  {method.is_default && method.type === "card" && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Predeterminado:</span>
+                      <Badge className="bg-primary/20 text-primary border-primary">Sí</Badge>
+                    </div>
+                  )}
+                </div>
+                <div className="flex items-center justify-end gap-2 pt-3 border-t mt-auto">
+                  {method.type === "card" && !method.is_default && (
+                    <Button variant="outline" size="sm" onClick={() => handleSetDefault(method)}><Star className="h-3 w-3 mr-1" />Predeterminado</Button>
+                  )}
+                  <Button variant="outline" size="sm" onClick={() => { setSelectedMethod(method); setMethodType(method.type as 'card' | 'bank'); if (method.type === 'card') setFormData({ ...formData, expiry: method.expiry || "", cardholder: method.holder_name || "" }); else setFormData({ ...formData, accountHolder: method.holder_name || "" }); setEditDialogOpen(true); }}><Edit className="h-3 w-3 mr-1" />Editar</Button>
+                  <Button variant="outline" size="sm" onClick={() => handleDelete(method)} disabled={method.is_default}><Trash2 className="h-3 w-3" /></Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))
         )}
       </div>
 
-      {/* Add Payment Method Dialog */}
+      {/* Add/Edit Dialog */}
       <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
-        <DialogContent className="max-w-[95vw] sm:max-w-2xl p-4 sm:p-6">
-          <DialogHeader className="pb-4">
-            <DialogTitle className="text-base sm:text-lg">Agregar Método de Pago</DialogTitle>
-            <DialogDescription className="text-xs sm:text-sm">
-              Agrega una tarjeta o cuenta bancaria para cobros automáticos
-            </DialogDescription>
+        <DialogContent className="max-w-[95vw] sm:max-w-xl p-4">
+          <DialogHeader>
+            <DialogTitle>Agregar Método de Pago</DialogTitle>
+            <DialogDescription>Agrega una tarjeta o cuenta bancaria para cobros automáticos</DialogDescription>
           </DialogHeader>
           <div className="relative">
             {isTokenizingCard && (
               <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/80 backdrop-blur-sm rounded-lg">
-                <div className="flex flex-col items-center gap-2">
-                  <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
-                  <p className="text-sm font-medium">Guardando método de pago...</p>
-                </div>
+                <div className="flex flex-col items-center gap-2"><div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" /><p className="text-sm font-medium">Guardando método de pago...</p></div>
               </div>
             )}
             <div className="space-y-4">
-            <div>
-              <Label>Tipo de Método</Label>
-              <Select value={methodType} onValueChange={(value: "card" | "bank") => setMethodType(value)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="card">Tarjeta de Crédito/Débito</SelectItem>
-                  <SelectItem value="bank">Cuenta Bancaria (CLABE)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+              <div>
+                <Label>Tipo de Método</Label>
+                <Select value={methodType} onValueChange={(v: "card" | "bank") => setMethodType(v)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="card">Tarjeta de Crédito/Débito</SelectItem>
+                    <SelectItem value="bank">Cuenta Bancaria (CLABE)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
-            {methodType === "card" ? (
-              <>
-                <div>
-                  <Label htmlFor="card-number">Número de Tarjeta</Label>
-                  <Input
-                    id="card-number"
-                    placeholder="1234 5678 9012 3456"
-                    maxLength={MAX_CARD_INPUT_LENGTH}
-                    value={formData.cardNumber}
-                    inputMode="numeric"
-                    autoComplete="cc-number"
-                    onChange={(e) => handleCardNumberChange(e.target.value)}
-                    disabled={!!selectedMethod}
-                  />
-                  {showInvalidCardNumber && (
-                    <p className="text-xs text-danger mt-1">Numero de tarjeta invalido</p>
-                  )}
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="expiry">Vencimiento (MM/AA)</Label>
-                    <Input
-                      id="expiry"
-                      placeholder="07/26"
-                      maxLength={5}
-                      value={formData.expiry}
-                      onChange={(e) => handleExpiryChange(e.target.value)}
-                    />
-                    {formData.expiry && formData.expiry.length === 5 && !validateExpiry(formData.expiry) && (
-                      <p className="text-xs text-danger mt-1">Tarjeta expirada o fecha inválida</p>
-                    )}
-                  </div>
-                  <div>
-                    <Label htmlFor="cvv">CVV</Label>
-                    <Input
-                      id="cvv"
-                      placeholder="123"
-                      maxLength={MAX_CVV_LENGTH}
-                      type="password"
-                      inputMode="numeric"
-                      autoComplete="cc-csc"
-                      value={formData.cvv}
-                      onChange={(e) => handleCvvChange(e.target.value)}
-                    />
-                  </div>
-                </div>
-                <div>
-                  <Label htmlFor="cardholder">Nombre del Titular</Label>
-                  <Input
-                    id="cardholder"
-                    placeholder="Como aparece en la tarjeta"
-                    maxLength={MAX_CARDHOLDER_LENGTH}
-                    autoComplete="cc-name"
-                    value={formData.cardholder}
-                    onChange={(e) => handleCardholderChange(e.target.value)}
-                  />
-                </div>
-              </>
-            ) : (
-              <>
-                <div>
-                  <Label htmlFor="bank-name">Banco</Label>
-                  <Select value={formData.bankName} onValueChange={(value) => setFormData({ ...formData, bankName: value })}>
-                    <SelectTrigger id="bank-name">
-                      <SelectValue placeholder="Selecciona tu banco" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="BBVA">BBVA</SelectItem>
-                      <SelectItem value="Banamex">Banamex</SelectItem>
-                      <SelectItem value="Santander">Santander</SelectItem>
-                      <SelectItem value="Banorte">Banorte</SelectItem>
-                      <SelectItem value="HSBC">HSBC</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label htmlFor="clabe">CLABE Interbancaria</Label>
-                  <Input
-                    id="clabe"
-                    placeholder="18 dígitos"
-                    maxLength={18}
-                    value={formData.clabe}
-                    onChange={(e) => setFormData({ ...formData, clabe: e.target.value })}
-                    disabled={!!selectedMethod}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="account-holder">Nombre del Titular</Label>
-                  <Input
-                    id="account-holder"
-                    placeholder="Como aparece en la cuenta"
-                    value={formData.accountHolder}
-                    onChange={(e) => setFormData({ ...formData, accountHolder: e.target.value })}
-                  />
-                </div>
-                <div className="bg-accent rounded-lg p-3 text-sm">
-                  <p className="font-semibold mb-1">Validación de Cuenta</p>
-                  <p className="text-muted-foreground">
-                    Se realizará un depósito de prueba menor a $1 MXN para validar la cuenta.
-                  </p>
-                </div>
-              </>
-            )}
-          </div>
-          </div>
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button
-              variant="outline"
-              onClick={() => setAddDialogOpen(false)}
-              disabled={isTokenizingCard}
-            >
-              Cancelar
-            </Button>
-            <Button onClick={confirmAdd} disabled={isTokenizingCard}>
-              {isTokenizingCard ? (
+              {methodType === "card" ? (
                 <>
-                  <div className="animate-spin h-4 w-4 border-2 border-current border-t-transparent rounded-full mr-2" />
-                  Guardando...
+                  <div>
+                    <Label htmlFor="card-number">Número de Tarjeta</Label>
+                    <Input id="card-number" placeholder="1234 5678 9012 3456" maxLength={MAX_CARD_INPUT_LENGTH} value={formData.cardNumber} inputMode="numeric" autoComplete="cc-number" onChange={(e) => handleCardNumberChange(e.target.value)} disabled={!!selectedMethod} />
+                    {showInvalidCardNumber && <p className="text-xs text-destructive mt-1">Número de tarjeta inválido</p>}
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="expiry">Vencimiento (MM/AA)</Label>
+                      <Input id="expiry" placeholder="MM/AA" maxLength={5} value={formData.expiry} onChange={(e) => handleExpiryChange(e.target.value)} />
+                      {formData.expiry && formData.expiry.length === 5 && !validateExpiry(formData.expiry) && <p className="text-xs text-destructive mt-1">Fecha inválida o tarjeta expirada</p>}
+                    </div>
+                    <div>
+                      <Label htmlFor="cvv">CVV</Label>
+                      <Input id="cvv" placeholder="123" maxLength={MAX_CVV_LENGTH} type="password" inputMode="numeric" autoComplete="cc-csc" value={formData.cvv} onChange={(e) => handleCvvChange(e.target.value)} />
+                    </div>
+                  </div>
+                  <div>
+                    <Label htmlFor="cardholder">Nombre del Titular</Label>
+                    <Input id="cardholder" placeholder="Como aparece en la tarjeta" maxLength={MAX_CARDHOLDER_LENGTH} autoComplete="cc-name" value={formData.cardholder} onChange={(e) => handleCardholderChange(e.target.value)} />
+                  </div>
                 </>
               ) : (
                 <>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Agregar Método
+                  <div>
+                    <Label htmlFor="bank-name">Banco</Label>
+                    <Select value={formData.bankName} onValueChange={(v) => setFormData({ ...formData, bankName: v })}>
+                      <SelectTrigger id="bank-name"><SelectValue placeholder={loadingBanks ? "Cargando bancos..." : "Selecciona tu banco"} /></SelectTrigger>
+                      <SelectContent>
+                        {banks.map((b) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="clabe">CLABE Interbancaria</Label>
+                    <Input id="clabe" placeholder="18 dígitos" maxLength={CLABE_LENGTH} value={formData.clabe} onChange={(e) => setFormData({ ...formData, clabe: e.target.value.replace(/\D/g, "").slice(0, CLABE_LENGTH) })} />
+                    {clabeInvalid && <p className="text-xs text-destructive mt-1">La CLABE debe tener 18 dígitos ({formData.clabe.length}/18)</p>}
+                    {clabeError && <p className="text-xs text-destructive mt-1">La CLABE solo debe contener números</p>}
+                  </div>
+                  <div>
+                    <Label htmlFor="account-holder">Nombre del Titular</Label>
+                    <Input id="account-holder" placeholder="Nombre como aparece en la cuenta" value={formData.accountHolder} onChange={(e) => setFormData({ ...formData, accountHolder: e.target.value })} />
+                  </div>
+                  <div className="bg-accent rounded-lg p-3 text-sm">
+                    <p className="font-semibold mb-1">Validación de cuenta</p>
+                    <p className="text-muted-foreground">Se realizará un depósito menor a $1 MXN para validar la cuenta.</p>
+                  </div>
                 </>
               )}
-            </Button>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddDialogOpen(false)} disabled={isTokenizingCard}>Cancelar</Button>
+            <Button onClick={confirmAdd} disabled={isTokenizingCard || (methodType === "bank" && (!formData.clabe || formData.clabe.length < 18))}>{isTokenizingCard ? "Guardando..." : "Agregar Método"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Edit Payment Method Dialog */}
+      {/* Edit Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent className="max-w-[95vw] sm:max-w-2xl p-4 sm:p-6">
-          <DialogHeader className="pb-4">
-            <DialogTitle className="text-base sm:text-lg">Editar Método de Pago</DialogTitle>
-            <DialogDescription className="text-xs sm:text-sm">
-              Actualiza la información de tu método de pago
-            </DialogDescription>
-          </DialogHeader>
+        <DialogContent className="max-w-[95vw] sm:max-w-xl p-4">
+          <DialogHeader><DialogTitle>Editar Método de Pago</DialogTitle><DialogDescription>Actualiza la información de tu método de pago</DialogDescription></DialogHeader>
           {selectedMethod && (
-            <div className="relative">
-              {isTokenizingCard && (
-                <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/80 backdrop-blur-sm rounded-lg">
-                  <div className="flex flex-col items-center gap-2">
-                    <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
-                    <p className="text-sm font-medium">Guardando método de pago...</p>
-                  </div>
+            <div className="space-y-4">
+              {selectedMethod.type === "card" && (
+                <div>
+                  <Label>Tarjeta</Label>
+                  <p className="text-sm text-muted-foreground">{selectedMethod.card_type} •••• {selectedMethod.last_four}</p>
                 </div>
               )}
-              <div className="space-y-4">
-                {selectedMethod.type === "card" && (
-                  <>
-                    <div>
-                      <Label>Tarjeta</Label>
-                      <p className="text-sm text-muted-foreground">
-                        {selectedMethod.card_type} •••• {selectedMethod.last_four}
-                      </p>
-                    </div>
-                    <div>
-                      <Label htmlFor="edit-expiry">Vencimiento (MM/AA)</Label>
-                      <Input
-                        id="edit-expiry"
-                        value={formData.expiry}
-                        maxLength={5}
-                        onChange={(e) => handleExpiryChange(e.target.value)}
-                      />
-                      {formData.expiry && formData.expiry.length === 5 && !validateExpiry(formData.expiry) && (
-                        <p className="text-xs text-danger mt-1">Tarjeta expirada o fecha inválida</p>
-                      )}
-                    </div>
-                  </>
-                )}
+              {selectedMethod.type === "bank" && (
                 <div>
-                  <Label htmlFor="edit-holder">Nombre del Titular</Label>
-                  <Input
-                    id="edit-holder"
-                    value={selectedMethod.type === 'card' ? formData.cardholder : formData.accountHolder}
-                    onChange={(e) => setFormData({ ...formData, [selectedMethod.type === 'card' ? 'cardholder' : 'accountHolder']: e.target.value })}
-                  />
+                  <Label>Banco</Label>
+                  <p className="text-sm text-muted-foreground">{selectedMethod.bank_name} •••• {selectedMethod.last_digits}</p>
                 </div>
+              )}
+              <div>
+                <Label htmlFor="edit-holder">Nombre del Titular</Label>
+                <Input id="edit-holder" value={selectedMethod.type === 'card' ? formData.cardholder : formData.accountHolder} onChange={(e) => setFormData({ ...formData, [selectedMethod.type === 'card' ? 'cardholder' : 'accountHolder']: e.target.value })} />
               </div>
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={confirmEdit}>
-              Guardar Cambios
-            </Button>
+            <Button variant="outline" onClick={() => setEditDialogOpen(false)}>Cancelar</Button>
+            <Button onClick={confirmEdit}>Guardar Cambios</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Delete Payment Method Dialog */}
+      {/* Delete Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>¿Eliminar Método de Pago?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta acción no se puede deshacer. El método de pago será eliminado permanentemente.
-              {selectedMethod?.isDefault && " No puedes eliminar el método predeterminado."}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
+          <AlertDialogHeader><AlertDialogTitle>¿Eliminar Método de Pago?</AlertDialogTitle><AlertDialogDescription>Esta acción no se puede deshacer. El método será eliminado permanentemente.{selectedMethod?.is_default && " No puedes eliminar el predeterminado."}</AlertDialogDescription></AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={confirmDelete}
-              className="bg-danger hover:bg-danger/90"
-              disabled={selectedMethod?.isDefault}
-            >
-              Eliminar
-            </AlertDialogAction>
+            <AlertDialogAction onClick={confirmDelete} className="bg-destructive hover:bg-destructive/90" disabled={selectedMethod?.is_default}>Eliminar</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

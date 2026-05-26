@@ -25,7 +25,8 @@ import {
   PartyPopper,
   Crown,
   Star,
-  Building2
+  Building2,
+  Mail
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { defaultMemberships } from "@/data/memberships";
@@ -103,6 +104,7 @@ const LoanProcess = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isApproved, setIsApproved] = useState(false);
+  const [isSubmitted, setIsSubmitted] = useState(false);
   const [hasMembership, setHasMembership] = useState(false);
   const [selectedMembership, setSelectedMembership] = useState<string | null>(null);
   const [userMembership, setUserMembership] = useState<any | null>(null);
@@ -810,6 +812,25 @@ const LoanProcess = () => {
         pollIntervalRef.current = null;
       }
 
+      // Update user profile with latest personal data
+      try {
+        const { error: updateError } = await supabase
+          .from('users')
+          .update({
+            first_name: personalData.firstName,
+            last_name: personalData.lastName,
+            address: personalData.address,
+            birth_date: personalData.birthDate || null,
+            phone: personalData.phone,
+            ine_key: personalData.ineKey,
+            curp: personalData.curp,
+          })
+          .eq('id', userId);
+        if (updateError) console.error('Error updating profile:', updateError);
+      } catch (err) {
+        console.error('Error updating user profile:', err);
+      }
+
       let loan = currentLoan;
       if (!loan) {
         setIsSubmitting(true);
@@ -831,6 +852,7 @@ const LoanProcess = () => {
           if (status === 'approved' || status === 'active') {
             setIsAnalyzing(false);
             setIsApproved(true);
+            setIsSubmitted(false);
             // refresh current loan with latest status
             const { data: full, error: fullErr } = await supabase.from('loans').select('*').eq('id', loan.id).maybeSingle();
             if (!fullErr && full) setCurrentLoan(full);
@@ -844,6 +866,14 @@ const LoanProcess = () => {
           console.error('status check error', e);
         }
       };
+
+      // Show loading for 3.5 seconds before showing submitted state
+      setTimeout(() => {
+        if (!isApproved) {
+          setIsAnalyzing(false);
+          setIsSubmitted(true);
+        }
+      }, 3500);
 
       // run initial check immediately
       await checkStatus();
@@ -1084,55 +1114,51 @@ const LoanProcess = () => {
 
   // Step 1: Confirm Loan (Updated with editable fields)
   const StepConfirm = () => (
-    <Card className="shadow-medium">
-      <CardHeader className="space-y-3 sm:space-y-0">
-        {/* Mobile-first header layout */}
+    <Card className="shadow-soft">
+      <CardHeader className="p-4 sm:p-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          {/* Row 1: Back button - full width on mobile */}
+          <div className="space-y-1">
+            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+              <DollarSign className="h-4 w-4 sm:h-5 sm:w-5" />
+              Vista Previa del Préstamo
+            </CardTitle>
+            <CardDescription className="text-xs sm:text-sm">
+              Revisa y ajusta los detalles antes de continuar
+            </CardDescription>
+          </div>
           <Button
             variant="ghost"
             size="sm"
             onClick={handleGoToSimulator}
-            className="self-start text-sm font-medium text-muted-foreground hover:text-primary flex items-center gap-2 h-11 px-3 -ml-3 sm:order-2 sm:ml-0"
+            className="self-start text-sm font-medium text-muted-foreground hover:text-primary flex items-center gap-2 h-9 px-3 -ml-2 sm:order-2"
           >
             <ArrowLeft className="h-4 w-4" />
-            <span className="sm:inline">Volver al Simulador</span>
+            <span>Volver al Simulador</span>
           </Button>
-
-          {/* Row 2-3: Title and description */}
-          <div className="space-y-1 sm:order-1">
-            <CardTitle className="flex items-center gap-2 text-xl sm:text-2xl">
-              <DollarSign className="h-5 w-5 text-primary" />
-              Confirma tu Préstamo
-            </CardTitle>
-            <CardDescription className="text-sm text-muted-foreground">
-              Revisa y ajusta los detalles de tu solicitud
-            </CardDescription>
-          </div>
         </div>
       </CardHeader>
-      <CardContent className="space-y-6">
+      <CardContent className="p-4 sm:p-6 space-y-4">
         {/* Editable Fields */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label htmlFor="loan-amount">Monto Solicitado</Label>
+            <Label htmlFor="loan-amount" className="text-sm">Monto del Préstamo</Label>
             <div className="relative">
-              <span className="absolute left-3 top-3 text-muted-foreground">$</span>
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
               <Input
                 id="loan-amount"
                 type="number"
-                placeholder="10000"
+                placeholder="10,000"
                 value={loanAmount}
                 onChange={(e) => setLoanAmount(e.target.value)}
-                className="pl-7 text-lg font-semibold"
+                className="pl-7 text-base sm:text-lg font-semibold h-10"
               />
             </div>
             {validationErrors.loanAmount && <p className="text-xs text-destructive">{validationErrors.loanAmount}</p>}
           </div>
           <div className="space-y-2">
-            <Label htmlFor="loan-installments">Número de Cuotas</Label>
+            <Label htmlFor="loan-installments" className="text-sm">Número de Cuotas</Label>
             <Select value={loanInstallments} onValueChange={setLoanInstallments}>
-              <SelectTrigger id="loan-installments">
+              <SelectTrigger id="loan-installments" className="h-10">
                 <SelectValue placeholder="Selecciona el número de cuotas" />
               </SelectTrigger>
               <SelectContent>
@@ -1148,29 +1174,26 @@ const LoanProcess = () => {
         </div>
 
         {/* Summary Display */}
-        <div className="bg-gradient-to-br from-primary/10 to-accent/30 rounded-xl p-4 sm:p-5 md:p-6">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-3 md:gap-4">
-            <div className="text-center sm:text-left">
-              <p className="text-xs text-muted-foreground mb-1">Monto Solicitado</p>
-              <p className="text-lg sm:text-lg md:text-xl font-bold text-primary whitespace-nowrap">${parseFloat(loanAmount || "0").toLocaleString()} MXN</p>
-            </div>
-            <div className="text-center sm:text-left">
-              <p className="text-xs text-muted-foreground mb-1">Plazo</p>
-              <p className="text-lg sm:text-lg md:text-xl font-bold whitespace-nowrap">{loanInstallments} cuotas</p>
-            </div>
-            <div className="text-center sm:text-left">
-              <p className="text-xs text-muted-foreground mb-1">Tasa de Interés</p>
-              <p className="text-base sm:text-base md:text-lg font-semibold whitespace-nowrap">{initialLoanData.interestRate}% anual</p>
-            </div>
-            <div className="text-center sm:text-left">
-              <p className="text-xs text-muted-foreground mb-1">Cuota Mensual</p>
-              <p className="text-base sm:text-base md:text-lg font-semibold text-primary whitespace-nowrap">${monthlyPayment.toFixed(2)} MXN</p>
-            </div>
+        <div className="bg-gradient-to-br from-primary/5 to-accent/10 rounded-xl p-4 space-y-3">
+          <div className="flex flex-col gap-1">
+            <span className="text-xs sm:text-sm text-muted-foreground">Pago Mensual Estimado</span>
+            <span className="text-2xl sm:text-3xl font-bold text-primary">
+              ${monthlyPayment.toFixed(2)}
+            </span>
           </div>
-          <Separator className="my-4" />
-          <div className="flex flex-row justify-between items-center">
-            <p className="text-sm font-medium text-muted-foreground">Total a Pagar</p>
-            <p className="text-xl sm:text-2xl font-bold text-primary whitespace-nowrap">${totalToPay.toFixed(2)} MXN</p>
+          <div className="grid grid-cols-3 gap-3 pt-3 border-t border-border/50">
+            <div>
+              <p className="text-[10px] sm:text-xs text-muted-foreground">Plazo</p>
+              <p className="font-semibold text-sm mt-0.5">{loanInstallments} meses</p>
+            </div>
+            <div>
+              <p className="text-[10px] sm:text-xs text-muted-foreground">Tasa Anual</p>
+              <p className="font-semibold text-sm mt-0.5">{initialLoanData.interestRate}%</p>
+            </div>
+            <div>
+              <p className="text-[10px] sm:text-xs text-muted-foreground">Total</p>
+              <p className="font-semibold text-sm mt-0.5">${totalToPay.toFixed(2)}</p>
+            </div>
           </div>
         </div>
       </CardContent>
@@ -1390,18 +1413,20 @@ const LoanProcess = () => {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="flex items-center gap-3">
-            <Label className="text-xs text-muted-foreground">Origen de cuenta</Label>
-            <Select value={depositSource} onValueChange={(v) => handleDepositSourceChange(v as 'saved' | 'new')}>
-              <SelectTrigger className="h-9 w-[220px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="saved">Método guardado</SelectItem>
-                <SelectItem value="new">Cuenta nueva</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          {bankPaymentMethods.length > 0 && (
+            <div className="flex items-center gap-3">
+              <Label className="text-xs text-muted-foreground">Origen de cuenta</Label>
+              <Select value={depositSource} onValueChange={(v) => handleDepositSourceChange(v as 'saved' | 'new')}>
+                <SelectTrigger className="h-9 w-[220px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="saved">Método guardado</SelectItem>
+                  <SelectItem value="new">Cuenta nueva</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {depositSource === 'saved' ? (
@@ -1420,9 +1445,7 @@ const LoanProcess = () => {
                   </SelectContent>
                 </Select>
                 {validationErrors.paymentMethodId && <p className="text-xs text-destructive">{validationErrors.paymentMethodId}</p>}
-                {!loadingBankPaymentMethods && bankPaymentMethods.length === 0 && (
-                  <p className="text-xs text-muted-foreground">No tienes métodos bancarios guardados. Puedes capturar uno nuevo abajo.</p>
-                )}
+                <p className="text-xs text-muted-foreground">¿No encuentras tu banco? <Button variant="link" className="h-auto p-0 text-xs text-primary" onClick={() => navigate('/payment-methods')}>Agregar método de pago</Button></p>
               </div>
             ) : (
               <div className="space-y-2">
@@ -1613,9 +1636,10 @@ const LoanProcess = () => {
           <div className="space-y-2">
             <Label>Clave de Elector / Número INE</Label>
             <Input
-              placeholder="18 dígitos alfanuméricos"
+              placeholder="18 dígitos"
+              maxLength={18}
               value={personalData.ineKey}
-              onChange={(e) => handlePersonalDataChange("ineKey", e.target.value)}
+              onChange={(e) => handlePersonalDataChange("ineKey", e.target.value.replace(/[^0-9]/g, '').toUpperCase())}
             />
             {validationErrors.ineKey && <p className="text-xs text-destructive">{validationErrors.ineKey}</p>}
           </div>
@@ -1714,16 +1738,16 @@ const LoanProcess = () => {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label>CURP</Label>
-            <Input
-              placeholder="Ej: SEXL48..."
-              maxLength={18}
-              value={personalData.curp}
-              onChange={(e) => handlePersonalDataChange("curp", e.target.value.toUpperCase())}
-            />
-            {validationErrors.curp && <p className="text-xs text-destructive">{validationErrors.curp}</p>}
-          </div>
+            <div className="space-y-2">
+              <Label>CURP</Label>
+              <Input
+                placeholder="18 dígitos numéricos"
+                maxLength={18}
+                value={personalData.curp}
+                onChange={(e) => handlePersonalDataChange("curp", e.target.value.replace(/[^0-9]/g, '').toUpperCase())}
+              />
+              {validationErrors.curp && <p className="text-xs text-destructive">{validationErrors.curp}</p>}
+            </div>
           <div className="border-2 border-dashed border-border rounded-xl p-6 flex flex-col items-center justify-center gap-3 bg-muted/30 hover:bg-muted/50 transition-colors">
             {curpPreview ? (
               <img src={curpPreview} alt="CURP" className="max-h-40 object-contain rounded" />
@@ -1773,6 +1797,19 @@ const LoanProcess = () => {
             <div>
               <p className="text-xl font-semibold">Estamos revisando tu perfil...</p>
               <p className="text-muted-foreground">Estamos validando tu información para continuar con el proceso</p>
+            </div>
+          </div>
+        ) : isSubmitted ? (
+          <div className="text-center space-y-4 max-w-md mx-auto px-4">
+            <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
+              <Mail className="h-10 w-10 text-primary" />
+            </div>
+            <div>
+              <p className="text-xl font-bold">Solicitud Enviada</p>
+              <p className="text-muted-foreground mt-2">Hemos recibido tu solicitud exitosamente. Te notificaremos al correo registrado sobre el estado de tu préstamo una vez que sea revisada por nuestro equipo.</p>
+            </div>
+            <div className="bg-muted/40 rounded-lg p-3 text-sm text-muted-foreground">
+              <p>Tiempo estimado de revisión: 24-48 horas hábiles</p>
             </div>
           </div>
         ) : isApproved ? (
@@ -1933,6 +1970,7 @@ const LoanProcess = () => {
   };
 
   const getNextButtonText = () => {
+    if (currentStep === 4 && isSubmitted) return "";
     if (currentStep === 4 && !isApproved) return "Iniciar";
     if (currentStep === 5) return "Ya he firmado el contrato";
     if (currentStep === 6) return "Ir al Dashboard";
@@ -1940,7 +1978,7 @@ const LoanProcess = () => {
   };
 
   const canProceed = () => {
-    if (currentStep === 4 && isAnalyzing) return false;
+    if (currentStep === 4 && (isAnalyzing || isSubmitted)) return false;
     return true;
   };
 
@@ -1983,24 +2021,26 @@ const LoanProcess = () => {
             )}
 
             {/* Navigation Buttons */}
-            <div className="flex justify-between mt-6 gap-4">
-              {currentStep > 1 && currentStep < 6 && (
-                <Button variant="outline" onClick={handleBack} className="gap-2">
-                  <ArrowLeft className="h-4 w-4" />
-                  Atrás
-                </Button>
-              )}
-              {currentStep === 1 && <div />}
+            {!isSubmitted && (
+              <div className="flex justify-between mt-6 gap-4">
+                {currentStep > 1 && currentStep < 6 && (
+                  <Button variant="outline" onClick={handleBack} className="gap-2">
+                    <ArrowLeft className="h-4 w-4" />
+                    Atrás
+                  </Button>
+                )}
+                {currentStep === 1 && <div />}
 
-              <Button
-                onClick={currentStep === 6 ? handleGoToDashboard : handleNext}
-                disabled={currentStep === 4 && !canProceed()}
-                className="gap-2 ml-auto"
-              >
-                {getNextButtonText()}
-                {currentStep < 6 && <ArrowRight className="h-4 w-4" />}
-              </Button>
-            </div>
+                <Button
+                  onClick={currentStep === 6 ? handleGoToDashboard : handleNext}
+                  disabled={currentStep === 4 && !canProceed()}
+                  className="gap-2 ml-auto"
+                >
+                  {getNextButtonText()}
+                  {currentStep < 6 && <ArrowRight className="h-4 w-4" />}
+                </Button>
+              </div>
+            )}
           </div>
   );
 };

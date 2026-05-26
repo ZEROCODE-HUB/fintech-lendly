@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Download, Search } from "lucide-react";
+import { Download, Search, Banknote, ReceiptText } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -35,6 +35,16 @@ const getPaymentRequestStatusLabel = (status?: string) => {
       return status ? status.charAt(0).toUpperCase() + status.slice(1) : 'Pendiente';
   }
 };
+
+const EmptyState = ({ icon: Icon, title, description }: { icon: React.ElementType; title: string; description: string }) => (
+  <div className="flex flex-col items-center justify-center py-12 gap-3">
+    <div className="h-14 w-14 rounded-full bg-muted flex items-center justify-center">
+      <Icon className="h-7 w-7 text-muted-foreground" />
+    </div>
+    <p className="font-medium text-base">{title}</p>
+    <p className="text-sm text-muted-foreground">{description}</p>
+  </div>
+);
 
 const History = () => {
   const { userId } = useAuth();
@@ -79,7 +89,7 @@ const History = () => {
       setLoanHistory(mappedLoans);
 
       const fetchPaymentRequestsPage = async (page: number) => {
-        const response = await increscendoApiFetch(`/belvo/loans/payment-requests?page=${page}&limit=50`);
+        const response = await increscendoApiFetch(`/belvo/loans/payment-requests?userId=${userId}&page=${page}&limit=50`);
         const payload = await response.json().catch(() => null);
 
         if (!response.ok) {
@@ -183,6 +193,7 @@ const History = () => {
 
   const handleExport = () => {
     const dataToExport = activeTab === 'loans' ? filteredLoans : filteredPayments;
+    if (dataToExport.length === 0) return;
     const headers = activeTab === 'loans'
       ? ['ID', 'Tipo', 'Monto', 'Fecha', 'Estado']
       : ['ID', 'Préstamo', 'Cuota', 'Monto', 'Fecha', 'Método', 'Estado'];
@@ -210,16 +221,6 @@ const History = () => {
   return (
     <>
       <div className="space-y-4 sm:space-y-6">
-        <div className="relative max-w-md">
-          <Search className="absolute left-3 top-2.5 sm:top-3 h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar en historial..."
-            className="pl-8 sm:pl-10 text-xs sm:text-sm"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full max-w-md grid-cols-2">
             <TabsTrigger value="loans" className="text-xs sm:text-sm">Préstamos</TabsTrigger>
@@ -228,27 +229,46 @@ const History = () => {
 
           <TabsContent value="loans" className="mt-4 sm:mt-6">
             <Card className="shadow-soft">
-              <CardHeader className="p-4 sm:p-6">
-                <CardTitle className="text-base sm:text-lg">Historial de Préstamos</CardTitle>
-                <CardDescription className="text-xs sm:text-sm">
-                  Todos los préstamos solicitados en tu cuenta
-                </CardDescription>
-                <div className="pt-3">
-                  <Button variant="outline" size="sm" onClick={handleExport}>
-                    <Download className="h-4 w-4 mr-2" />
-                    <span className="text-xs sm:text-sm">Exportar Historial</span>
+              <CardHeader className="p-4 sm:p-6 pb-2">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div>
+                    <CardTitle className="text-base sm:text-lg">Historial de Préstamos</CardTitle>
+                    <CardDescription className="text-xs sm:text-sm">
+                      Todos los préstamos solicitados en tu cuenta
+                    </CardDescription>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleExport}
+                    disabled={filteredLoans.length === 0}
+                    className="gap-1.5"
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                    <span className="text-xs sm:text-sm">Exportar</span>
                   </Button>
                 </div>
+                <div className="relative mt-3">
+                  <Search className="absolute left-3 top-2.5 h-3 w-3 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar préstamos..."
+                    className="pl-9 text-xs sm:text-sm"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </div>
               </CardHeader>
-              <CardContent className="p-4 sm:p-6">
+              <CardContent className="p-4 sm:p-6 pt-0">
                 {isLoading ? (
                   <div className="text-center py-8">
                     <p className="text-muted-foreground">Cargando préstamos...</p>
                   </div>
                 ) : filteredLoans.length === 0 ? (
-                  <div className="text-center py-8">
-                    <p className="text-muted-foreground">No hay préstamos {searchTerm ? 'que coincidan con tu búsqueda' : 'registrados'}</p>
-                  </div>
+                  <EmptyState
+                    icon={Banknote}
+                    title="No hay préstamos"
+                    description={searchTerm ? 'No hay préstamos que coincidan con tu búsqueda' : 'Aún no tienes préstamos registrados'}
+                  />
                 ) : (
                   <div className="space-y-5">
                     <div className="overflow-x-auto">
@@ -375,27 +395,46 @@ const History = () => {
 
           <TabsContent value="payments" className="mt-4 sm:mt-6">
             <Card className="shadow-soft">
-              <CardHeader className="p-4 sm:p-6">
-                <CardTitle className="text-base sm:text-lg">Historial de Pagos</CardTitle>
-                <CardDescription className="text-xs sm:text-sm">
-                  Registro completo de todos tus pagos
-                </CardDescription>
-                <div className="pt-3">
-                  <Button variant="outline" size="sm" onClick={handleExport}>
-                    <Download className="h-4 w-4 mr-2" />
-                    <span className="text-xs sm:text-sm">Exportar Pagos</span>
+              <CardHeader className="p-4 sm:p-6 pb-2">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div>
+                    <CardTitle className="text-base sm:text-lg">Historial de Pagos</CardTitle>
+                    <CardDescription className="text-xs sm:text-sm">
+                      Registro completo de todos tus pagos
+                    </CardDescription>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleExport}
+                    disabled={filteredPayments.length === 0}
+                    className="gap-1.5"
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                    <span className="text-xs sm:text-sm">Exportar</span>
                   </Button>
                 </div>
+                <div className="relative mt-3">
+                  <Search className="absolute left-3 top-2.5 h-3 w-3 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar pagos..."
+                    className="pl-9 text-xs sm:text-sm"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </div>
               </CardHeader>
-              <CardContent className="p-4 sm:p-6">
+              <CardContent className="p-4 sm:p-6 pt-0">
                 {isLoading ? (
                   <div className="text-center py-8">
                     <p className="text-muted-foreground">Cargando pagos...</p>
                   </div>
                 ) : filteredPayments.length === 0 ? (
-                  <div className="text-center py-8">
-                    <p className="text-muted-foreground">No hay pagos {searchTerm ? 'que coincidan con tu búsqueda' : 'registrados'}</p>
-                  </div>
+                  <EmptyState
+                    icon={ReceiptText}
+                    title="No hay pagos"
+                    description={searchTerm ? 'No hay pagos que coincidan con tu búsqueda' : 'Aún no tienes pagos registrados'}
+                  />
                 ) : (
                   <div className="overflow-x-auto">
                     <Table>
