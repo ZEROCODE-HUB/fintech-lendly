@@ -1,7 +1,7 @@
 import { supabase } from './supabase';
 
-const INCRESCENDO_API_BASE_URL = 'https://increscendo-api.vercel.app';
-// const INCRESCENDO_API_BASE_URL = 'http://localhost:3000';
+// const INCRESCENDO_API_BASE_URL = 'https://increscendo-api.vercel.app';
+const INCRESCENDO_API_BASE_URL = 'http://localhost:3000';
 
 
 export const getSupabaseAccessToken = async () => {
