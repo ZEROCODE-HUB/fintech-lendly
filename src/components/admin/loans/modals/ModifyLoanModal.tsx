@@ -52,8 +52,8 @@ export const ModifyLoanModal = ({ open, onOpenChange, loan, onSend, onSave }: Mo
     if (!loan) return [];
 
     const l = loan.raw ?? loan;
-    const P = Number(l.amount ?? amount ?? 0);
-    const n = Number(l.installments ?? installments ?? 12);
+    const P = Number((amount || l.amount) ?? 0);
+    const n = Number((installments || l.installments) ?? 12);
     const annualRate = rate / 100;
     const monthlyRate = annualRate / 12;
 
@@ -100,8 +100,16 @@ export const ModifyLoanModal = ({ open, onOpenChange, loan, onSend, onSave }: Mo
   }, [loan, amount, installments, rate]);
 
   const schedule = calculateSchedule;
-  const monthlyPayment = schedule[0]?.payment || 0;
-  const totalPayment = monthlyPayment * (installments || schedule.length);
+
+  const monthlyPayment = useMemo(() => {
+    const P = Number(amount || 0);
+    const n = Number(installments || 12);
+    const monthlyRate = (rate / 100) / 12;
+    if (monthlyRate === 0) return P / n;
+    return Math.round(P * monthlyRate / (1 - Math.pow(1 + monthlyRate, -n)));
+  }, [amount, installments, rate]);
+
+  const totalPayment = monthlyPayment * (Number(installments) || 12);
 
   const handleSave = async () => {
     if (!loan) return;

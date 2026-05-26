@@ -15,4 +15,10 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  optimizeDeps: {
+    include: ["jspdf", "xlsx"],
+    esbuildOptions: {
+      resolveExtensions: ['.js', '.ts', '.jsx', '.tsx', '.json'],
+    },
+  },
 }));

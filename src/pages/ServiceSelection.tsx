@@ -2,7 +2,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { CreditCard, Banknote, ArrowRight, Loader } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
-import logoFull from "@/assets/logo-full.webp";
+import logoFull from "@/assets/logo-full.png";
 import { increscendoApiFetch } from "@/lib/increscendoApi";
 
 const ServiceSelection = () => {
@@ -63,7 +63,6 @@ const ServiceSelection = () => {
 
       console.log('[ServiceSelection] ventana abierta exitosamente');
 
-      // Esperar 1 segundo antes de desactivar loading
       await new Promise(resolve => setTimeout(resolve, 1000));
       setLoading(false);
       console.log('[ServiceSelection] loading desactivado');
@@ -87,20 +86,18 @@ const ServiceSelection = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-accent/5">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-accent/5 flex flex-col">
       {/* Logo Header */}
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-8">
-        <div className="flex justify-center">
-          <img src={logoFull} alt="Increscendo Fintech" className="h-48 sm:h-64 md:h-80 lg:h-96 w-auto" />
-        </div>
+      <div className="flex justify-center mt-6 sm:mt-8">
+        <img src={logoFull} alt="Increscendo Fintech" className="h-20 sm:h-28" />
       </div>
 
       {/* Main Content - Centered Cards */}
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-2 sm:py-4 flex-1 flex items-center justify-center">
-        <div className="w-full max-w-4xl">
+      <div className="flex-1 flex items-center justify-center">
+        <div className="w-full max-w-4xl px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
           {/* Welcome Message */}
           <div className="text-center mb-6 sm:mb-8 animate-fade-in">
-            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-2 sm:mb-3 bg-gradient-hero bg-clip-text text-transparent">
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-1 sm:mb-1 bg-gradient-hero bg-clip-text text-transparent">
               Bienvenido
             </h2>
             <p className="text-muted-foreground text-sm sm:text-base md:text-lg px-4">

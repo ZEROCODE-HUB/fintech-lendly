@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,10 +20,12 @@ import {
   Tag,
   Receipt,
   CheckCircle2,
-  ArrowLeft,
   CreditCard,
-  FileText
+  FileText,
+  Zap,
+  X
 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { defaultMemberships } from "@/data/memberships";
 import { supabase } from "@/lib/supabase";
@@ -46,7 +48,28 @@ const MembershipCheckout = () => {
   const membershipId = state?.membershipId;
   const returnTo = state?.returnTo || "/memberships";
 
-  // Prefer membership object passed via navigation state, otherwise fall back to lookup by id
+  const [userProfile, setUserProfile] = useState<{ first_name?: string; last_name?: string; email?: string } | null>(null);
+
+  useEffect(() => {
+    if (!userId) return;
+    supabase.from('profiles').select('first_name,last_name,email').eq('id', userId).single()
+      .then(({ data }) => { if (data) setUserProfile(data); });
+  }, [userId]);
+
+  const cardholderName = userProfile
+    ? `${userProfile.first_name ?? ''} ${userProfile.last_name ?? ''}`.trim()
+    : 'Usuario';
+
+  const formatDate = (v?: string) => {
+    if (!v) return '—';
+    try {
+      const d = new Date(v);
+      return d.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
+    } catch { return v; }
+  };
+
+  const formatMoney = (v: number) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(v);
+
   const membership = (state?.membership as any)
     || (membershipId ? defaultMemberships.find((m) => m.id === membershipId) : null)
     || defaultMemberships[0];
@@ -72,7 +95,6 @@ const MembershipCheckout = () => {
   };
 
   const originalPrice = Number(membership?.cost ?? membership?.price ?? 0) || 0;
-  // compute discount preview (either percent or fixed amount)
   const discountAmount = appliedCoupon ? (discountPercent ? Math.round((originalPrice * discountPercent) / 100) : discountFixedAmount) : 0;
   const finalTotal = Math.max(0, originalPrice - discountAmount);
 
@@ -80,595 +102,352 @@ const MembershipCheckout = () => {
     const code = couponCode?.toUpperCase().trim();
     if (!code) return;
     try {
-      const { data: coupon, error } = await supabase
-        .from('coupons')
-        .select('*')
-        .eq('code', code)
-        .maybeSingle();
+      const { data: coupon, error } = await supabase.from('coupons').select('*').eq('code', code).maybeSingle();
       if (error) throw error;
-      if (!coupon) {
-        return toast({ title: 'Cupón inválido', description: 'El código ingresado no es válido', variant: 'destructive' });
-      }
-
-      // Basic validations (do NOT consume/redce usage here)
-      if (!coupon.active) return toast({ title: 'Cupón inactivo', description: 'Este cupón no está activo', variant: 'destructive' });
+      if (!coupon) return toast({ title: 'Cupón inválido', description: 'Código no válido', variant: 'destructive' });
+      if (!coupon.active) return toast({ title: 'Cupón inactivo', variant: 'destructive' });
       const now = new Date();
-      if (coupon.starts_at && new Date(coupon.starts_at) > now) return toast({ title: 'No disponible aún', description: 'El cupón aún no está activo', variant: 'destructive' });
-      // treat ends_at <= now as expired
-      if (coupon.ends_at && new Date(coupon.ends_at) <= now) return toast({ title: 'Expirado', description: 'El cupón ya expiró', variant: 'destructive' });
+      if (coupon.starts_at && new Date(coupon.starts_at) > now) return toast({ title: 'Cupón aún no disponible', variant: 'destructive' });
+      if (coupon.ends_at && new Date(coupon.ends_at) <= now) return toast({ title: 'Cupón expirado', variant: 'destructive' });
       if (coupon.max_redemptions !== null && coupon.redeemed_count !== null && coupon.redeemed_count >= coupon.max_redemptions) {
-        return toast({ title: 'Cupon agotado', description: 'El cupón alcanzó su límite de usos', variant: 'destructive' });
+        return toast({ title: 'Cupón agotado', variant: 'destructive' });
       }
 
-      // Set applied coupon locally (do not update DB yet)
       setAppliedCoupon(coupon);
-      if (coupon.discount_percent !== null && coupon.discount_percent !== undefined) {
-        setDiscountPercent(Number(coupon.discount_percent));
-        setDiscountFixedAmount(0);
-      } else if (coupon.discount_amount !== null && coupon.discount_amount !== undefined) {
-        setDiscountPercent(null);
-        setDiscountFixedAmount(Number(coupon.discount_amount));
-      } else {
-        setDiscountPercent(null);
-        setDiscountFixedAmount(0);
-      }
+      if (coupon.discount_percent !== null) setDiscountPercent(Number(coupon.discount_percent)), setDiscountFixedAmount(0);
+      else if (coupon.discount_amount !== null) setDiscountPercent(null), setDiscountFixedAmount(Number(coupon.discount_amount));
+      else setDiscountPercent(null), setDiscountFixedAmount(0);
 
       toast({ title: '¡Cupón aplicado!', description: coupon.discount_percent ? `-${coupon.discount_percent}%` : `-$${coupon.discount_amount}` });
     } catch (err) {
-      console.error('[MembershipCheckout] apply coupon', err);
-      toast({ title: 'Error', description: 'Error al validar el cupón', variant: 'destructive' });
+      toast({ title: 'Error', description: 'No se pudo validar el cupón', variant: 'destructive' });
     }
   };
 
   const handleRemoveCoupon = () => {
-    setCouponCode("");
     setAppliedCoupon(null);
     setDiscountPercent(null);
     setDiscountFixedAmount(0);
+    setCouponCode("");
   };
 
   const handleProceedToPayment = () => {
     if (!termsAccepted) {
-      toast({
-        title: "Términos requeridos",
-        description: "Debes aceptar los Términos y Condiciones para continuar",
-        variant: "destructive",
-      });
+      toast({ title: "Acepta los términos", description: "Debes aceptaarlos para continuar", variant: "destructive" });
       return;
     }
-
     if (requestInvoice && (!rfc || !fiscalAddress)) {
-      toast({
-        title: "Datos incompletos",
-        description: "Por favor completa los datos de facturación",
-        variant: "destructive",
-      });
+      toast({ title: "Datos incompletos", description: "Completa los datos de facturación", variant: "destructive" });
       return;
     }
 
-    // Call local acquire-membership endpoint and show preview or error modal
     (async () => {
       try {
         if (!userId) throw new Error('Usuario no autenticado');
-
         setAcquiring(true);
         const resp = await increscendoApiFetch('/acquire-membership', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ user_id: userId, membership_plan_id: membership.id }),
         });
-
         const json = await resp.json().catch(() => null);
-
         const hasConektaError = json?.error?.includes?.('ref_conekta') || json?.message?.includes?.('ref_conekta') || JSON.stringify(json).includes('ref_conekta');
 
         if (!resp.ok || !json) {
-          console.error('[acquire-membership] Error', resp.status, json);
-          if (isMissingCardError(json) || isMissingCardError((json as any)?.message)) {
-            setCardErrorOpen(true);
-            return;
-          }
-          if (hasConektaError) {
-            setNoConektaModalOpen(true);
-            return;
-          }
-          toast({ title: 'Error', description: 'Error al comunicarse con el servicio de membresías', variant: 'destructive' });
+          if (isMissingCardError(json) || isMissingCardError((json as any)?.message)) { setCardErrorOpen(true); return; }
+          if (hasConektaError) { setNoConektaModalOpen(true); return; }
+          toast({ title: 'Error', description: 'Error al comunicar con el servicio', variant: 'destructive' });
           return;
         }
 
-        if (json.ok === true) {
-          // show preview modal with returned data
-          setPreviewData(json);
-          setPreviewOpen(true);
-        } else {
-          // handle specific known errors
+        if (json.ok === true) setPreviewData(json), setPreviewOpen(true);
+        else {
           const msg = json.message || JSON.stringify(json);
-          if (isMissingCardError(msg)) {
-            setCardErrorOpen(true);
-          } else if (msg.includes('ref_conekta')) {
-            setNoConektaModalOpen(true);
-          } else {
-            toast({ title: 'Error', description: msg, variant: 'destructive' });
-          }
+          if (isMissingCardError(msg)) setCardErrorOpen(true);
+          else if (msg.includes('ref_conekta')) setNoConektaModalOpen(true);
+          else toast({ title: 'Error', description: msg, variant: 'destructive' });
         }
       } catch (err) {
-        console.error('[MembershipCheckout] acquire', err);
         const errMsg = err instanceof Error ? err.message : JSON.stringify(err);
-        if (isMissingCardError(err) || errMsg.includes('ref_conekta')) {
-          setNoConektaModalOpen(true);
-        } else {
-          toast({ title: 'Error', description: (err instanceof Error) ? err.message : 'Error al adquirir la membresía', variant: 'destructive' });
-        }
+        if (isMissingCardError(errMsg) || errMsg.includes('ref_conekta')) setNoConektaModalOpen(true);
+        else toast({ title: 'Error', description: (err instanceof Error) ? err.message : 'Error al adquirir', variant: 'destructive' });
       } finally {
         setAcquiring(false);
       }
     })();
   };
 
-  const handleBack = () => {
-    navigate(returnTo);
-  };
-
   const handleAcceptTerms = () => {
     setTermsAccepted(true);
     setTermsModalOpen(false);
-    toast({
-      title: "Términos aceptados",
-      description: "Has aceptado los Términos y Condiciones",
-    });
+    toast({ title: "Términos aceptados" });
   };
 
   return (
     <>
-      <div className="p-4 sm:p-6 max-w-3xl mx-auto space-y-4 sm:space-y-6">
-        <Card className="shadow-soft">
-          <CardHeader className="p-4 sm:p-6">
-            <CardTitle className="flex items-center gap-2">
-              <Receipt className="h-5 w-5 text-primary" />
-              Resumen del Pedido
-            </CardTitle>
-          </CardHeader>
-              <CardContent className="p-4 sm:p-6 pt-0">
-                <div className="flex items-center justify-between p-4 bg-gradient-to-br from-primary/10 to-accent/30 rounded-xl">
-                  <div className="flex items-center gap-4">
-                    <div className="h-14 w-14 rounded-full bg-gradient-hero flex items-center justify-center">
-                      <Crown className="h-7 w-7 text-white" />
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-lg">{membership.name ?? membership.title}</h3>
-                      <p className="text-sm text-muted-foreground">Renovación {membership.renewalPeriod ?? membership.duration_days ?? ''}</p>
-                    </div>
+      <div className="p-4 sm:p-6 md:px-8 mx-auto space-y-4">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-lg sm:text-xl font-bold">Adquirir Membresía</h1>
+            <p className="text-xs sm:text-sm text-muted-foreground">Confirma y completa tu compra</p>
+          </div>
+          <Button variant="ghost" size="sm" onClick={() => navigate(returnTo)} className="text-muted-foreground shrink-0">
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+
+        <div className="grid grid-cols-1 xl:grid-cols-5 gap-4">
+          {/* Left column */}
+          <div className="xl:col-span-3 space-y-3">
+            {/* Plan card */}
+            <Card className="shadow-soft">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-full bg-gradient-hero flex items-center justify-center">
+                    <Crown className="h-5 w-5 text-white" />
                   </div>
-                  <div className="text-right">
-                    <p className="text-2xl font-bold text-primary">
-                      ${originalPrice.toLocaleString()} <span className="text-sm font-normal text-muted-foreground">MXN</span>
-                    </p>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-sm truncate">{membership.name ?? membership.title}</p>
+                    <p className="text-xs text-muted-foreground">{membership.renewalPeriod}</p>
                   </div>
+                  <p className="text-lg font-bold text-primary">{formatMoney(originalPrice)}</p>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Coupon Section */}
+            {/* Coupon card */}
             <Card className="shadow-soft">
-              <CardHeader className="p-4 sm:p-6">
-                <CardTitle className="flex items-center gap-2">
-                  <Tag className="h-5 w-5 text-primary" />
-                  Cupón de Descuento
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-4 sm:p-6 pt-0">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <Tag className="h-4 w-4 text-primary shrink-0" />
+                  <span className="text-sm font-medium">¿Tienes un cupón?</span>
+                </div>
                 {appliedCoupon ? (
-                  <div className="flex items-center justify-between p-4 bg-success/10 border border-success/30 rounded-xl">
-                    <div className="flex items-center gap-3">
-                      <CheckCircle2 className="h-5 w-5 text-success" />
-                      <div>
-                        <p className="font-medium">Cupón aplicado</p>
-                        <p className="text-sm text-muted-foreground">{discountPercent !== null ? `${discountPercent}% de descuento` : discountFixedAmount ? `-$${discountFixedAmount}` : ''}</p>
-                      </div>
+                  <div className="flex items-center justify-between p-2.5 bg-success/10 border border-success/20 rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="h-3.5 w-3.5 text-success shrink-0" />
+                      <span className="text-sm font-medium">{appliedCoupon.code}</span>
+                      <Badge variant="outline" className="text-xs text-success border-success/30 ml-1">
+                        {discountPercent !== null ? `-${discountPercent}%` : `-${formatMoney(discountFixedAmount)}`}
+                      </Badge>
                     </div>
-                    <Button variant="ghost" size="sm" onClick={handleRemoveCoupon}>
-                      Quitar
-                    </Button>
+                    <Button variant="ghost" size="sm" onClick={handleRemoveCoupon} className="text-xs">Quitar</Button>
                   </div>
                 ) : (
-                  <div className="flex gap-3">
+                  <div className="flex gap-2">
                     <Input
-                      placeholder="Ingresa tu código de descuento"
+                      placeholder="Código del cupón"
                       value={couponCode}
                       onChange={(e) => setCouponCode(e.target.value)}
-                      className="flex-1"
+                      maxLength={20}
+                      className="text-sm"
                     />
-                    <Button onClick={handleApplyCoupon} disabled={!couponCode}>
-                      Aplicar
-                    </Button>
+                    <Button onClick={handleApplyCoupon} disabled={!couponCode} size="sm" variant="outline">Aplicar</Button>
                   </div>
                 )}
-
               </CardContent>
             </Card>
 
-            {/* Billing Data */}
+            {/* Billing card */}
             <Card className="shadow-soft">
-              <CardHeader className="p-4 sm:p-6">
-                <CardTitle className="flex items-center gap-2">
-                  <CreditCard className="h-5 w-5 text-primary" />
-                  Datos de Facturación
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-4 sm:p-6 pt-0 space-y-4">
-                <div className="flex items-center space-x-3">
-                  <Checkbox
-                    id="request-invoice"
-                    checked={requestInvoice}
-                    onCheckedChange={(checked) => setRequestInvoice(checked as boolean)}
-                  />
-                  <Label htmlFor="request-invoice" className="font-medium cursor-pointer">
-                    ¿Solicitar Factura?
-                  </Label>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <CreditCard className="h-4 w-4 text-primary shrink-0" />
+                  <span className="text-sm font-medium">Facturación</span>
                 </div>
-
+                <div className="flex items-center gap-2">
+                  <Checkbox id="request-invoice" checked={requestInvoice} onCheckedChange={(c) => setRequestInvoice(!!c)} />
+                  <Label htmlFor="request-invoice" className="text-sm cursor-pointer">Solicitar factura fiscal</Label>
+                </div>
                 {requestInvoice && (
-                  <div className="space-y-4 pt-4 border-t animate-in slide-in-from-top-2">
-                    <div className="space-y-2">
-                      <Label htmlFor="rfc">RFC <span className="text-destructive">*</span></Label>
-                      <Input
-                        id="rfc"
-                        placeholder="Ej: XAXX010101000"
-                        value={rfc}
-                        onChange={(e) => setRfc(e.target.value.toUpperCase())}
-                        maxLength={13}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="fiscal-address">Dirección Fiscal <span className="text-destructive">*</span></Label>
-                      <Input
-                        id="fiscal-address"
-                        placeholder="Dirección fiscal completa"
-                        value={fiscalAddress}
-                        onChange={(e) => setFiscalAddress(e.target.value)}
-                      />
-                    </div>
+                  <div className="space-y-2 mt-3 pl-6">
+                    <Input placeholder="RFC" value={rfc} onChange={(e) => setRfc(e.target.value.toUpperCase())} maxLength={13} className="text-sm h-9" />
+                    <Input placeholder="Dirección fiscal completa" value={fiscalAddress} onChange={(e) => setFiscalAddress(e.target.value)} className="text-sm h-9" />
                   </div>
                 )}
-              </CardContent>
-            </Card>
-
-            {/* Terms and Conditions Section */}
-            <Card className="shadow-soft">
-              <CardHeader className="p-4 sm:p-6">
-                <CardTitle className="flex items-center gap-2">
-                  <FileText className="h-5 w-5 text-primary" />
-                  Términos y Condiciones
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-4 sm:p-6 pt-0 space-y-4">
-                <div className="flex items-start space-x-3">
-                  <Checkbox
-                    id="terms-accepted"
-                    checked={termsAccepted}
-                    onCheckedChange={(checked) => setTermsAccepted(checked as boolean)}
-                    className="mt-0.5"
-                  />
-                  <div className="flex-1">
-                    <Label htmlFor="terms-accepted" className="font-medium cursor-pointer leading-relaxed">
-                      He leído y acepto los{" "}
-                      <button
-                        type="button"
-                        onClick={() => setTermsModalOpen(true)}
-                        className="text-primary hover:underline focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded"
-                      >
-                        Términos y Condiciones
-                      </button>
-                      . <span className="text-destructive">*</span>
-                    </Label>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Es obligatorio aceptar los términos para continuar con el pago.
-                    </p>
-                  </div>
-                </div>
-
-                {termsAccepted && (
-                  <div className="flex items-center gap-2 p-3 bg-success/10 border border-success/30 rounded-lg animate-in fade-in-50">
-                    <CheckCircle2 className="h-4 w-4 text-success" />
-                    <span className="text-sm text-success font-medium">Términos aceptados</span>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Total and Payment */}
-            <Card className="shadow-soft border-2 border-primary/20">
-              <CardContent className="p-4 sm:p-6">
-                <div className="space-y-3">
-                  <div className="flex justify-between text-muted-foreground">
-                    <span>Subtotal</span>
-                    <span>${originalPrice.toLocaleString()} MXN</span>
-                  </div>
-
-                  {appliedCoupon && (
-                    <div className="flex justify-between text-success">
-                      <span>{discountPercent !== null ? `Descuento (${discountPercent}%)` : `Descuento`}</span>
-                      <span>-${discountAmount.toLocaleString()} MXN</span>
-                    </div>
-                  )}
-
-                  <Separator />
-
-                  <div className="flex justify-between items-center">
-                    <span className="text-lg font-bold">Total Final</span>
-                    <div className="text-right">
-                      {appliedCoupon && (
-                        <p className="text-sm text-muted-foreground line-through">
-                          ${originalPrice.toLocaleString()} MXN
-                        </p>
-                      )}
-                      <p className="text-2xl font-bold text-primary">
-                        ${finalTotal.toLocaleString()} MXN
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {!termsAccepted && (
-                  <p className="text-xs text-muted-foreground text-center mt-4 p-2 bg-muted/50 rounded-lg">
-                    Acepta los Términos y Condiciones para habilitar el botón de pago
-                  </p>
-                )}
-
-                <div className="space-y-3 mt-6">
-                  <Button
-                    className="w-full"
-                    size="lg"
-                    onClick={handleProceedToPayment}
-                    disabled={!termsAccepted || acquiring}
-                  >
-                    {acquiring ? 'Procesando...' : 'Proceder al Pago'}
-                  </Button>
-
-                  <Button
-                    variant="outline"
-                    className="w-full gap-2"
-                    size="lg"
-                    onClick={handleBack}
-                  >
-                    <ArrowLeft className="h-4 w-4" />
-                    Volver
-                  </Button>
-                </div>
               </CardContent>
             </Card>
           </div>
 
-      {/* Terms and Conditions Modal */}
+          {/* Right column: summary */}
+          <div className="xl:col-span-2">
+              <div className="sticky top-4">
+                <Card className="shadow-soft border-2 border-primary/10">
+                  <CardContent className="p-4 space-y-4">
+                    <div className="flex items-center gap-2">
+                      <Receipt className="h-4 w-4 text-primary shrink-0" />
+                      <span className="text-sm font-semibold">Resumen</span>
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-semibold text-foreground truncate mr-2">{membership.name ?? membership.title}</span>
+                        <span className="text-sm font-bold">{formatMoney(originalPrice)}</span>
+                      </div>
+                      {appliedCoupon && (
+                        <div className="flex justify-between text-success">
+                          <span className="text-sm">Descuento</span>
+                          <span className="text-sm font-semibold">-{formatMoney(discountAmount)}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    <Separator />
+
+                    <div className="flex justify-between items-center">
+                      <span className="font-bold text-base">Total</span>
+                      <div className="text-right">
+                        {appliedCoupon && <p className="text-xs text-muted-foreground line-through">{formatMoney(originalPrice)}</p>}
+                        <p className="text-2xl font-extrabold text-primary">{formatMoney(finalTotal)}</p>
+                      </div>
+                    </div>
+
+
+
+              {/* Terms inside card, above button */}
+              <div className="flex items-center gap-2">
+                <Checkbox id="terms-inline" checked={termsAccepted} onCheckedChange={(c) => setTermsAccepted(!!c)} />
+                <Label htmlFor="terms-inline" className="text-xs cursor-pointer leading-relaxed">
+                  Acepto los{" "}
+                  <button type="button" onClick={() => setTermsModalOpen(true)} className="text-primary hover:underline">
+                    Términos y Condiciones
+                  </button>
+                </Label>
+              </div>
+
+              <Button className="w-full" size="lg" onClick={handleProceedToPayment} disabled={!termsAccepted || acquiring}>
+                {acquiring ? 'Procesando...' : 'Confirmar compra'}
+              </Button>
+
+              <Button variant="ghost" className="w-full text-muted-foreground" size="sm" onClick={() => navigate(returnTo)}>
+                Cancelar
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+      {/* Terms Modal */}
       <Dialog open={termsModalOpen} onOpenChange={setTermsModalOpen}>
-        <DialogContent className="max-w-[95vw] md:max-w-2xl max-h-[85vh] flex flex-col p-4 sm:p-6">
+        <DialogContent className="max-w-[95vw] md:max-w-xl max-h-[85vh] flex flex-col p-4">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-xl">
-              <FileText className="h-5 w-5 text-primary" />
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="h-4 w-4 text-primary" />
               Términos y Condiciones
             </DialogTitle>
-            <DialogDescription>
-              Por favor lee detenidamente los siguientes términos antes de continuar.
-            </DialogDescription>
+            <DialogDescription>Lee antes de continuar</DialogDescription>
           </DialogHeader>
 
-          <ScrollArea className="flex-1 pr-4 -mr-4">
-            <div className="space-y-6 text-sm text-muted-foreground text-justified pr-4">
+          <ScrollArea className="flex-1">
+            <div className="space-y-4 text-sm text-muted-foreground pr-4">
               <section>
-                <h3 className="text-base font-semibold text-foreground mb-2">1. Aceptación de los Términos</h3>
-                <p className="leading-relaxed">
-                  Al adquirir una membresía en Increscendo Fintech, el usuario acepta estar sujeto a estos Términos y Condiciones.
-                  Si no está de acuerdo con alguna parte de estos términos, no podrá acceder al servicio ni completar la compra
-                  de la membresía.
-                </p>
+                <h3 className="text-sm font-semibold text-foreground mb-1">1. Aceptación</h3>
+                <p className="leading-relaxed">Al adquirir una membresía aceptas estos términos. Si no estás de acuerdo, no completes la compra.</p>
               </section>
-
               <section>
-                <h3 className="text-base font-semibold text-foreground mb-2">2. Descripción del Servicio</h3>
-                <p className="leading-relaxed">
-                  La membresía otorga acceso a servicios financieros especializados, incluyendo tasas preferenciales en
-                  préstamos, asesoría financiera personalizada, y acceso a productos exclusivos. Los beneficios específicos
-                  varían según el tipo de membresía adquirida (Premier o Gold).
-                </p>
+                <h3 className="text-sm font-semibold text-foreground mb-1">2. Servicio</h3>
+                <p className="leading-relaxed">La membresía otorga acceso a tasas preferenciales y asesoría financiera personalizada.</p>
               </section>
-
               <section>
-                <h3 className="text-base font-semibold text-foreground mb-2">3. Renovación y Vigencia</h3>
-                <p className="leading-relaxed">
-                  Las membresías tienen una vigencia anual a partir de la fecha de adquisición. La renovación puede ser
-                  automática o manual según la preferencia del usuario. Se enviará un recordatorio 30 días antes del
-                  vencimiento de la membresía.
-                </p>
+                <h3 className="text-sm font-semibold text-foreground mb-1">3. Vigencia</h3>
+                <p className="leading-relaxed">Vigencia anual. Renovación automática o manual. Recordatorio 30 días antes del vencimiento.</p>
               </section>
-
               <section>
-                <h3 className="text-base font-semibold text-foreground mb-2">4. Política de Pagos</h3>
-                <p className="leading-relaxed">
-                  El pago de la membresía se realiza de forma anticipada y en una sola exhibición. Aceptamos tarjetas de
-                  crédito, débito y transferencias bancarias. Todos los precios están expresados en pesos mexicanos (MXN)
-                  e incluyen impuestos aplicables.
-                </p>
+                <h3 className="text-sm font-semibold text-foreground mb-1">4. Cancelación</h3>
+                <p className="leading-relaxed">Cancelación dentro de 14 días naturales sin uso del servicio. Después, sin reembolsos.</p>
               </section>
-
               <section>
-                <h3 className="text-base font-semibold text-foreground mb-2">5. Política de Cancelación y Reembolsos</h3>
-                <p className="leading-relaxed">
-                  El usuario podrá solicitar la cancelación de su membresía dentro de los primeros 14 días naturales
-                  posteriores a la adquisición, siempre que no haya utilizado los servicios incluidos. Pasado este período,
-                  no se realizarán reembolsos parciales ni totales.
-                </p>
-              </section>
-
-              <section>
-                <h3 className="text-base font-semibold text-foreground mb-2">6. Uso de Datos Personales</h3>
-                <p className="leading-relaxed">
-                  Los datos personales proporcionados serán tratados conforme a nuestra Política de Privacidad, cumpliendo
-                  con la Ley Federal de Protección de Datos Personales en Posesión de los Particulares. La información
-                  será utilizada exclusivamente para la prestación del servicio.
-                </p>
-              </section>
-
-              <section>
-                <h3 className="text-base font-semibold text-foreground mb-2">7. Obligaciones del Usuario</h3>
-                <p className="leading-relaxed">
-                  El usuario se compromete a proporcionar información veraz y actualizada, mantener la confidencialidad
-                  de sus credenciales de acceso, y utilizar los servicios de manera responsable y conforme a la ley.
-                  El uso indebido resultará en la cancelación inmediata de la membresía sin derecho a reembolso.
-                </p>
-              </section>
-
-              <section>
-                <h3 className="text-base font-semibold text-foreground mb-2">8. Limitación de Responsabilidad</h3>
-                <p className="leading-relaxed">
-                  Increscendo Fintech no será responsable por daños indirectos, incidentales o consecuentes derivados
-                  del uso de los servicios. Nuestra responsabilidad máxima se limitará al monto pagado por la membresía
-                  en el período vigente.
-                </p>
-              </section>
-
-              <section>
-                <h3 className="text-base font-semibold text-foreground mb-2">9. Modificaciones a los Términos</h3>
-                <p className="leading-relaxed">
-                  Nos reservamos el derecho de modificar estos términos en cualquier momento. Los cambios entrarán en
-                  vigor al momento de su publicación. Es responsabilidad del usuario revisar periódicamente estos términos.
-                  El uso continuado del servicio constituye aceptación de las modificaciones.
-                </p>
-              </section>
-
-              <section>
-                <h3 className="text-base font-semibold text-foreground mb-2">10. Jurisdicción y Ley Aplicable</h3>
-                <p className="leading-relaxed">
-                  Estos términos se regirán e interpretarán de acuerdo con las leyes de los Estados Unidos Mexicanos.
-                  Para cualquier controversia, las partes se someten a la jurisdicción de los tribunales competentes
-                  de la Ciudad de México, renunciando a cualquier otro fuero que pudiera corresponderles.
-                </p>
+                <h3 className="text-sm font-semibold text-foreground mb-1">5. Datos personales</h3>
+                <p className="leading-relaxed">Conforme a la Ley Federal de Protección de Datos. Uso exclusivo para la prestación del servicio.</p>
               </section>
             </div>
           </ScrollArea>
 
-          <DialogFooter className="flex-shrink-0 gap-2 pt-4 border-t">
-            <Button variant="outline" onClick={() => setTermsModalOpen(false)}>
-              Cerrar
-            </Button>
-            <Button onClick={handleAcceptTerms}>
-              <CheckCircle2 className="h-4 w-4 mr-2" />
-              Aceptar Términos
-            </Button>
+          <DialogFooter className="pt-4 border-t">
+            <Button variant="outline" onClick={() => setTermsModalOpen(false)}>Cerrar</Button>
+            <Button onClick={handleAcceptTerms}>Aceptar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Preview Dialog: muestra resultado devuelto por /acquire-membership */}
+      {/* Success Dialog */}
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Resumen de la Adquisición</DialogTitle>
-            <DialogDescription>Vista previa del resultado devuelto por el servicio</DialogDescription>
+            <DialogTitle>¡Membresía activada!</DialogTitle>
+            <DialogDescription>Tu membresía está lista</DialogDescription>
           </DialogHeader>
 
-          <div className="p-4">
+          <div className="space-y-3">
             {previewData ? (
               (() => {
-                const c = previewData.conekta ?? null;
                 const src = previewData.added_source ?? null;
                 const um = previewData.user_membership ?? null;
-
-                const format = (v?: string) => {
-                  if (!v) return '—';
-                  try { return new Date(v).toLocaleString(); } catch { return v; }
-                };
-
                 return (
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-3">
-                      <CheckCircle2 className="h-6 w-6 text-success" />
+                  <>
+                    <div className="flex items-center gap-3 p-3 bg-success/10 border border-success/20 rounded-lg">
+                      <div className="h-10 w-10 rounded-full bg-success flex items-center justify-center">
+                        <Zap className="h-5 w-5 text-white" />
+                      </div>
                       <div>
-                        <h3 className="text-lg font-semibold">Membresía adquirida</h3>
-                        <p className="text-sm text-muted-foreground">Compra completada correctamente</p>
+                        <p className="font-semibold text-sm">{membership.name ?? membership.title}</p>
+                        <Badge className={`mt-1 text-xs ${um?.status === 'active' ? 'bg-success' : 'bg-warning'}`}>Activa</Badge>
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3 text-sm">
-                      <div className="space-y-1">
-                        <div className="text-muted-foreground">Subscripción</div>
-                        <div className="font-medium">{c?.id ?? '—'}</div>
+                    <div className="border rounded-lg overflow-hidden">
+                      <div className="grid grid-cols-2 divide-x">
+                        <div className="px-3 py-2">
+                          <p className="text-xs text-muted-foreground">Monto</p>
+                          <p className="text-sm font-bold text-primary">{formatMoney(finalTotal)}</p>
+                        </div>
+                        <div className="px-3 py-2">
+                          <p className="text-xs text-muted-foreground">Método</p>
+                          <p className="text-sm">{src ? `${src.brand} •••• ${src.last4}` : 'Tarjeta'}</p>
+                        </div>
                       </div>
-                      <div className="space-y-1">
-                        <div className="text-muted-foreground">Estado</div>
-                        <div className="font-medium">{c?.status ?? (previewData.ok ? 'active' : '—')}</div>
-                      </div>
-
-                      <div className="space-y-1">
-                        <div className="text-muted-foreground">Plan</div>
-                        <div className="font-medium">{c?.plan_id ?? '—'}</div>
-                      </div>
-                      <div className="space-y-1">
-                        <div className="text-muted-foreground">Método</div>
-                        <div className="font-medium">{src ? `${src.brand ?? ''} •••• ${src.last4 ?? src.id ?? '—'}` : '—'}</div>
-                      </div>
-
-                      <div className="space-y-1">
-                        <div className="text-muted-foreground">Titular</div>
-                        <div className="font-medium">{src?.name ?? um?.cardholder ?? '—'}</div>
-                      </div>
-                      <div className="space-y-1">
-                        <div className="text-muted-foreground">Expira</div>
-                        <div className="font-medium">{(src?.exp_month && src?.exp_year) ? `${src.exp_month}/${src.exp_year}` : (um?.expires_at ? format(um.expires_at) : '—')}</div>
-                      </div>
-
-                      <div className="space-y-1 col-span-2">
-                        <div className="text-muted-foreground">Membership ID</div>
-                        <div className="font-medium">{um?.id ?? '—'}</div>
-                      </div>
-
-                      <div className="space-y-1">
-                        <div className="text-muted-foreground">Inicio</div>
-                        <div className="font-medium">{format(um?.started_at)}</div>
-                      </div>
-                      <div className="space-y-1">
-                        <div className="text-muted-foreground">Expira</div>
-                        <div className="font-medium">{format(um?.expires_at)}</div>
+                      <div className="border-t px-3 py-2">
+                        <p className="text-xs text-muted-foreground">Vigencia</p>
+                        <p className="text-sm">{formatDate(um?.started_at)} — {formatDate(um?.expires_at)}</p>
                       </div>
                     </div>
-                  </div>
+                  </>
                 );
               })()
-            ) : (
-              <p>No hay datos para mostrar</p>
-            )}
+            ) : null}
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setPreviewOpen(false)}>Cerrar</Button>
-            <Button onClick={() => { setPreviewOpen(false); navigate('/memberships'); }}>Finalizar</Button>
+            <Button onClick={() => { setPreviewOpen(false); navigate(returnTo); }}>Finalizar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Card error modal: muestra cuando no hay tarjetas guardadas */}
+      {/* No card modal */}
       <Dialog open={cardErrorOpen} onOpenChange={setCardErrorOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Necesitas agregar una tarjeta</DialogTitle>
-            <DialogDescription>
-              Necesitas agregar una tarjeta a tu método de pago para completar la suscripción.
-            </DialogDescription>
+            <DialogTitle>Agrega una tarjeta</DialogTitle>
+            <DialogDescription>Agrega un método de pago para completar la suscripción.</DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCardErrorOpen(false)}>Cerrar</Button>
-            <Button onClick={() => { setCardErrorOpen(false); navigate('/payment-methods'); }}>Agregar Tarjeta</Button>
+            <Button onClick={() => { setCardErrorOpen(false); navigate('/payment-methods'); }}>Agregar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* No conekta modal: muestra cuando el usuario no tiene ref_conekta */}
+      {/* No conekta modal */}
       <Dialog open={noConektaModalOpen} onOpenChange={setNoConektaModalOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Agrega un método de pago</DialogTitle>
-            <DialogDescription>
-              Para adquirir esta membresía necesitas agregar primero una tarjeta en Métodos de Pago.
-            </DialogDescription>
+            <DialogTitle>Método de pago requerido</DialogTitle>
+            <DialogDescription>Agrega una tarjeta para continuar.</DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setNoConektaModalOpen(false)}>Cerrar</Button>

@@ -27,6 +27,44 @@ import { SendReminderModal, SellPortfolioModal, UpdateInstallmentsModal } from "
 import { jsPDF } from "jspdf";
 import * as XLSX from "xlsx";
 
+const BANK_LIST = [
+  { id: "mx_afirme", name: "Banca Afirme" },
+  { id: "mx_alianza", name: "Alianza" },
+  { id: "mx_america", name: "Bank of America" },
+  { id: "mx_amex", name: "American Express Bank" },
+  { id: "mx_amigo", name: "Banco Amigo" },
+  { id: "mx_azteca", name: "Banco Azteca" },
+  { id: "mx_bajio", name: "Banco del Bajío" },
+  { id: "mx_bancoppel", name: "Bancoppel" },
+  { id: "mx_banjercito", name: "Banjercito" },
+  { id: "mx_banorte", name: "Banorte" },
+  { id: "mx_banxico", name: "Banco de Mexico" },
+  { id: "mx_bbva_bancomer", name: "BBVA" },
+  { id: "mx_ci", name: "CI Banco" },
+  { id: "mx_citi_banamex", name: "City Banamex" },
+  { id: "mx_compartamos", name: "Banco Compartamos" },
+  { id: "mx_famsa", name: "Banco Ahorro Famsa" },
+  { id: "mx_fundacion_donde", name: "Fundación Donde" },
+  { id: "mx_hsbc", name: "HSBC" },
+  { id: "mx_inbursa", name: "Banco Inbursa" },
+  { id: "mx_ing", name: "ING MX" },
+  { id: "mx_interacciones", name: "Banco Interacciones" },
+  { id: "mx_intercam", name: "Intercam Banco" },
+  { id: "mx_invex", name: "Banco Invex" },
+  { id: "mx_ixe", name: "IXE Banco" },
+  { id: "mx_mercantil_norte", name: "Banco Mercantil del Norte" },
+  { id: "mx_mifel", name: "Banco Mifel" },
+  { id: "mx_monterrey_regional", name: "Monterrey Regional" },
+  { id: "mx_multiva", name: "Banco Multiva" },
+  { id: "mx_nacional_ejercito", name: "Banco Nacional del Ejército" },
+  { id: "mx_regional_monterrey", name: "Banco Regional de Monterrey" },
+  { id: "mx_santander", name: "Santander" },
+  { id: "mx_scotiabank", name: "Scotia Bank" },
+  { id: "mx_scotiabank_inverlat", name: "Scotiabank Inverlat" },
+];
+
+const getBankName = (bankId: string) => BANK_LIST.find(b => b.id === bankId)?.name ?? bankId;
+
 const defaultPendingColumns: ColumnConfig[] = [
   { key: 'id', label: 'ID', visible: true },
   { key: 'firstName', label: 'Nombres', visible: true },
@@ -376,8 +414,8 @@ const LoanManagement = () => {
       signatureStatus: latestSignature ? 'Firmado' : (l.status === 'signed' ? 'Firmado' : 'Espera'),
       contractStatus: l.status === 'signed' ? 'Firmado' : l.status,
       disbursementStatus: latestDisbursement ? 'Desembolsado' : (l.status === 'disbursed' ? 'Desembolsado' : 'Pendiente'),
-      bank: latestDisbursement?.destination_account?.bank ?? l.metadata?.bank ?? '',
-      accountNumber: latestDisbursement?.destination_account?.clabe ?? l.metadata?.clabe ?? '',
+      bank: latestDisbursement?.destination_account?.bank ?? l.metadata?.depositData?.bank ?? '',
+      accountNumber: latestDisbursement?.destination_account?.clabe ?? l.metadata?.depositData?.clabe ?? '',
       lastPaymentDate,
       nextPaymentDate,
       overdue: overdueFlag,
@@ -542,7 +580,7 @@ const LoanManagement = () => {
   const [historyColumns, setHistoryColumns] = useState(defaultHistoryColumns);
 
   // Modal states
-  const [detailsModal, setDetailsModal] = useState<{ open: boolean; loan: any | null }>({ open: false, loan: null });
+  const [detailsModal, setDetailsModal] = useState<{ open: boolean; loan: any | null; sourceTab?: string }>({ open: false, loan: null });
   const [ineCurpModal, setIneCurpModal] = useState<{ open: boolean; loan: any | null; type: 'ine' | 'curp' }>({ open: false, loan: null, type: 'ine' });
   const [modifyModal, setModifyModal] = useState<{ open: boolean; loan: any | null }>({ open: false, loan: null });
   const [approveDialog, setApproveDialog] = useState<{ open: boolean; loan: any | null }>({ open: false, loan: null });
@@ -580,23 +618,23 @@ const LoanManagement = () => {
               .eq('status', 'active')
               .maybeSingle()
               .then(({ data: membershipData }) => {
-                const updatedUser = membershipData 
+                const updatedUser = membershipData
                   ? { ...data.users, user_memberships: [membershipData] }
                   : data.users;
                 const preservedData = {
                   ...data,
                   interest_rate: data.interest_rate ?? existingInterestRate ?? 0.20
                 };
-                setDetailsModal(prev => ({ 
-                  ...prev, 
-                  loan: { 
-                    ...prev.loan, 
-                    raw: { 
+                setDetailsModal(prev => ({
+                  ...prev,
+                  loan: {
+                    ...prev.loan,
+                    raw: {
                       ...prev.loan?.raw,
-                      ...preservedData, 
-                      users: updatedUser 
-                    } 
-                  } 
+                      ...preservedData,
+                      users: updatedUser
+                    }
+                  }
                 }));
               });
           }
@@ -636,7 +674,7 @@ const LoanManagement = () => {
         else if (key === 'ine') value = loan.ineNumber || 'N/A';
         else if (key === 'curp') value = loan.curpNumber || 'N/A';
         else if (key === 'membership') value = loan.membership || 'N/A';
-        else if (key === 'bank') value = loan.bank || 'N/A';
+        else if (key === 'bank') value = getBankName(loan.bank) || 'N/A';
         else if (key === 'accountNumber') value = loan.accountNumber || 'N/A';
         row[col.label] = value ?? '';
       });
@@ -665,19 +703,19 @@ const LoanManagement = () => {
     const loan = approveDialog.loan;
     if (!loan) return;
     const loanId = loan.uuid ?? loan.raw?.id ?? loan.id;
-    
+
     setApproveDialog({ open: false, loan: null });
     setApprovingState({ open: true, message: 'Iniciando aprobación...' });
-    
+
     let messageIndex = 0;
     const updateMessage = () => {
       setApprovingState(prev => ({ ...prev, message: APPROVE_MESSAGES[messageIndex] || APPROVE_MESSAGES[APPROVE_MESSAGES.length - 1] }));
       messageIndex = Math.min(messageIndex + 1, APPROVE_MESSAGES.length - 1);
     };
-    
+
     const messageInterval = setInterval(updateMessage, 2000);
     updateMessage();
-    
+
     try {
       if (loanId) {
         setApprovingState(prev => ({ ...prev, message: 'Verificando consentimiento bancario...' }));
@@ -857,6 +895,7 @@ const LoanManagement = () => {
       toast({ title: 'Desembolso confirmado', description: 'El préstamo se marcó como activo y el voucher fue subido.' });
       setConfirmDisbursementModal({ open: false, loan: null });
       await reloadCurrentTab();
+      queryClient.invalidateQueries({ queryKey: ['loans', 'admin', 'active'] });
     } catch (err) {
       console.error('Error confirmando desembolso', err);
       toast({ title: 'Error', description: 'No se pudo confirmar el desembolso.', variant: 'destructive' });
@@ -945,1002 +984,1002 @@ const LoanManagement = () => {
   return (
     <div className="p-4 sm:p-6 md:px-6 lg:p-8">
       <Tabs value={activeTab} onValueChange={(v) => {
-            setActiveTab(v);
-          }} className="w-full">
-            <div className="overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0 mb-4 sm:mb-6">
-              <TabsList className="inline-flex w-auto min-w-full sm:grid sm:w-full sm:max-w-4xl sm:grid-cols-6">
-                <TabsTrigger value="pending" className="text-xs sm:text-sm whitespace-nowrap">Pendiente</TabsTrigger>
-                <TabsTrigger value="contract" className="text-xs sm:text-sm whitespace-nowrap">Firma</TabsTrigger>
-                <TabsTrigger value="disbursement" className="text-xs sm:text-sm whitespace-nowrap">Desembolso</TabsTrigger>
-                <TabsTrigger value="active" className="text-xs sm:text-sm whitespace-nowrap">Activos</TabsTrigger>
-                <TabsTrigger value="overdue" className="text-xs sm:text-sm whitespace-nowrap">Atrasados</TabsTrigger>
-                <TabsTrigger value="history" className="text-xs sm:text-sm whitespace-nowrap">Historial</TabsTrigger>
-              </TabsList>
-            </div>
+        setActiveTab(v);
+      }} className="w-full">
+        <div className="overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0 mb-4 sm:mb-6">
+          <TabsList className="inline-flex w-auto min-w-full sm:grid sm:w-full sm:max-w-4xl sm:grid-cols-6">
+            <TabsTrigger value="pending" className="text-xs sm:text-sm whitespace-nowrap">Pendiente</TabsTrigger>
+            <TabsTrigger value="contract" className="text-xs sm:text-sm whitespace-nowrap">Firma</TabsTrigger>
+            <TabsTrigger value="disbursement" className="text-xs sm:text-sm whitespace-nowrap">Desembolso</TabsTrigger>
+            <TabsTrigger value="active" className="text-xs sm:text-sm whitespace-nowrap">Activos</TabsTrigger>
+            <TabsTrigger value="overdue" className="text-xs sm:text-sm whitespace-nowrap">Atrasados</TabsTrigger>
+            <TabsTrigger value="history" className="text-xs sm:text-sm whitespace-nowrap">Historial</TabsTrigger>
+          </TabsList>
+        </div>
 
-              {/* PENDIENTE Tab */}
-              <TabsContent value="pending">
-                <Card className="shadow-soft">
-                  <CardHeader>
-                    <CardTitle>Solicitudes Pendientes</CardTitle>
-                    <CardDescription>Revisa y aprueba nuevas solicitudes de préstamo</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <LoanTableFilters
-                      searchTerm={pendingSearch}
-                      onSearchChange={setPendingSearch}
-                      sortOrder={pendingSort}
-                      onSortChange={setPendingSort}
-                      columns={pendingColumns}
-                      onColumnsChange={setPendingColumns}
-                      showExport
-                      onExport={exportToExcel}
-                    />
-                    <div className="overflow-x-auto">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            {isColumnVisible(pendingColumns, 'id') && <TableHead>ID</TableHead>}
-                            {isColumnVisible(pendingColumns, 'firstName') && <TableHead>Nombres</TableHead>}
-                            {isColumnVisible(pendingColumns, 'lastName') && <TableHead>Apellidos</TableHead>}
-                            {isColumnVisible(pendingColumns, 'amount') && <TableHead>Monto</TableHead>}
-                            {isColumnVisible(pendingColumns, 'installments') && <TableHead>Cuotas</TableHead>}
-                            {isColumnVisible(pendingColumns, 'preApproval') && <TableHead>Pre-Aprob.</TableHead>}
-                            {isColumnVisible(pendingColumns, 'membership') && <TableHead>Membresía</TableHead>}
-                            {isColumnVisible(pendingColumns, 'ine') && <TableHead>INE</TableHead>}
-                            {isColumnVisible(pendingColumns, 'curp') && <TableHead>CURP</TableHead>}
-                            {isColumnVisible(pendingColumns, 'consent') && <TableHead>Consentimiento</TableHead>}
-                            {isColumnVisible(pendingColumns, 'requestDate') && <TableHead>F. Solicitud</TableHead>}
-                            {isColumnVisible(pendingColumns, 'actions') && <TableHead>Acciones</TableHead>}
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {pendingLoading ? renderSkeletonRows(pendingColumns) : pendingLoansData.length === 0 ? (
-                              <TableRow>
-                                <TableCell colSpan={pendingColumns.filter(c => c.visible).length || 12} className="text-center py-12">
-                                  <div className="flex flex-col items-center gap-3">
-                                    <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center">
-                                      <FileText className="h-6 w-6 text-muted-foreground" />
-                                    </div>
-                                    <div>
-                                      <p className="font-medium text-gray-900">No hay solicitudes pendientes</p>
-                                      <p className="text-sm text-muted-foreground mt-1">Las nuevas solicitudes aparecerán aquí</p>
-                                    </div>
-                                  </div>
-                                </TableCell>
-                              </TableRow>
-                            ) : (
-                              pendingLoansData.filter(l =>
-                                (l.firstName ?? '').toLowerCase().includes(pendingSearch.toLowerCase()) ||
-                                (l.lastName ?? '').toLowerCase().includes(pendingSearch.toLowerCase()) ||
-                                String(l.id ?? '').toLowerCase().includes(pendingSearch.toLowerCase())
-                              ).map((loan) => (
-                              <TableRow key={loan.id}>
-                                {isColumnVisible(pendingColumns, 'id') && <TableCell className="font-medium whitespace-nowrap">{loan.id}</TableCell>}
-                                {isColumnVisible(pendingColumns, 'firstName') && <TableCell>{loan.firstName}</TableCell>}
-                                {isColumnVisible(pendingColumns, 'lastName') && <TableCell>{loan.lastName}</TableCell>}
-                                {isColumnVisible(pendingColumns, 'amount') && <TableCell className="font-semibold">${loan.amount.toLocaleString()}</TableCell>}
-                                {isColumnVisible(pendingColumns, 'installments') && <TableCell>{loan.installments}</TableCell>}
-                                {isColumnVisible(pendingColumns, 'preApproval') && (
-                                  <TableCell>
-                                    {loan?.raw?.status === 'cancelled' || loan?.status === 'Rechazado' ? (
-                                      getStatusBadge('Rechazado')
-                                    ) : (
-                                      <Badge variant="outline" className="bg-warning/10 text-warning border-warning whitespace-nowrap">{loan.preApproval}</Badge>
-                                    )}
-                                  </TableCell>
-                                )}
-                                {isColumnVisible(pendingColumns, 'membership') && (
-                                  <TableCell className="min-w-[120px]">
-                                    <TooltipProvider>
-                                      <Tooltip>
-                                        <TooltipTrigger asChild>
-                                          <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200 cursor-help whitespace-nowrap">
-                                            <Star className="h-3 w-3 mr-1" />{loan.membership || 'Sin membresía'}
-                                          </Badge>
-                                        </TooltipTrigger>
-                                        <TooltipContent side="top" className="max-w-xs">
-                                          <p className="font-semibold">{loan.membership || 'Sin membresía'}</p>
-                                          {loan.membershipRaw?.price && <p className="text-xs text-muted-foreground">${Number(loan.membershipRaw.price).toLocaleString()}</p>}
-                                          {loan.membershipRaw?.active !== false ? <p className="text-xs text-green-600">Activa</p> : <p className="text-xs text-muted-foreground">Inactiva</p>}
-                                        </TooltipContent>
-                                      </Tooltip>
-                                    </TooltipProvider>
-                                  </TableCell>
-                                )}
-                                {isColumnVisible(pendingColumns, 'ine') && (
-                                  <TableCell>
-                                    <Button variant="link" size="sm" className="p-0 h-auto" onClick={() => setIneCurpModal({ open: true, loan, type: 'ine' })}>
-                                      {loan.ineNumber?.slice(0, 10) ?? 'N/A'}...
-                                    </Button>
-                                  </TableCell>
-                                )}
-                                {isColumnVisible(pendingColumns, 'curp') && (
-                                  <TableCell>
-                                    <Button variant="link" size="sm" className="p-0 h-auto" onClick={() => setIneCurpModal({ open: true, loan, type: 'curp' })}>
-                                      {loan.curpNumber?.slice(0, 10) ?? 'N/A'}...
-                                    </Button>
-                                  </TableCell>
-                                )}
-                                {isColumnVisible(pendingColumns, 'consent') && (
-                                  <TableCell>
-                                    {getConsentBadge(loan.status_consent || loan.raw?.status_consent || loan.statusConsent)}
-                                  </TableCell>
-                                )}
-                                {isColumnVisible(pendingColumns, 'requestDate') && <TableCell className="whitespace-nowrap">{formatDisplayDate(loan.requestDate)}</TableCell>}
-                                {isColumnVisible(pendingColumns, 'actions') && (
-                                  <TableCell>
-                                    <div className="flex gap-1">
-                                      <Button size="sm" variant="ghost" onClick={() => setDetailsModal({ open: true, loan })} title="Ver detalles">
-                                        <Eye className="h-4 w-4" />
-                                      </Button>
-                                      <Button size="sm" variant="ghost" onClick={() => setModifyModal({ open: true, loan })} title="Modificar">
-                                        <Edit className="h-4 w-4" />
-                                      </Button>
-                                      <Button size="sm" variant="ghost" className="text-success hover:text-success" onClick={() => setApproveDialog({ open: true, loan })} title="Aprobar">
-                                        <CheckCircle className="h-4 w-4" />
-                                      </Button>
-                                      <Button size="sm" variant="ghost" className="text-danger hover:text-danger" onClick={() => setRejectDialog({ open: true, loan })} title="Rechazar">
-                                        <XCircle className="h-4 w-4" />
-                                      </Button>
-                                    </div>
-                                  </TableCell>
-                                )}
-                              </TableRow>
-                            )))}
-                        </TableBody>
-                      </Table>
-                    </div>
-                    <div className="flex items-center justify-between mt-4">
-                      <div className="text-sm text-muted-foreground">Mostrando {(pendingPage - 1) * pageSize + 1} - {Math.min(pendingPage * pageSize, pendingTotal)} de {pendingTotal}</div>
-                      <div className="flex items-center gap-2">
-                        {renderPagination(pendingPage, pendingTotal, setPendingPage)}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              {/* FIRMA CONTRATO Tab */}
-              <TabsContent value="contract">
-                <Card className="shadow-soft">
-                  <CardHeader>
-                    <CardTitle>Firma de Contrato</CardTitle>
-                    <CardDescription>Gestiona el proceso de firma de contratos</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <LoanTableFilters
-                      searchTerm={contractSearch}
-                      onSearchChange={setContractSearch}
-                      sortOrder={contractSort}
-                      onSortChange={setContractSort}
-                      columns={contractColumns}
-                      onColumnsChange={setContractColumns}
-                      showExport
-                      onExport={exportToExcel}
-                    />
-                    <div className="overflow-x-auto">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            {isColumnVisible(contractColumns, 'id') && <TableHead>ID</TableHead>}
-                            {isColumnVisible(contractColumns, 'firstName') && <TableHead>Nombres</TableHead>}
-                            {isColumnVisible(contractColumns, 'lastName') && <TableHead>Apellidos</TableHead>}
-                            {isColumnVisible(contractColumns, 'requestDate') && <TableHead>F. Solicitud</TableHead>}
-                            {isColumnVisible(contractColumns, 'amount') && <TableHead>Monto</TableHead>}
-                            {isColumnVisible(contractColumns, 'installments') && <TableHead>Cuotas</TableHead>}
-                            {isColumnVisible(contractColumns, 'membership') && <TableHead>Membresía</TableHead>}
-                            {isColumnVisible(contractColumns, 'ine') && <TableHead>INE</TableHead>}
-                            {isColumnVisible(contractColumns, 'consent') && <TableHead>Consentimiento</TableHead>}
-                            {isColumnVisible(contractColumns, 'curp') && <TableHead>CURP</TableHead>}
-                            {isColumnVisible(contractColumns, 'preApproval') && <TableHead>Pre-Aprob.</TableHead>}
-                            {isColumnVisible(contractColumns, 'signatureStatus') && <TableHead>Estado Firma</TableHead>}
-                            {isColumnVisible(contractColumns, 'resend') && <TableHead>Reenviar</TableHead>}
-                            {isColumnVisible(contractColumns, 'attach') && <TableHead>Adjuntar</TableHead>}
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {contractLoading ? renderSkeletonRows(contractColumns) : contractLoansData.length === 0 ? (
-                            <TableRow>
-                              <TableCell colSpan={contractColumns.filter(c => c.visible).length || 12} className="text-center py-12">
-                                <div className="flex flex-col items-center gap-3">
-                                  <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center">
-                                    <FileText className="h-6 w-6 text-muted-foreground" />
-                                  </div>
-                                  <div>
-                                    <p className="font-medium text-gray-900">No hay contratos por firmar</p>
-                                    <p className="text-sm text-muted-foreground mt-1">Los contratos aprobados aparecerán aquí</p>
-                                  </div>
-                                </div>
-                              </TableCell>
-                            </TableRow>
-                          ) : (
-                            contractLoansData.filter(l =>
-                              (l.firstName ?? '').toLowerCase().includes(contractSearch.toLowerCase()) ||
-                              (l.lastName ?? '').toLowerCase().includes(contractSearch.toLowerCase()) ||
-                              String(l.id ?? '').toLowerCase().includes(contractSearch.toLowerCase())
-                            ).map((loan) => (
-                              <TableRow key={loan.id}>
-                                {isColumnVisible(contractColumns, 'id') && <TableCell className="font-medium whitespace-nowrap">{loan.id}</TableCell>}
-                                {isColumnVisible(contractColumns, 'firstName') && <TableCell>{loan.firstName}</TableCell>}
-                                {isColumnVisible(contractColumns, 'lastName') && <TableCell>{loan.lastName}</TableCell>}
-                                {isColumnVisible(contractColumns, 'requestDate') && <TableCell className="whitespace-nowrap">{formatDisplayDate(loan.requestDate)}</TableCell>}
-                                {isColumnVisible(contractColumns, 'amount') && <TableCell className="font-semibold">${loan.amount.toLocaleString()}</TableCell>}
-                                {isColumnVisible(contractColumns, 'installments') && <TableCell>{loan.installments}</TableCell>}
-                                {isColumnVisible(contractColumns, 'membership') && (
-                                  <TableCell className="min-w-[120px]">
-                                    <TooltipProvider>
-                                      <Tooltip>
-                                        <TooltipTrigger asChild>
-                                          <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200 cursor-help whitespace-nowrap">
-                                            <Star className="h-3 w-3 mr-1" />{loan.membership || 'Sin membresía'}
-                                          </Badge>
-                                        </TooltipTrigger>
-                                        <TooltipContent side="top" className="max-w-xs">
-                                          <p className="font-semibold">{loan.membership || 'Sin membresía'}</p>
-                                          {loan.membershipRaw?.price && <p className="text-xs text-muted-foreground">${Number(loan.membershipRaw.price).toLocaleString()}</p>}
-                                          {loan.membershipRaw?.active !== false ? <p className="text-xs text-green-600">Activa</p> : <p className="text-xs text-muted-foreground">Inactiva</p>}
-                                        </TooltipContent>
-                                      </Tooltip>
-                                    </TooltipProvider>
-                                  </TableCell>
-                                )}
-                                {isColumnVisible(contractColumns, 'ine') && <TableCell>{loan.ineNumber?.slice(0, 10) ?? 'N/A'}...</TableCell>}
-                                {isColumnVisible(contractColumns, 'consent') && (
-                                  <TableCell>{getConsentBadge(loan.status_consent || loan.raw?.status_consent || loan.statusConsent)}</TableCell>
-                                )}
-                                {isColumnVisible(contractColumns, 'curp') && <TableCell>{loan.curpNumber?.slice(0, 10) ?? 'N/A'}...</TableCell>}
-                                {isColumnVisible(contractColumns, 'preApproval') && (
-                                  <TableCell>
-                                    <Badge className="bg-success/20 text-success border-success">{loan.preApproval}</Badge>
-                                  </TableCell>
-                                )}
-                                {isColumnVisible(contractColumns, 'signatureStatus') && (
-                                  <TableCell>{getSignatureStatusBadge(loan.signatureStatus)}</TableCell>
-                                )}
-                                {isColumnVisible(contractColumns, 'resend') && (
-                                  <TableCell>
-                                    <Button size="sm" variant="outline" onClick={() => setResendModal({ open: true, loan })}>
-                                      <Send className="h-4 w-4" />
-                                    </Button>
-                                  </TableCell>
-                                )}
-                                {isColumnVisible(contractColumns, 'attach') && (
-                                  <TableCell>
-                                    <Button size="sm" variant="outline" onClick={() => setAttachModal({ open: true, loan })}>
-                                      <FileText className="h-4 w-4" />
-                                    </Button>
-                                  </TableCell>
-                                )}
-                              </TableRow>
-                            )))}
-                        </TableBody>
-                      </Table>
-                    </div>
-                    <div className="flex items-center justify-between mt-4">
-                      <div className="text-sm text-muted-foreground">Mostrando {(contractPage - 1) * pageSize + 1} - {Math.min(contractPage * pageSize, contractTotal)} de {contractTotal}</div>
-                      <div className="flex items-center gap-2">
-                        {renderPagination(contractPage, contractTotal, setContractPage)}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              {/* DESEMBOLSO Tab */}
-              <TabsContent value="disbursement">
-                <Card className="shadow-soft">
-                  <CardHeader>
-                    <CardTitle>Desembolso</CardTitle>
-                    <CardDescription>Gestiona los desembolsos de préstamos aprobados</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <LoanTableFilters
-                      searchTerm={disbursementSearch}
-                      onSearchChange={setDisbursementSearch}
-                      sortOrder={disbursementSort}
-                      onSortChange={setDisbursementSort}
-                      columns={disbursementColumns}
-                      onColumnsChange={setDisbursementColumns}
-                      showExport
-                      onExport={exportToExcel}
-                    />
-                    <div className="overflow-x-auto">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            {isColumnVisible(disbursementColumns, 'id') && <TableHead>ID</TableHead>}
-                            {isColumnVisible(disbursementColumns, 'firstName') && <TableHead>Nombres</TableHead>}
-                            {isColumnVisible(disbursementColumns, 'lastName') && <TableHead>Apellidos</TableHead>}
-                            {isColumnVisible(disbursementColumns, 'requestDate') && <TableHead>F. Solicitud</TableHead>}
-                            {isColumnVisible(disbursementColumns, 'amount') && <TableHead>Monto</TableHead>}
-                            {isColumnVisible(disbursementColumns, 'installments') && <TableHead>Cuotas</TableHead>}
-                            {isColumnVisible(disbursementColumns, 'bank') && <TableHead>Banco</TableHead>}
-                            {isColumnVisible(disbursementColumns, 'accountNumber') && <TableHead>Cta/CLABE</TableHead>}
-                            {isColumnVisible(disbursementColumns, 'consent') && <TableHead>Consentimiento</TableHead>}
-                            {isColumnVisible(disbursementColumns, 'ine') && <TableHead>INE</TableHead>}
-                            {isColumnVisible(disbursementColumns, 'curp') && <TableHead>CURP</TableHead>}
-                            {isColumnVisible(disbursementColumns, 'contractStatus') && <TableHead>Est. Contrato</TableHead>}
-                            {isColumnVisible(disbursementColumns, 'disbursementStatus') && <TableHead>Est. Desembolso</TableHead>}
-                            {isColumnVisible(disbursementColumns, 'actions') && <TableHead>Acciones</TableHead>}
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {disbursementLoading ? renderSkeletonRows(disbursementColumns) : disbursementLoansData.length === 0 ? (
-                            <TableRow>
-                              <TableCell colSpan={disbursementColumns.filter(c => c.visible).length || 12} className="text-center py-12">
-                                <div className="flex flex-col items-center gap-3">
-                                  <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center">
-                                    <DollarSign className="h-6 w-6 text-muted-foreground" />
-                                  </div>
-                                  <div>
-                                    <p className="font-medium text-gray-900">No hay préstamos por desembolsar</p>
-                                    <p className="text-sm text-muted-foreground mt-1">Los contratos firmados aparecerán aquí</p>
-                                  </div>
-                                </div>
-                              </TableCell>
-                            </TableRow>
-                          ) : (
-                            disbursementLoansData.filter(l =>
-                              (l.firstName ?? '').toLowerCase().includes(disbursementSearch.toLowerCase()) ||
-                              (l.lastName ?? '').toLowerCase().includes(disbursementSearch.toLowerCase()) ||
-                              String(l.id ?? '').toLowerCase().includes(disbursementSearch.toLowerCase())
-                            ).map((loan) => (
-                              <TableRow key={loan.id}>
-                                {isColumnVisible(disbursementColumns, 'id') && <TableCell className="font-medium whitespace-nowrap">{loan.id}</TableCell>}
-                                {isColumnVisible(disbursementColumns, 'firstName') && <TableCell>{loan.firstName}</TableCell>}
-                                {isColumnVisible(disbursementColumns, 'lastName') && <TableCell>{loan.lastName}</TableCell>}
-                                {isColumnVisible(disbursementColumns, 'requestDate') && <TableCell className="whitespace-nowrap">{formatDisplayDate(loan.requestDate)}</TableCell>}
-                                {isColumnVisible(disbursementColumns, 'amount') && <TableCell className="font-semibold">${loan.amount.toLocaleString()}</TableCell>}
-                                {isColumnVisible(disbursementColumns, 'installments') && <TableCell>{loan.installments}</TableCell>}
-                                {isColumnVisible(disbursementColumns, 'bank') && <TableCell>{loan.bank}</TableCell>}
-                                {isColumnVisible(disbursementColumns, 'accountNumber') && <TableCell>{loan.accountNumber}</TableCell>}
-                                {isColumnVisible(disbursementColumns, 'consent') && (
-                                  <TableCell>{getConsentBadge(loan.status_consent || loan.raw?.status_consent || loan.statusConsent)}</TableCell>
-                                )}
-                                {isColumnVisible(disbursementColumns, 'ine') && <TableCell>{loan.ineNumber?.slice(0, 10) ?? 'N/A'}...</TableCell>}
-                                {isColumnVisible(disbursementColumns, 'curp') && <TableCell>{loan.curpNumber?.slice(0, 10) ?? 'N/A'}...</TableCell>}
-                                {isColumnVisible(disbursementColumns, 'contractStatus') && (
-                                  <TableCell>
-                                    <Badge className="bg-success/20 text-success border-success">{loan.contractStatus}</Badge>
-                                  </TableCell>
-                                )}
-                                {isColumnVisible(disbursementColumns, 'disbursementStatus') && (
-                                  <TableCell>
-                                    <Badge variant="outline" className="bg-warning/10 text-warning border-warning">{loan.disbursementStatus}</Badge>
-                                  </TableCell>
-                                )}
-                                {isColumnVisible(disbursementColumns, 'actions') && (
-                                  <TableCell>
-                                    <div className="flex gap-1">
-                                      <Button size="sm" variant="outline" onClick={() => setModifyDisbursementModal({ open: true, loan })} title="Modificar">
-                                        <Edit className="h-4 w-4" />
-                                      </Button>
-                                      <Button size="sm" variant="default" onClick={() => setConfirmDisbursementModal({ open: true, loan })} title="Confirmar Desembolso">
-                                        <DollarSign className="h-4 w-4" />
-                                      </Button>
-                                    </div>
-                                  </TableCell>
-                                )}
-                              </TableRow>
-                            )))}
-                        </TableBody>
-                      </Table>
-                    </div>
-                    <div className="flex items-center justify-between mt-4">
-                      <div className="text-sm text-muted-foreground">Mostrando {(disbursementPage - 1) * pageSize + 1} - {Math.min(disbursementPage * pageSize, disbursementTotal)} de {disbursementTotal}</div>
-                      <div className="flex items-center gap-2">
-                        {renderPagination(disbursementPage, disbursementTotal, setDisbursementPage)}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              {/* ACTIVOS Tab */}
-              <TabsContent value="active">
-                <Card className="shadow-soft">
-                  <CardHeader>
-                    <CardTitle>Préstamos Activos</CardTitle>
-                    <CardDescription>Préstamos al día con sus pagos</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <LoanTableFilters
-                      searchTerm={activeSearch}
-                      onSearchChange={setActiveSearch}
-                      sortOrder={activeSort}
-                      onSortChange={setActiveSort}
-                      columns={activeColumns}
-                      onColumnsChange={setActiveColumns}
-                      showExport
-                      onExport={exportToExcel}
-                    />
-                    <div className="overflow-x-auto">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            {isColumnVisible(activeColumns, 'id') && <TableHead>ID</TableHead>}
-                            {isColumnVisible(activeColumns, 'firstName') && <TableHead>Nombres</TableHead>}
-                            {isColumnVisible(activeColumns, 'lastName') && <TableHead>Apellidos</TableHead>}
-                            {isColumnVisible(activeColumns, 'requestDate') && <TableHead>F. Solicitud</TableHead>}
-                            {isColumnVisible(activeColumns, 'amount') && <TableHead>Monto</TableHead>}
-                            {isColumnVisible(activeColumns, 'installments') && <TableHead>Cuotas</TableHead>}
-                            {isColumnVisible(activeColumns, 'paidInstallments') && <TableHead>Cuot. Pagadas</TableHead>}
-                            {isColumnVisible(activeColumns, 'ine') && <TableHead>INE</TableHead>}
-                            {isColumnVisible(activeColumns, 'consent') && <TableHead>Consentimiento</TableHead>}
-                            {isColumnVisible(activeColumns, 'lastPaymentDate') && <TableHead>F. Últ. Pago</TableHead>}
-                            {isColumnVisible(activeColumns, 'status') && <TableHead>Estado</TableHead>}
-                            {isColumnVisible(activeColumns, 'actions') && <TableHead>Acciones</TableHead>}
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {activeLoading ? renderSkeletonRows(activeColumns) : activeLoansData.length === 0 ? (
-                            <TableRow>
-                              <TableCell colSpan={activeColumns.filter(c => c.visible).length || 12} className="text-center py-12">
-                                <div className="flex flex-col items-center gap-3">
-                                  <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center">
-                                    <CheckCircle className="h-6 w-6 text-muted-foreground" />
-                                  </div>
-                                  <div>
-                                    <p className="font-medium text-gray-900">No hay préstamos activos</p>
-                                    <p className="text-sm text-muted-foreground mt-1">Los préstamos aprobados aparecerán aquí</p>
-                                  </div>
-                                </div>
-                              </TableCell>
-                            </TableRow>
-                          ) : (
-                            activeLoansData.filter(l =>
-                              (l.firstName ?? '').toLowerCase().includes(activeSearch.toLowerCase()) ||
-                              (l.lastName ?? '').toLowerCase().includes(activeSearch.toLowerCase()) ||
-                              String(l.id ?? '').toLowerCase().includes(activeSearch.toLowerCase())
-                            ).map((loan) => (
-                              <TableRow key={loan.id}>
-                                {isColumnVisible(activeColumns, 'id') && <TableCell className="font-medium whitespace-nowrap">{loan.id}</TableCell>}
-                                {isColumnVisible(activeColumns, 'firstName') && <TableCell>{loan.firstName}</TableCell>}
-                                {isColumnVisible(activeColumns, 'lastName') && <TableCell>{loan.lastName}</TableCell>}
-                                {isColumnVisible(activeColumns, 'requestDate') && <TableCell className="whitespace-nowrap">{formatDisplayDate(loan.requestDate)}</TableCell>}
-                                {isColumnVisible(activeColumns, 'amount') && <TableCell className="font-semibold">${loan.amount.toLocaleString()}</TableCell>}
-                                {isColumnVisible(activeColumns, 'installments') && <TableCell>{loan.installments}</TableCell>}
-                                {isColumnVisible(activeColumns, 'paidInstallments') && <TableCell>{loan.paidInstallments}/{loan.installments}</TableCell>}
-                                {isColumnVisible(activeColumns, 'ine') && <TableCell>{loan.ineNumber?.slice(0, 10) ?? 'N/A'}...</TableCell>}
-                                {isColumnVisible(activeColumns, 'consent') && <TableCell>{getConsentBadge(loan.status_consent || loan.raw?.status_consent || loan.statusConsent)}</TableCell>}
-                                {isColumnVisible(activeColumns, 'lastPaymentDate') && <TableCell className="whitespace-nowrap">{formatDisplayDate(loan.lastPaymentDate)}</TableCell>}
-                                {isColumnVisible(activeColumns, 'status') && <TableCell>{getStatusBadge(loan.status)}</TableCell>}
-                                {isColumnVisible(activeColumns, 'actions') && (
-                                  <TableCell>
-                                    <div className="flex gap-1">
-                                      <Button size="sm" variant="ghost" onClick={() => setModifyModal({ open: true, loan })} title="Ver/Editar">
-                                        <Eye className="h-4 w-4" />
-                                      </Button>
-                                      <Button size="sm" variant="ghost" onClick={() => setScheduleModal({ open: true, loan })} title="Ver Cronograma">
-                                        <Calendar className="h-4 w-4" />
-                                      </Button>
-                                      <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                          <Button size="sm" variant="ghost">
-                                            <MoreHorizontal className="h-4 w-4" />
-                                          </Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end">
-                                          <DropdownMenuItem onClick={() => setReminderModal({ open: true, loan })}>
-                                            <Bell className="h-4 w-4 mr-2" />
-                                            Enviar recordatorio
-                                          </DropdownMenuItem>
-                                          <DropdownMenuItem onClick={() => setUpdateInstallmentsModal({ open: true, loan })}>
-                                            <RefreshCw className="h-4 w-4 mr-2" />
-                                            Actualizar cuotas
-                                          </DropdownMenuItem>
-                                        </DropdownMenuContent>
-                                      </DropdownMenu>
-                                    </div>
-                                  </TableCell>
-                                )}
-                              </TableRow>
-                            )))}
-                        </TableBody>
-                      </Table>
-                    </div>
-                    <div className="flex items-center justify-between mt-4">
-                      <div className="text-sm text-muted-foreground">Mostrando {(activePage - 1) * pageSize + 1} - {Math.min(activePage * pageSize, activeTotal)} de {activeTotal}</div>
-                      <div className="flex items-center gap-2">
-                        {renderPagination(activePage, activeTotal, setActivePage)}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              {/* ATRASADOS Tab */}
-              <TabsContent value="overdue">
-                <Card className="shadow-soft">
-                  <CardHeader>
-                    <CardTitle>Préstamos Atrasados</CardTitle>
-                    <CardDescription>Préstamos con pagos pendientes o en mora</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <LoanTableFilters
-                      searchTerm={overdueSearch}
-                      onSearchChange={setOverdueSearch}
-                      sortOrder={overdueSort}
-                      onSortChange={setOverdueSort}
-                      columns={overdueColumns}
-                      onColumnsChange={setOverdueColumns}
-                      showExport
-                      onExport={exportToExcel}
-                    />
-                    <div className="overflow-x-auto">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            {isColumnVisible(overdueColumns, 'id') && <TableHead>ID</TableHead>}
-                            {isColumnVisible(overdueColumns, 'firstName') && <TableHead>Nombres</TableHead>}
-                            {isColumnVisible(overdueColumns, 'lastName') && <TableHead>Apellidos</TableHead>}
-                            {isColumnVisible(overdueColumns, 'requestDate') && <TableHead>F. Solicitud</TableHead>}
-                            {isColumnVisible(overdueColumns, 'amount') && <TableHead>Monto</TableHead>}
-                            {isColumnVisible(overdueColumns, 'installments') && <TableHead>Cuotas</TableHead>}
-                            {isColumnVisible(overdueColumns, 'paidInstallments') && <TableHead>Cuot. Pagadas</TableHead>}
-                            {isColumnVisible(overdueColumns, 'ine') && <TableHead>INE</TableHead>}
-                            {isColumnVisible(overdueColumns, 'consent') && <TableHead>Consentimiento</TableHead>}
-                            {isColumnVisible(overdueColumns, 'lastPaymentDate') && <TableHead>F. Últ. Pago</TableHead>}
-                            {isColumnVisible(overdueColumns, 'status') && <TableHead>Estado</TableHead>}
-                            {isColumnVisible(overdueColumns, 'actions') && <TableHead>Acciones</TableHead>}
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {overdueLoading ? renderSkeletonRows(overdueColumns) : overdueLoansData.length === 0 ? (
-                            <TableRow>
-                              <TableCell colSpan={overdueColumns.filter(c => c.visible).length || 12} className="text-center py-12">
-                                <div className="flex flex-col items-center gap-3">
-                                  <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center">
-                                    <TrendingDown className="h-6 w-6 text-muted-foreground" />
-                                  </div>
-                                  <div>
-                                    <p className="font-medium text-gray-900">No hay préstamos atrasados</p>
-                                    <p className="text-sm text-muted-foreground mt-1">¡Bien! No hay clientes con pagos vencidos</p>
-                                  </div>
-                                </div>
-                              </TableCell>
-                            </TableRow>
-                          ) : (
-                            overdueLoansData.filter(l =>
-                              (l.firstName ?? '').toLowerCase().includes(overdueSearch.toLowerCase()) ||
-                              (l.lastName ?? '').toLowerCase().includes(overdueSearch.toLowerCase()) ||
-                              String(l.id ?? '').toLowerCase().includes(overdueSearch.toLowerCase())
-                            ).map((loan) => (
-                              <TableRow key={loan.id}>
-                                {isColumnVisible(overdueColumns, 'id') && <TableCell className="font-medium whitespace-nowrap">{loan.id}</TableCell>}
-                                {isColumnVisible(overdueColumns, 'firstName') && <TableCell>{loan.firstName}</TableCell>}
-                                {isColumnVisible(overdueColumns, 'lastName') && <TableCell>{loan.lastName}</TableCell>}
-                                {isColumnVisible(overdueColumns, 'requestDate') && <TableCell className="whitespace-nowrap">{formatDisplayDate(loan.requestDate)}</TableCell>}
-                                {isColumnVisible(overdueColumns, 'amount') && <TableCell className="font-semibold">${loan.amount.toLocaleString()}</TableCell>}
-                                {isColumnVisible(overdueColumns, 'installments') && <TableCell>{loan.installments}</TableCell>}
-                                {isColumnVisible(overdueColumns, 'paidInstallments') && <TableCell>{loan.paidInstallments}/{loan.installments}</TableCell>}
-                                {isColumnVisible(overdueColumns, 'ine') && <TableCell>{loan.ineNumber?.slice(0, 10) ?? 'N/A'}...</TableCell>}
-                                {isColumnVisible(overdueColumns, 'consent') && <TableCell>{getConsentBadge(loan.status_consent || loan.raw?.status_consent || loan.statusConsent)}</TableCell>}
-                                {isColumnVisible(overdueColumns, 'lastPaymentDate') && <TableCell className="whitespace-nowrap">{formatDisplayDate(loan.lastPaymentDate)}</TableCell>}
-                                {isColumnVisible(overdueColumns, 'status') && <TableCell>{getStatusBadge(loan.status)}</TableCell>}
-                                {isColumnVisible(overdueColumns, 'actions') && (
-                                  <TableCell>
-                                    <DropdownMenu>
-                                      <DropdownMenuTrigger asChild>
-                                        <Button size="sm" variant="ghost">
-                                          <MoreHorizontal className="h-4 w-4" />
-                                        </Button>
-                                      </DropdownMenuTrigger>
-                                      <DropdownMenuContent align="end">
-                                        <DropdownMenuItem onClick={() => setReminderModal({ open: true, loan })}>
-                                          <Bell className="h-4 w-4 mr-2" />
-                                          Enviar recordatorio
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => setSellPortfolioModal({ open: true, loan })}>
-                                          <TrendingDown className="h-4 w-4 mr-2" />
-                                          Vender cartera
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => setUpdateInstallmentsModal({ open: true, loan })}>
-                                          <RefreshCw className="h-4 w-4 mr-2" />
-                                          Actualizar cuotas
-                                        </DropdownMenuItem>
-                                      </DropdownMenuContent>
-                                    </DropdownMenu>
-                                  </TableCell>
-                                )}
-                              </TableRow>
-                            )))}
-                        </TableBody>
-                      </Table>
-                    </div>
-                    <div className="flex items-center justify-between mt-4">
-                      <div className="text-sm text-muted-foreground">Mostrando {(overduePage - 1) * pageSize + 1} - {Math.min(overduePage * pageSize, overdueTotal)} de {overdueTotal}</div>
-                      <div className="flex items-center gap-2">
-                        {renderPagination(overduePage, overdueTotal, setOverduePage)}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              {/* HISTORIAL Tab */}
-              <TabsContent value="history">
-                <Card className="shadow-soft">
-                  <CardHeader>
-                    <CardTitle>Historial de Préstamos</CardTitle>
-                    <CardDescription>Préstamos liquidados o vendidos</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <LoanTableFilters
-                      searchTerm={historySearch}
-                      onSearchChange={setHistorySearch}
-                      sortOrder={historySort}
-                      onSortChange={setHistorySort}
-                      columns={historyColumns}
-                      onColumnsChange={setHistoryColumns}
-                      showExport
-                      onExport={exportToExcel}
-                    />
-                    <div className="overflow-x-auto">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            {isColumnVisible(historyColumns, 'id') && <TableHead>ID</TableHead>}
-                            {isColumnVisible(historyColumns, 'firstName') && <TableHead>Nombres</TableHead>}
-                            {isColumnVisible(historyColumns, 'lastName') && <TableHead>Apellidos</TableHead>}
-                            {isColumnVisible(historyColumns, 'requestDate') && <TableHead>F. Solicitud</TableHead>}
-                            {isColumnVisible(historyColumns, 'amount') && <TableHead>Monto</TableHead>}
-                            {isColumnVisible(historyColumns, 'installments') && <TableHead>Cuotas</TableHead>}
-                            {isColumnVisible(historyColumns, 'paidInstallments') && <TableHead>Cuot. Pagadas</TableHead>}
-                            {isColumnVisible(historyColumns, 'ine') && <TableHead>INE</TableHead>}
-                            {isColumnVisible(historyColumns, 'consent') && <TableHead>Consentimiento</TableHead>}
-                            {isColumnVisible(historyColumns, 'lastPaymentDate') && <TableHead>F. Últ. Pago</TableHead>}
-                            {isColumnVisible(historyColumns, 'status') && <TableHead>Estado</TableHead>}
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {historyLoading ? renderSkeletonRows(historyColumns) : historyLoansData.length === 0 ? (
-                            <TableRow>
-                              <TableCell colSpan={historyColumns.filter(c => c.visible).length || 12} className="text-center py-12">
-                                <div className="flex flex-col items-center gap-3">
-                                  <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center">
-                                    <FileText className="h-6 w-6 text-muted-foreground" />
-                                  </div>
-                                  <div>
-                                    <p className="font-medium text-gray-900">No hay historial de préstamos</p>
-                                    <p className="text-sm text-muted-foreground mt-1">Los préstamos cerrados aparecerán aquí</p>
-                                  </div>
-                                </div>
-                              </TableCell>
-                            </TableRow>
-                          ) : (
-                            historyLoansData.filter(l =>
-                              (l.firstName ?? '').toLowerCase().includes(historySearch.toLowerCase()) ||
-                              (l.lastName ?? '').toLowerCase().includes(historySearch.toLowerCase()) ||
-                              String(l.id ?? '').toLowerCase().includes(historySearch.toLowerCase())
-                            ).map((loan) => (
-                              <TableRow key={loan.id}>
-                                {isColumnVisible(historyColumns, 'id') && <TableCell className="font-medium whitespace-nowrap">{loan.id}</TableCell>}
-                                {isColumnVisible(historyColumns, 'firstName') && <TableCell>{loan.firstName}</TableCell>}
-                                {isColumnVisible(historyColumns, 'lastName') && <TableCell>{loan.lastName}</TableCell>}
-                                {isColumnVisible(historyColumns, 'requestDate') && <TableCell className="whitespace-nowrap">{formatDisplayDate(loan.requestDate)}</TableCell>}
-                                {isColumnVisible(historyColumns, 'amount') && <TableCell className="font-semibold">${loan.amount.toLocaleString()}</TableCell>}
-                                {isColumnVisible(historyColumns, 'installments') && <TableCell>{loan.installments}</TableCell>}
-                                {isColumnVisible(historyColumns, 'paidInstallments') && <TableCell>{loan.paidInstallments}/{loan.installments}</TableCell>}
-                                {isColumnVisible(historyColumns, 'ine') && <TableCell>{loan.ineNumber?.slice(0, 10) ?? 'N/A'}...</TableCell>}
-                                {isColumnVisible(historyColumns, 'consent') && <TableCell>{getConsentBadge(loan.status_consent || loan.raw?.status_consent || loan.statusConsent)}</TableCell>}
-                                {isColumnVisible(historyColumns, 'lastPaymentDate') && <TableCell className="whitespace-nowrap">{formatDisplayDate(loan.lastPaymentDate)}</TableCell>}
-                                {isColumnVisible(historyColumns, 'status') && <TableCell>{getStatusBadge(loan.status)}</TableCell>}
-                              </TableRow>
-                            )))}
-                        </TableBody>
-                      </Table>
-                    </div>
-                    <div className="flex items-center justify-between mt-4">
-                      <div className="text-sm text-muted-foreground">Mostrando {(historyPage - 1) * pageSize + 1} - {Math.min(historyPage * pageSize, historyTotal)} de {historyTotal}</div>
-                      <div className="flex items-center gap-2">
-                        {renderPagination(historyPage, historyTotal, setHistoryPage)}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-            </Tabs>
-
-        {/* Modals */}
-        <INECURPModal
-          open={ineCurpModal.open}
-          onOpenChange={(open) => setIneCurpModal(prev => ({ ...prev, open }))}
-          loan={ineCurpModal.loan}
-          type={ineCurpModal.type}
-        />
-
-        <ModifyLoanModal
-          open={modifyModal.open}
-          onOpenChange={(open) => setModifyModal(prev => ({ ...prev, open }))}
-          loan={modifyModal.loan}
-          onSend={() => toast({ title: "Enviado", description: "La propuesta ha sido enviada al cliente." })}
-          onSave={(updatedLoan) => {
-            setModifyModal(prev => ({ ...prev, loan: updatedLoan }));
-            queryClient.invalidateQueries({ queryKey: ['loans', 'admin'] });
-            queryClient.invalidateQueries({ queryKey: ['admin-loans'] });
-            toast({ title: "Guardado", description: "Los cambios han sido guardados." });
-          }}
-        />
-
-<AlertDialog open={detailsModal.open} onOpenChange={(open) => setDetailsModal(prev => ({ ...prev, open }))}>
-          <AlertDialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto p-5 bg-white">
-            {(() => {
-              const loan = detailsModal.loan as any;
-              const md = loan?.raw?.metadata ?? {};
-              const user = loan?.raw?.users ?? {};
-              const userMembership = user.user_memberships?.[0]?.membership_plans ?? {};
-              const personal = md.personalData ?? {};
-
-              const firstName = user.first_name || personal.firstName || '';
-              const lastName = user.last_name || personal.lastName || '';
-              const fullName = `${firstName} ${lastName}`.trim() || 'Usuario';
-              const userInitial = firstName?.[0]?.toUpperCase() || '?';
-              const profileColor = ['bg-blue-500', 'bg-green-500', 'bg-purple-500', 'bg-pink-500', 'bg-indigo-500', 'bg-red-500', 'bg-yellow-500', 'bg-teal-500'][Math.abs((loan?.id ?? '')?.charCodeAt(0) ?? 0) % 8];
-
-              const phone = user.phone || personal.phone || '-';
-              const phoneCountry = user.phone_country_code || '+52';
-              const fullPhone = phone !== '-' ? `${phoneCountry}${phone.replace(/^\+\d+/, '')}` : '-';
-              const birthDate = user.birth_date ? formatDisplayDate(new Date(user.birth_date).toISOString().slice(0, 10)) : (personal.birthDate ? formatDisplayDate(personal.birthDate) : '-');
-              const ineKey = user.ine_key || personal.ineKey || '-';
-              const curp = user.curp || personal.curp || '-';
-              const address = user.address || personal.address || '-';
-              const email = user.email || personal.email || '-';
-
-              const membershipName = userMembership.name || loan?.membership || 'Sin membresía';
-              const membershipColor = userMembership.color || 'bg-gray-100';
-              const membershipIcon = userMembership.icon || '★';
-              const loanInterestRateDecimal = Number(loan?.raw?.interest_rate ?? loan?.interest_rate) || 0.20;
-
-              const loanAmount = Number(loan?.amount ?? 0);
-              const loanInstallments = Number(loan?.installments ?? 0);
-              const calculatedMonthlyPayment = loan?.monthly_payment 
-                ? Number(loan.monthly_payment) 
-                : (loanAmount > 0 && loanInstallments > 0 
-                  ? (loanAmount * (loanInterestRateDecimal / 12) * Math.pow(1 + loanInterestRateDecimal / 12, loanInstallments)) / (Math.pow(1 + loanInterestRateDecimal / 12, loanInstallments) - 1)
-                  : null);
-
-              return (
-                <div className="space-y-4">
-                  {/* Profile Header */}
-                  <div className="flex items-center gap-4 pb-4 border-b border-gray-200">
-                    {user.avatar_url ? (
-                      <img src={user.avatar_url} alt={fullName} className="w-12 h-12 rounded-full object-cover shadow-sm" />
+        {/* PENDIENTE Tab */}
+        <TabsContent value="pending">
+          <Card className="shadow-soft">
+            <CardHeader>
+              <CardTitle>Solicitudes Pendientes</CardTitle>
+              <CardDescription>Revisa y aprueba nuevas solicitudes de préstamo</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <LoanTableFilters
+                searchTerm={pendingSearch}
+                onSearchChange={setPendingSearch}
+                sortOrder={pendingSort}
+                onSortChange={setPendingSort}
+                columns={pendingColumns}
+                onColumnsChange={setPendingColumns}
+                showExport
+                onExport={exportToExcel}
+              />
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      {isColumnVisible(pendingColumns, 'id') && <TableHead>ID</TableHead>}
+                      {isColumnVisible(pendingColumns, 'firstName') && <TableHead>Nombres</TableHead>}
+                      {isColumnVisible(pendingColumns, 'lastName') && <TableHead>Apellidos</TableHead>}
+                      {isColumnVisible(pendingColumns, 'amount') && <TableHead>Monto</TableHead>}
+                      {isColumnVisible(pendingColumns, 'installments') && <TableHead>Cuotas</TableHead>}
+                      {isColumnVisible(pendingColumns, 'preApproval') && <TableHead>Pre-Aprob.</TableHead>}
+                      {isColumnVisible(pendingColumns, 'membership') && <TableHead>Membresía</TableHead>}
+                      {isColumnVisible(pendingColumns, 'ine') && <TableHead>INE</TableHead>}
+                      {isColumnVisible(pendingColumns, 'curp') && <TableHead>CURP</TableHead>}
+                      {isColumnVisible(pendingColumns, 'consent') && <TableHead>Consentimiento</TableHead>}
+                      {isColumnVisible(pendingColumns, 'requestDate') && <TableHead>F. Solicitud</TableHead>}
+                      {isColumnVisible(pendingColumns, 'actions') && <TableHead>Acciones</TableHead>}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {pendingLoading ? renderSkeletonRows(pendingColumns) : pendingLoansData.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={pendingColumns.filter(c => c.visible).length || 12} className="text-center py-12">
+                          <div className="flex flex-col items-center gap-3">
+                            <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center">
+                              <FileText className="h-6 w-6 text-muted-foreground" />
+                            </div>
+                            <div>
+                              <p className="font-medium text-gray-900">No hay solicitudes pendientes</p>
+                              <p className="text-sm text-muted-foreground mt-1">Las nuevas solicitudes aparecerán aquí</p>
+                            </div>
+                          </div>
+                        </TableCell>
+                      </TableRow>
                     ) : (
-                      <div className={`w-12 h-12 rounded-full ${profileColor} flex items-center justify-center text-white text-lg font-bold shadow-sm`}>
-                        {userInitial}
-                      </div>
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-base font-bold truncate">{fullName}</h3>
-                      <p className="text-xs text-muted-foreground truncate">{email}</p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className={`text-[10px] ${membershipColor} px-2 py-0.5 rounded-full font-medium flex items-center gap-1`}>
-                          <span>{membershipIcon}</span> {membershipName}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="bg-gray-50 rounded-xl px-3 py-2 text-right">
-                      <p className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wider">Total Préstamo</p>
-                      <p className="text-xl font-black text-primary">${Number(loan?.amount ?? 0).toLocaleString()}</p>
-                      <p className="text-[9px] text-muted-foreground">MXN</p>
-                    </div>
-                  </div>
-
-                  {/* Loan Summary Cards */}
-                  <div className="grid grid-cols-4 gap-2">
-                    <div className="border border-gray-200 rounded-lg p-2.5 text-center bg-white">
-                      <p className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wider mb-0.5">Plazo</p>
-                      <p className="text-lg font-bold">{loan?.installments ?? '-'}</p>
-                      <p className="text-[9px] text-muted-foreground">cuotas</p>
-                    </div>
-                    <div className="border border-gray-200 rounded-lg p-2.5 text-center bg-white">
-                      <p className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wider mb-0.5">Cuota Mensual</p>
-                      <p className="text-base font-bold">${calculatedMonthlyPayment ? Number(calculatedMonthlyPayment).toLocaleString() : '-'}</p>
-                    </div>
-                    <div className="border border-gray-200 rounded-lg p-2.5 text-center bg-white">
-                      <p className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wider mb-0.5">Solicitud</p>
-                      <p className="text-sm font-bold font-mono">{loan?.id ? String(loan.id).slice(-6) : '-'}</p>
-                    </div>
-                    <div className="border border-gray-200 rounded-lg p-2.5 text-center bg-white">
-                      <p className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wider mb-0.5">Estatus</p>
-                      <p className="text-sm font-bold">{getStatusBadge(loan?.status || '-')}</p>
-                    </div>
-                  </div>
-
-                  {/* Personal Data */}
-                  <div className="space-y-2">
-                    <h4 className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Datos Personales</h4>
-                    <div className="grid grid-cols-4 gap-2">
-                      <div className="border border-gray-200 rounded-lg p-2 bg-white">
-                        <p className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wider mb-0.5">Teléfono</p>
-                        <p className="text-xs font-bold font-mono">{fullPhone}</p>
-                      </div>
-                      <div className="border border-gray-200 rounded-lg p-2 bg-white">
-                        <p className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wider mb-0.5">Fecha Nac.</p>
-                        <p className="text-xs font-bold">{birthDate}</p>
-                      </div>
-                      <div className="border border-gray-200 rounded-lg p-2 bg-white">
-                        <p className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wider mb-0.5">INE</p>
-                        <p className="text-xs font-bold font-mono">{ineKey}</p>
-                      </div>
-                      <div className="border border-gray-200 rounded-lg p-2 bg-white">
-                        <p className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wider mb-0.5">CURP</p>
-                        <p className="text-xs font-bold font-mono">{curp}</p>
-                      </div>
-                      <div className="border border-gray-200 rounded-lg p-2 bg-white col-span-4">
-                        <p className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wider mb-0.5">Dirección</p>
-                        <p className="text-xs font-bold truncate">{address}</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Bank Account */}
-                  {loan?.bank || loan?.accountNumber ? (
-                    <div className="space-y-2">
-                      <h4 className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Cuenta Bancaria</h4>
-                      <div className="grid grid-cols-2 gap-2">
-                        <div className="border border-gray-200 rounded-lg p-2 bg-white">
-                          <p className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wider mb-0.5">Banco</p>
-                          <p className="text-xs font-bold">{loan?.bank || '-'}</p>
-                        </div>
-                        <div className="border border-gray-200 rounded-lg p-2 bg-white">
-                          <p className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wider mb-0.5">CLABE</p>
-                          <p className="text-xs font-bold font-mono">{loan?.accountNumber ? `••••${loan.accountNumber.slice(-4)}` : '-'}</p>
-                        </div>
-                      </div>
-                    </div>
-                  ) : null}
-
-                  {/* Membership Details */}
-                  {loan?.membershipRaw?.name ? (
-                    <div className="space-y-2">
-                      <h4 className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Membresía</h4>
-                      <div className="grid grid-cols-3 gap-2">
-                        <div className="border border-gray-200 rounded-lg p-2 bg-white">
-                          <p className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wider mb-0.5">Plan</p>
-                          <p className="text-xs font-bold">{loan.membershipRaw.name}</p>
-                        </div>
-                        <div className="border border-gray-200 rounded-lg p-2 bg-white">
-                          <p className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wider mb-0.5">Tasa Anual</p>
-                          <p className="text-xs font-bold">{(loanInterestRateDecimal * 100).toFixed(2)}%</p>
-                        </div>
-                        <div className="border border-gray-200 rounded-lg p-2 bg-white">
-                          <p className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wider mb-0.5">Estatus</p>
-                          <p className="text-xs font-bold">{loan.membershipRaw.active !== false ? 'Activa' : 'Inactiva'}</p>
-                        </div>
-                      </div>
-                    </div>
-                  ) : null}
+                      pendingLoansData.filter(l =>
+                        (l.firstName ?? '').toLowerCase().includes(pendingSearch.toLowerCase()) ||
+                        (l.lastName ?? '').toLowerCase().includes(pendingSearch.toLowerCase()) ||
+                        String(l.id ?? '').toLowerCase().includes(pendingSearch.toLowerCase())
+                      ).map((loan) => (
+                        <TableRow key={loan.id}>
+                          {isColumnVisible(pendingColumns, 'id') && <TableCell className="font-medium whitespace-nowrap">{loan.id}</TableCell>}
+                          {isColumnVisible(pendingColumns, 'firstName') && <TableCell>{loan.firstName}</TableCell>}
+                          {isColumnVisible(pendingColumns, 'lastName') && <TableCell>{loan.lastName}</TableCell>}
+                          {isColumnVisible(pendingColumns, 'amount') && <TableCell className="font-semibold">${loan.amount.toLocaleString()}</TableCell>}
+                          {isColumnVisible(pendingColumns, 'installments') && <TableCell>{loan.installments}</TableCell>}
+                          {isColumnVisible(pendingColumns, 'preApproval') && (
+                            <TableCell>
+                              {loan?.raw?.status === 'cancelled' || loan?.status === 'Rechazado' ? (
+                                getStatusBadge('Rechazado')
+                              ) : (
+                                <Badge variant="outline" className="bg-warning/10 text-warning border-warning whitespace-nowrap">{loan.preApproval}</Badge>
+                              )}
+                            </TableCell>
+                          )}
+                          {isColumnVisible(pendingColumns, 'membership') && (
+                            <TableCell className="min-w-[120px]">
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200 cursor-help whitespace-nowrap">
+                                      <Star className="h-3 w-3 mr-1" />{loan.membership || 'Sin membresía'}
+                                    </Badge>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="top" className="max-w-xs">
+                                    <p className="font-semibold">{loan.membership || 'Sin membresía'}</p>
+                                    {loan.membershipRaw?.price && <p className="text-xs text-muted-foreground">${Number(loan.membershipRaw.price).toLocaleString()}</p>}
+                                    {loan.membershipRaw?.active !== false ? <p className="text-xs text-green-600">Activa</p> : <p className="text-xs text-muted-foreground">Inactiva</p>}
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            </TableCell>
+                          )}
+                          {isColumnVisible(pendingColumns, 'ine') && (
+                            <TableCell>
+                              <Button variant="link" size="sm" className="p-0 h-auto" onClick={() => setIneCurpModal({ open: true, loan, type: 'ine' })}>
+                                {loan.ineNumber?.slice(0, 10) ?? 'N/A'}...
+                              </Button>
+                            </TableCell>
+                          )}
+                          {isColumnVisible(pendingColumns, 'curp') && (
+                            <TableCell>
+                              <Button variant="link" size="sm" className="p-0 h-auto" onClick={() => setIneCurpModal({ open: true, loan, type: 'curp' })}>
+                                {loan.curpNumber?.slice(0, 10) ?? 'N/A'}...
+                              </Button>
+                            </TableCell>
+                          )}
+                          {isColumnVisible(pendingColumns, 'consent') && (
+                            <TableCell>
+                              {getConsentBadge(loan.status_consent || loan.raw?.status_consent || loan.statusConsent)}
+                            </TableCell>
+                          )}
+                          {isColumnVisible(pendingColumns, 'requestDate') && <TableCell className="whitespace-nowrap">{formatDisplayDate(loan.requestDate)}</TableCell>}
+                          {isColumnVisible(pendingColumns, 'actions') && (
+                            <TableCell>
+                              <div className="flex gap-1">
+                                <Button size="sm" variant="ghost" onClick={() => setDetailsModal({ open: true, loan })} title="Ver detalles">
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                                <Button size="sm" variant="ghost" onClick={() => setModifyModal({ open: true, loan })} title="Modificar">
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                                <Button size="sm" variant="ghost" className="text-success hover:text-success" onClick={() => setApproveDialog({ open: true, loan })} title="Aprobar">
+                                  <CheckCircle className="h-4 w-4" />
+                                </Button>
+                                <Button size="sm" variant="ghost" className="text-danger hover:text-danger" onClick={() => setRejectDialog({ open: true, loan })} title="Rechazar">
+                                  <XCircle className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          )}
+                        </TableRow>
+                      )))}
+                  </TableBody>
+                </Table>
+              </div>
+              <div className="flex items-center justify-between mt-4">
+                <div className="text-sm text-muted-foreground">Mostrando {(pendingPage - 1) * pageSize + 1} - {Math.min(pendingPage * pageSize, pendingTotal)} de {pendingTotal}</div>
+                <div className="flex items-center gap-2">
+                  {renderPagination(pendingPage, pendingTotal, setPendingPage)}
                 </div>
-              );
-            })()}
-            <AlertDialogFooter className="gap-2 mt-4 pt-3 border-t border-gray-200">
-              <Button variant="outline" onClick={handleTestSignNow}>Test SignNow</Button>
-              <AlertDialogCancel onClick={() => setDetailsModal({ open: false, loan: null })} className="gap-2">Cerrar</AlertDialogCancel>
-              <AlertDialogAction
-                className="bg-danger hover:bg-danger/90"
-                onClick={() => {
-                  const loan = detailsModal.loan as any;
-                  setDetailsModal({ open: false, loan: null });
-                  setRejectDialog({ open: true, loan });
-                }}
-              >
-                Rechazar
-              </AlertDialogAction>
-              <AlertDialogAction
-                onClick={() => {
-                  const loan = detailsModal.loan as any;
-                  setDetailsModal({ open: false, loan: null });
-                  setApproveDialog({ open: true, loan });
-                }}
-              >
-                Aprobar
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-        <AlertDialog open={approveDialog.open} onOpenChange={(open) => setApproveDialog(prev => ({ ...prev, open }))}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>¿Aprobar Solicitud?</AlertDialogTitle>
-              <AlertDialogDescription>
-                Se aprobará la solicitud de préstamo {approveDialog.loan?.id} por ${approveDialog.loan?.amount.toLocaleString()} MXN.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-              <AlertDialogAction onClick={() => handleApproveLoan()}>
-                Aprobar
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        {/* FIRMA CONTRATO Tab */}
+        <TabsContent value="contract">
+          <Card className="shadow-soft">
+            <CardHeader>
+              <CardTitle>Firma de Contrato</CardTitle>
+              <CardDescription>Gestiona el proceso de firma de contratos</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <LoanTableFilters
+                searchTerm={contractSearch}
+                onSearchChange={setContractSearch}
+                sortOrder={contractSort}
+                onSortChange={setContractSort}
+                columns={contractColumns}
+                onColumnsChange={setContractColumns}
+                showExport
+                onExport={exportToExcel}
+              />
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      {isColumnVisible(contractColumns, 'id') && <TableHead>ID</TableHead>}
+                      {isColumnVisible(contractColumns, 'firstName') && <TableHead>Nombres</TableHead>}
+                      {isColumnVisible(contractColumns, 'lastName') && <TableHead>Apellidos</TableHead>}
+                      {isColumnVisible(contractColumns, 'requestDate') && <TableHead>F. Solicitud</TableHead>}
+                      {isColumnVisible(contractColumns, 'amount') && <TableHead>Monto</TableHead>}
+                      {isColumnVisible(contractColumns, 'installments') && <TableHead>Cuotas</TableHead>}
+                      {isColumnVisible(contractColumns, 'membership') && <TableHead>Membresía</TableHead>}
+                      {isColumnVisible(contractColumns, 'ine') && <TableHead>INE</TableHead>}
+                      {isColumnVisible(contractColumns, 'consent') && <TableHead>Consentimiento</TableHead>}
+                      {isColumnVisible(contractColumns, 'curp') && <TableHead>CURP</TableHead>}
+                      {isColumnVisible(contractColumns, 'preApproval') && <TableHead>Pre-Aprob.</TableHead>}
+                      {isColumnVisible(contractColumns, 'signatureStatus') && <TableHead>Estado Firma</TableHead>}
+                      {isColumnVisible(contractColumns, 'resend') && <TableHead>Reenviar</TableHead>}
+                      {isColumnVisible(contractColumns, 'attach') && <TableHead>Adjuntar</TableHead>}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {contractLoading ? renderSkeletonRows(contractColumns) : contractLoansData.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={contractColumns.filter(c => c.visible).length || 12} className="text-center py-12">
+                          <div className="flex flex-col items-center gap-3">
+                            <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center">
+                              <FileText className="h-6 w-6 text-muted-foreground" />
+                            </div>
+                            <div>
+                              <p className="font-medium text-gray-900">No hay contratos por firmar</p>
+                              <p className="text-sm text-muted-foreground mt-1">Los contratos aprobados aparecerán aquí</p>
+                            </div>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      contractLoansData.filter(l =>
+                        (l.firstName ?? '').toLowerCase().includes(contractSearch.toLowerCase()) ||
+                        (l.lastName ?? '').toLowerCase().includes(contractSearch.toLowerCase()) ||
+                        String(l.id ?? '').toLowerCase().includes(contractSearch.toLowerCase())
+                      ).map((loan) => (
+                        <TableRow key={loan.id}>
+                          {isColumnVisible(contractColumns, 'id') && <TableCell className="font-medium whitespace-nowrap">{loan.id}</TableCell>}
+                          {isColumnVisible(contractColumns, 'firstName') && <TableCell>{loan.firstName}</TableCell>}
+                          {isColumnVisible(contractColumns, 'lastName') && <TableCell>{loan.lastName}</TableCell>}
+                          {isColumnVisible(contractColumns, 'requestDate') && <TableCell className="whitespace-nowrap">{formatDisplayDate(loan.requestDate)}</TableCell>}
+                          {isColumnVisible(contractColumns, 'amount') && <TableCell className="font-semibold">${loan.amount.toLocaleString()}</TableCell>}
+                          {isColumnVisible(contractColumns, 'installments') && <TableCell>{loan.installments}</TableCell>}
+                          {isColumnVisible(contractColumns, 'membership') && (
+                            <TableCell className="min-w-[120px]">
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200 cursor-help whitespace-nowrap">
+                                      <Star className="h-3 w-3 mr-1" />{loan.membership || 'Sin membresía'}
+                                    </Badge>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="top" className="max-w-xs">
+                                    <p className="font-semibold">{loan.membership || 'Sin membresía'}</p>
+                                    {loan.membershipRaw?.price && <p className="text-xs text-muted-foreground">${Number(loan.membershipRaw.price).toLocaleString()}</p>}
+                                    {loan.membershipRaw?.active !== false ? <p className="text-xs text-green-600">Activa</p> : <p className="text-xs text-muted-foreground">Inactiva</p>}
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            </TableCell>
+                          )}
+                          {isColumnVisible(contractColumns, 'ine') && <TableCell>{loan.ineNumber?.slice(0, 10) ?? 'N/A'}...</TableCell>}
+                          {isColumnVisible(contractColumns, 'consent') && (
+                            <TableCell>{getConsentBadge(loan.status_consent || loan.raw?.status_consent || loan.statusConsent)}</TableCell>
+                          )}
+                          {isColumnVisible(contractColumns, 'curp') && <TableCell>{loan.curpNumber?.slice(0, 10) ?? 'N/A'}...</TableCell>}
+                          {isColumnVisible(contractColumns, 'preApproval') && (
+                            <TableCell>
+                              <Badge className="bg-success/20 text-success border-success">{loan.preApproval}</Badge>
+                            </TableCell>
+                          )}
+                          {isColumnVisible(contractColumns, 'signatureStatus') && (
+                            <TableCell>{getSignatureStatusBadge(loan.signatureStatus)}</TableCell>
+                          )}
+                          {isColumnVisible(contractColumns, 'resend') && (
+                            <TableCell>
+                              <Button size="sm" variant="outline" onClick={() => setResendModal({ open: true, loan })}>
+                                <Send className="h-4 w-4" />
+                              </Button>
+                            </TableCell>
+                          )}
+                          {isColumnVisible(contractColumns, 'attach') && (
+                            <TableCell>
+                              <Button size="sm" variant="outline" onClick={() => setAttachModal({ open: true, loan })}>
+                                <FileText className="h-4 w-4" />
+                              </Button>
+                            </TableCell>
+                          )}
+                        </TableRow>
+                      )))}
+                  </TableBody>
+                </Table>
+              </div>
+              <div className="flex items-center justify-between mt-4">
+                <div className="text-sm text-muted-foreground">Mostrando {(contractPage - 1) * pageSize + 1} - {Math.min(contractPage * pageSize, contractTotal)} de {contractTotal}</div>
+                <div className="flex items-center gap-2">
+                  {renderPagination(contractPage, contractTotal, setContractPage)}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-        <AlertDialog open={rejectDialog.open} onOpenChange={(open) => setRejectDialog(prev => ({ ...prev, open }))}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>¿Rechazar Solicitud?</AlertDialogTitle>
-              <AlertDialogDescription>
-                Se rechazará la solicitud de préstamo {rejectDialog.loan?.id}. El cliente será notificado.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-              <AlertDialogAction className="bg-danger hover:bg-danger/90" onClick={() => handleRejectLoan()}>
-                Rechazar
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        {/* DESEMBOLSO Tab */}
+        <TabsContent value="disbursement">
+          <Card className="shadow-soft">
+            <CardHeader>
+              <CardTitle>Desembolso</CardTitle>
+              <CardDescription>Gestiona los desembolsos de préstamos aprobados</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <LoanTableFilters
+                searchTerm={disbursementSearch}
+                onSearchChange={setDisbursementSearch}
+                sortOrder={disbursementSort}
+                onSortChange={setDisbursementSort}
+                columns={disbursementColumns}
+                onColumnsChange={setDisbursementColumns}
+                showExport
+                onExport={exportToExcel}
+              />
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      {isColumnVisible(disbursementColumns, 'id') && <TableHead>ID</TableHead>}
+                      {isColumnVisible(disbursementColumns, 'firstName') && <TableHead>Nombres</TableHead>}
+                      {isColumnVisible(disbursementColumns, 'lastName') && <TableHead>Apellidos</TableHead>}
+                      {isColumnVisible(disbursementColumns, 'requestDate') && <TableHead>F. Solicitud</TableHead>}
+                      {isColumnVisible(disbursementColumns, 'amount') && <TableHead>Monto</TableHead>}
+                      {isColumnVisible(disbursementColumns, 'installments') && <TableHead>Cuotas</TableHead>}
+                      {isColumnVisible(disbursementColumns, 'bank') && <TableHead>Banco</TableHead>}
+                      {isColumnVisible(disbursementColumns, 'accountNumber') && <TableHead>Cta/CLABE</TableHead>}
+                      {isColumnVisible(disbursementColumns, 'consent') && <TableHead>Consentimiento</TableHead>}
+                      {isColumnVisible(disbursementColumns, 'ine') && <TableHead>INE</TableHead>}
+                      {isColumnVisible(disbursementColumns, 'curp') && <TableHead>CURP</TableHead>}
+                      {isColumnVisible(disbursementColumns, 'contractStatus') && <TableHead>Est. Contrato</TableHead>}
+                      {isColumnVisible(disbursementColumns, 'disbursementStatus') && <TableHead>Est. Desembolso</TableHead>}
+                      {isColumnVisible(disbursementColumns, 'actions') && <TableHead>Acciones</TableHead>}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {disbursementLoading ? renderSkeletonRows(disbursementColumns) : disbursementLoansData.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={disbursementColumns.filter(c => c.visible).length || 12} className="text-center py-12">
+                          <div className="flex flex-col items-center gap-3">
+                            <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center">
+                              <DollarSign className="h-6 w-6 text-muted-foreground" />
+                            </div>
+                            <div>
+                              <p className="font-medium text-gray-900">No hay préstamos por desembolsar</p>
+                              <p className="text-sm text-muted-foreground mt-1">Los contratos firmados aparecerán aquí</p>
+                            </div>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      disbursementLoansData.filter(l =>
+                        (l.firstName ?? '').toLowerCase().includes(disbursementSearch.toLowerCase()) ||
+                        (l.lastName ?? '').toLowerCase().includes(disbursementSearch.toLowerCase()) ||
+                        String(l.id ?? '').toLowerCase().includes(disbursementSearch.toLowerCase())
+                      ).map((loan) => (
+                        <TableRow key={loan.id}>
+                          {isColumnVisible(disbursementColumns, 'id') && <TableCell className="font-medium whitespace-nowrap">{loan.id}</TableCell>}
+                          {isColumnVisible(disbursementColumns, 'firstName') && <TableCell>{loan.firstName}</TableCell>}
+                          {isColumnVisible(disbursementColumns, 'lastName') && <TableCell>{loan.lastName}</TableCell>}
+                          {isColumnVisible(disbursementColumns, 'requestDate') && <TableCell className="whitespace-nowrap">{formatDisplayDate(loan.requestDate)}</TableCell>}
+                          {isColumnVisible(disbursementColumns, 'amount') && <TableCell className="font-semibold">${loan.amount.toLocaleString()}</TableCell>}
+                          {isColumnVisible(disbursementColumns, 'installments') && <TableCell>{loan.installments}</TableCell>}
+                          {isColumnVisible(disbursementColumns, 'bank') && <TableCell>{getBankName(loan.bank)}</TableCell>}
+                          {isColumnVisible(disbursementColumns, 'accountNumber') && <TableCell>{loan.accountNumber}</TableCell>}
+                          {isColumnVisible(disbursementColumns, 'consent') && (
+                            <TableCell>{getConsentBadge(loan.status_consent || loan.raw?.status_consent || loan.statusConsent)}</TableCell>
+                          )}
+                          {isColumnVisible(disbursementColumns, 'ine') && <TableCell>{loan.ineNumber?.slice(0, 10) ?? 'N/A'}...</TableCell>}
+                          {isColumnVisible(disbursementColumns, 'curp') && <TableCell>{loan.curpNumber?.slice(0, 10) ?? 'N/A'}...</TableCell>}
+                          {isColumnVisible(disbursementColumns, 'contractStatus') && (
+                            <TableCell>
+                              <Badge className="bg-success/20 text-success border-success">{loan.contractStatus}</Badge>
+                            </TableCell>
+                          )}
+                          {isColumnVisible(disbursementColumns, 'disbursementStatus') && (
+                            <TableCell>
+                              <Badge variant="outline" className="bg-warning/10 text-warning border-warning">{loan.disbursementStatus}</Badge>
+                            </TableCell>
+                          )}
+                          {isColumnVisible(disbursementColumns, 'actions') && (
+                            <TableCell>
+                              <div className="flex gap-1">
+                                <Button size="sm" variant="default" onClick={() => setConfirmDisbursementModal({ open: true, loan: { ...loan, bankName: getBankName(loan.bank) } })} title="Confirmar Desembolso">
+                                  <DollarSign className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          )}
+                        </TableRow>
+                      )))}
+                  </TableBody>
+                </Table>
+              </div>
+              <div className="flex items-center justify-between mt-4">
+                <div className="text-sm text-muted-foreground">Mostrando {(disbursementPage - 1) * pageSize + 1} - {Math.min(disbursementPage * pageSize, disbursementTotal)} de {disbursementTotal}</div>
+                <div className="flex items-center gap-2">
+                  {renderPagination(disbursementPage, disbursementTotal, setDisbursementPage)}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-        <ResendContractModal
-          open={resendModal.open}
-          onOpenChange={(open) => setResendModal(prev => ({ ...prev, open }))}
-          loan={resendModal.loan}
-          onResend={() => toast({ title: "Reenviado", description: "El contrato ha sido reenviado al cliente." })}
-        />
+        {/* ACTIVOS Tab */}
+        <TabsContent value="active">
+          <Card className="shadow-soft">
+            <CardHeader>
+              <CardTitle>Préstamos Activos</CardTitle>
+              <CardDescription>Préstamos al día con sus pagos</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <LoanTableFilters
+                searchTerm={activeSearch}
+                onSearchChange={setActiveSearch}
+                sortOrder={activeSort}
+                onSortChange={setActiveSort}
+                columns={activeColumns}
+                onColumnsChange={setActiveColumns}
+                showExport
+                onExport={exportToExcel}
+              />
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      {isColumnVisible(activeColumns, 'id') && <TableHead>ID</TableHead>}
+                      {isColumnVisible(activeColumns, 'firstName') && <TableHead>Nombres</TableHead>}
+                      {isColumnVisible(activeColumns, 'lastName') && <TableHead>Apellidos</TableHead>}
+                      {isColumnVisible(activeColumns, 'requestDate') && <TableHead>F. Solicitud</TableHead>}
+                      {isColumnVisible(activeColumns, 'amount') && <TableHead>Monto</TableHead>}
+                      {isColumnVisible(activeColumns, 'installments') && <TableHead>Cuotas</TableHead>}
+                      {isColumnVisible(activeColumns, 'paidInstallments') && <TableHead>Cuot. Pagadas</TableHead>}
+                      {isColumnVisible(activeColumns, 'ine') && <TableHead>INE</TableHead>}
+                      {isColumnVisible(activeColumns, 'consent') && <TableHead>Consentimiento</TableHead>}
+                      {isColumnVisible(activeColumns, 'lastPaymentDate') && <TableHead>F. Últ. Pago</TableHead>}
+                      {isColumnVisible(activeColumns, 'status') && <TableHead>Estado</TableHead>}
+                      {isColumnVisible(activeColumns, 'actions') && <TableHead>Acciones</TableHead>}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {activeLoading ? renderSkeletonRows(activeColumns) : activeLoansData.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={activeColumns.filter(c => c.visible).length || 12} className="text-center py-12">
+                          <div className="flex flex-col items-center gap-3">
+                            <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center">
+                              <CheckCircle className="h-6 w-6 text-muted-foreground" />
+                            </div>
+                            <div>
+                              <p className="font-medium text-gray-900">No hay préstamos activos</p>
+                              <p className="text-sm text-muted-foreground mt-1">Los préstamos aprobados aparecerán aquí</p>
+                            </div>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      activeLoansData.filter(l =>
+                        (l.firstName ?? '').toLowerCase().includes(activeSearch.toLowerCase()) ||
+                        (l.lastName ?? '').toLowerCase().includes(activeSearch.toLowerCase()) ||
+                        String(l.id ?? '').toLowerCase().includes(activeSearch.toLowerCase())
+                      ).map((loan) => (
+                        <TableRow key={loan.id}>
+                          {isColumnVisible(activeColumns, 'id') && <TableCell className="font-medium whitespace-nowrap">{loan.id}</TableCell>}
+                          {isColumnVisible(activeColumns, 'firstName') && <TableCell>{loan.firstName}</TableCell>}
+                          {isColumnVisible(activeColumns, 'lastName') && <TableCell>{loan.lastName}</TableCell>}
+                          {isColumnVisible(activeColumns, 'requestDate') && <TableCell className="whitespace-nowrap">{formatDisplayDate(loan.requestDate)}</TableCell>}
+                          {isColumnVisible(activeColumns, 'amount') && <TableCell className="font-semibold">${loan.amount.toLocaleString()}</TableCell>}
+                          {isColumnVisible(activeColumns, 'installments') && <TableCell>{loan.installments}</TableCell>}
+                          {isColumnVisible(activeColumns, 'paidInstallments') && <TableCell>{loan.paidInstallments}/{loan.installments}</TableCell>}
+                          {isColumnVisible(activeColumns, 'ine') && <TableCell>{loan.ineNumber?.slice(0, 10) ?? 'N/A'}...</TableCell>}
+                          {isColumnVisible(activeColumns, 'consent') && <TableCell>{getConsentBadge(loan.status_consent || loan.raw?.status_consent || loan.statusConsent)}</TableCell>}
+                          {isColumnVisible(activeColumns, 'lastPaymentDate') && <TableCell className="whitespace-nowrap">{formatDisplayDate(loan.lastPaymentDate)}</TableCell>}
+                          {isColumnVisible(activeColumns, 'status') && <TableCell>{getStatusBadge(loan.status)}</TableCell>}
+                          {isColumnVisible(activeColumns, 'actions') && (
+                            <TableCell>
+                              <div className="flex gap-1">
+                                <Button size="sm" variant="ghost" onClick={() => setDetailsModal({ open: true, loan, sourceTab: 'active' })} title="Ver Detalle">
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                                <Button size="sm" variant="ghost" onClick={() => setScheduleModal({ open: true, loan })} title="Ver Cronograma">
+                                  <Calendar className="h-4 w-4" />
+                                </Button>
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button size="sm" variant="ghost">
+                                      <MoreHorizontal className="h-4 w-4" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    <DropdownMenuItem onClick={() => setReminderModal({ open: true, loan })}>
+                                      <Bell className="h-4 w-4 mr-2" />
+                                      Enviar recordatorio
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => setUpdateInstallmentsModal({ open: true, loan })}>
+                                      <RefreshCw className="h-4 w-4 mr-2" />
+                                      Actualizar cuotas
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </div>
+                            </TableCell>
+                          )}
+                        </TableRow>
+                      )))}
+                  </TableBody>
+                </Table>
+              </div>
+              <div className="flex items-center justify-between mt-4">
+                <div className="text-sm text-muted-foreground">Mostrando {(activePage - 1) * pageSize + 1} - {Math.min(activePage * pageSize, activeTotal)} de {activeTotal}</div>
+                <div className="flex items-center gap-2">
+                  {renderPagination(activePage, activeTotal, setActivePage)}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-        <AttachContractModal
-          open={attachModal.open}
-          onOpenChange={(open) => setAttachModal(prev => ({ ...prev, open }))}
-          loan={attachModal.loan}
-          onConfirm={() => toast({ title: "Adjuntado", description: "Los contratos firmados han sido adjuntados." })}
-        />
+        {/* ATRASADOS Tab */}
+        <TabsContent value="overdue">
+          <Card className="shadow-soft">
+            <CardHeader>
+              <CardTitle>Préstamos Atrasados</CardTitle>
+              <CardDescription>Préstamos con pagos pendientes o en mora</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <LoanTableFilters
+                searchTerm={overdueSearch}
+                onSearchChange={setOverdueSearch}
+                sortOrder={overdueSort}
+                onSortChange={setOverdueSort}
+                columns={overdueColumns}
+                onColumnsChange={setOverdueColumns}
+                showExport
+                onExport={exportToExcel}
+              />
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      {isColumnVisible(overdueColumns, 'id') && <TableHead>ID</TableHead>}
+                      {isColumnVisible(overdueColumns, 'firstName') && <TableHead>Nombres</TableHead>}
+                      {isColumnVisible(overdueColumns, 'lastName') && <TableHead>Apellidos</TableHead>}
+                      {isColumnVisible(overdueColumns, 'requestDate') && <TableHead>F. Solicitud</TableHead>}
+                      {isColumnVisible(overdueColumns, 'amount') && <TableHead>Monto</TableHead>}
+                      {isColumnVisible(overdueColumns, 'installments') && <TableHead>Cuotas</TableHead>}
+                      {isColumnVisible(overdueColumns, 'paidInstallments') && <TableHead>Cuot. Pagadas</TableHead>}
+                      {isColumnVisible(overdueColumns, 'ine') && <TableHead>INE</TableHead>}
+                      {isColumnVisible(overdueColumns, 'consent') && <TableHead>Consentimiento</TableHead>}
+                      {isColumnVisible(overdueColumns, 'lastPaymentDate') && <TableHead>F. Últ. Pago</TableHead>}
+                      {isColumnVisible(overdueColumns, 'status') && <TableHead>Estado</TableHead>}
+                      {isColumnVisible(overdueColumns, 'actions') && <TableHead>Acciones</TableHead>}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {overdueLoading ? renderSkeletonRows(overdueColumns) : overdueLoansData.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={overdueColumns.filter(c => c.visible).length || 12} className="text-center py-12">
+                          <div className="flex flex-col items-center gap-3">
+                            <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center">
+                              <TrendingDown className="h-6 w-6 text-muted-foreground" />
+                            </div>
+                            <div>
+                              <p className="font-medium text-gray-900">No hay préstamos atrasados</p>
+                              <p className="text-sm text-muted-foreground mt-1">¡Bien! No hay clientes con pagos vencidos</p>
+                            </div>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      overdueLoansData.filter(l =>
+                        (l.firstName ?? '').toLowerCase().includes(overdueSearch.toLowerCase()) ||
+                        (l.lastName ?? '').toLowerCase().includes(overdueSearch.toLowerCase()) ||
+                        String(l.id ?? '').toLowerCase().includes(overdueSearch.toLowerCase())
+                      ).map((loan) => (
+                        <TableRow key={loan.id}>
+                          {isColumnVisible(overdueColumns, 'id') && <TableCell className="font-medium whitespace-nowrap">{loan.id}</TableCell>}
+                          {isColumnVisible(overdueColumns, 'firstName') && <TableCell>{loan.firstName}</TableCell>}
+                          {isColumnVisible(overdueColumns, 'lastName') && <TableCell>{loan.lastName}</TableCell>}
+                          {isColumnVisible(overdueColumns, 'requestDate') && <TableCell className="whitespace-nowrap">{formatDisplayDate(loan.requestDate)}</TableCell>}
+                          {isColumnVisible(overdueColumns, 'amount') && <TableCell className="font-semibold">${loan.amount.toLocaleString()}</TableCell>}
+                          {isColumnVisible(overdueColumns, 'installments') && <TableCell>{loan.installments}</TableCell>}
+                          {isColumnVisible(overdueColumns, 'paidInstallments') && <TableCell>{loan.paidInstallments}/{loan.installments}</TableCell>}
+                          {isColumnVisible(overdueColumns, 'ine') && <TableCell>{loan.ineNumber?.slice(0, 10) ?? 'N/A'}...</TableCell>}
+                          {isColumnVisible(overdueColumns, 'consent') && <TableCell>{getConsentBadge(loan.status_consent || loan.raw?.status_consent || loan.statusConsent)}</TableCell>}
+                          {isColumnVisible(overdueColumns, 'lastPaymentDate') && <TableCell className="whitespace-nowrap">{formatDisplayDate(loan.lastPaymentDate)}</TableCell>}
+                          {isColumnVisible(overdueColumns, 'status') && <TableCell>{getStatusBadge(loan.status)}</TableCell>}
+                          {isColumnVisible(overdueColumns, 'actions') && (
+                            <TableCell>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button size="sm" variant="ghost">
+                                    <MoreHorizontal className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem onClick={() => setReminderModal({ open: true, loan })}>
+                                    <Bell className="h-4 w-4 mr-2" />
+                                    Enviar recordatorio
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => setSellPortfolioModal({ open: true, loan })}>
+                                    <TrendingDown className="h-4 w-4 mr-2" />
+                                    Vender cartera
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => setUpdateInstallmentsModal({ open: true, loan })}>
+                                    <RefreshCw className="h-4 w-4 mr-2" />
+                                    Actualizar cuotas
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </TableCell>
+                          )}
+                        </TableRow>
+                      )))}
+                  </TableBody>
+                </Table>
+              </div>
+              <div className="flex items-center justify-between mt-4">
+                <div className="text-sm text-muted-foreground">Mostrando {(overduePage - 1) * pageSize + 1} - {Math.min(overduePage * pageSize, overdueTotal)} de {overdueTotal}</div>
+                <div className="flex items-center gap-2">
+                  {renderPagination(overduePage, overdueTotal, setOverduePage)}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-        <ModifyDisbursementModal
-          open={modifyDisbursementModal.open}
-          onOpenChange={(open) => setModifyDisbursementModal(prev => ({ ...prev, open }))}
-          loan={modifyDisbursementModal.loan}
-          onSave={() => toast({ title: "Guardado", description: "Los datos bancarios se actualizaron." })}
-        />
+        {/* HISTORIAL Tab */}
+        <TabsContent value="history">
+          <Card className="shadow-soft">
+            <CardHeader>
+              <CardTitle>Historial de Préstamos</CardTitle>
+              <CardDescription>Préstamos liquidados o vendidos</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <LoanTableFilters
+                searchTerm={historySearch}
+                onSearchChange={setHistorySearch}
+                sortOrder={historySort}
+                onSortChange={setHistorySort}
+                columns={historyColumns}
+                onColumnsChange={setHistoryColumns}
+                showExport
+                onExport={exportToExcel}
+              />
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      {isColumnVisible(historyColumns, 'id') && <TableHead>ID</TableHead>}
+                      {isColumnVisible(historyColumns, 'firstName') && <TableHead>Nombres</TableHead>}
+                      {isColumnVisible(historyColumns, 'lastName') && <TableHead>Apellidos</TableHead>}
+                      {isColumnVisible(historyColumns, 'requestDate') && <TableHead>F. Solicitud</TableHead>}
+                      {isColumnVisible(historyColumns, 'amount') && <TableHead>Monto</TableHead>}
+                      {isColumnVisible(historyColumns, 'installments') && <TableHead>Cuotas</TableHead>}
+                      {isColumnVisible(historyColumns, 'paidInstallments') && <TableHead>Cuot. Pagadas</TableHead>}
+                      {isColumnVisible(historyColumns, 'ine') && <TableHead>INE</TableHead>}
+                      {isColumnVisible(historyColumns, 'consent') && <TableHead>Consentimiento</TableHead>}
+                      {isColumnVisible(historyColumns, 'lastPaymentDate') && <TableHead>F. Últ. Pago</TableHead>}
+                      {isColumnVisible(historyColumns, 'status') && <TableHead>Estado</TableHead>}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {historyLoading ? renderSkeletonRows(historyColumns) : historyLoansData.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={historyColumns.filter(c => c.visible).length || 12} className="text-center py-12">
+                          <div className="flex flex-col items-center gap-3">
+                            <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center">
+                              <FileText className="h-6 w-6 text-muted-foreground" />
+                            </div>
+                            <div>
+                              <p className="font-medium text-gray-900">No hay historial de préstamos</p>
+                              <p className="text-sm text-muted-foreground mt-1">Los préstamos cerrados aparecerán aquí</p>
+                            </div>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      historyLoansData.filter(l =>
+                        (l.firstName ?? '').toLowerCase().includes(historySearch.toLowerCase()) ||
+                        (l.lastName ?? '').toLowerCase().includes(historySearch.toLowerCase()) ||
+                        String(l.id ?? '').toLowerCase().includes(historySearch.toLowerCase())
+                      ).map((loan) => (
+                        <TableRow key={loan.id}>
+                          {isColumnVisible(historyColumns, 'id') && <TableCell className="font-medium whitespace-nowrap">{loan.id}</TableCell>}
+                          {isColumnVisible(historyColumns, 'firstName') && <TableCell>{loan.firstName}</TableCell>}
+                          {isColumnVisible(historyColumns, 'lastName') && <TableCell>{loan.lastName}</TableCell>}
+                          {isColumnVisible(historyColumns, 'requestDate') && <TableCell className="whitespace-nowrap">{formatDisplayDate(loan.requestDate)}</TableCell>}
+                          {isColumnVisible(historyColumns, 'amount') && <TableCell className="font-semibold">${loan.amount.toLocaleString()}</TableCell>}
+                          {isColumnVisible(historyColumns, 'installments') && <TableCell>{loan.installments}</TableCell>}
+                          {isColumnVisible(historyColumns, 'paidInstallments') && <TableCell>{loan.paidInstallments}/{loan.installments}</TableCell>}
+                          {isColumnVisible(historyColumns, 'ine') && <TableCell>{loan.ineNumber?.slice(0, 10) ?? 'N/A'}...</TableCell>}
+                          {isColumnVisible(historyColumns, 'consent') && <TableCell>{getConsentBadge(loan.status_consent || loan.raw?.status_consent || loan.statusConsent)}</TableCell>}
+                          {isColumnVisible(historyColumns, 'lastPaymentDate') && <TableCell className="whitespace-nowrap">{formatDisplayDate(loan.lastPaymentDate)}</TableCell>}
+                          {isColumnVisible(historyColumns, 'status') && <TableCell>{getStatusBadge(loan.status)}</TableCell>}
+                        </TableRow>
+                      )))}
+                  </TableBody>
+                </Table>
+              </div>
+              <div className="flex items-center justify-between mt-4">
+                <div className="text-sm text-muted-foreground">Mostrando {(historyPage - 1) * pageSize + 1} - {Math.min(historyPage * pageSize, historyTotal)} de {historyTotal}</div>
+                <div className="flex items-center gap-2">
+                  {renderPagination(historyPage, historyTotal, setHistoryPage)}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
-        <ConfirmDisbursementModal
-          open={confirmDisbursementModal.open}
-          onOpenChange={(open) => setConfirmDisbursementModal(prev => ({ ...prev, open }))}
-          loan={confirmDisbursementModal.loan}
-          onConfirm={(file) => handleConfirmDisbursement(file)}
-        />
+      {/* Modals */}
+      <INECURPModal
+        open={ineCurpModal.open}
+        onOpenChange={(open) => setIneCurpModal(prev => ({ ...prev, open }))}
+        loan={ineCurpModal.loan}
+        type={ineCurpModal.type}
+      />
 
-        <SendReminderModal
-          open={reminderModal.open}
-          onOpenChange={(open) => setReminderModal(prev => ({ ...prev, open }))}
-          loan={reminderModal.loan}
-          onConfirm={handleSendReminder}
-        />
+      <ModifyLoanModal
+        open={modifyModal.open}
+        onOpenChange={(open) => setModifyModal(prev => ({ ...prev, open }))}
+        loan={modifyModal.loan}
+        onSend={() => toast({ title: "Enviado", description: "La propuesta ha sido enviada al cliente." })}
+        onSave={(updatedLoan) => {
+          setModifyModal(prev => ({ ...prev, loan: updatedLoan }));
+          queryClient.invalidateQueries({ queryKey: ['loans', 'admin'] });
+          queryClient.invalidateQueries({ queryKey: ['admin-loans'] });
+          toast({ title: "Guardado", description: "Los cambios han sido guardados." });
+        }}
+      />
 
-        <SellPortfolioModal
-          open={sellPortfolioModal.open}
-          onOpenChange={(open) => setSellPortfolioModal(prev => ({ ...prev, open }))}
-          loan={sellPortfolioModal.loan}
-          onConfirm={() => toast({ title: "Cartera vendida", description: "La venta de cartera ha sido registrada." })}
-        />
+      <AlertDialog open={detailsModal.open} onOpenChange={(open) => setDetailsModal(prev => ({ ...prev, open }))}>
+        <AlertDialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto p-5 bg-white">
+          {(() => {
+            const loan = detailsModal.loan as any;
+            const md = loan?.raw?.metadata ?? {};
+            const user = loan?.raw?.users ?? {};
+            const userMembership = user.user_memberships?.[0]?.membership_plans ?? {};
+            const personal = md.personalData ?? {};
 
-        <UpdateInstallmentsModal
-          open={updateInstallmentsModal.open}
-          onOpenChange={(open) => setUpdateInstallmentsModal(prev => ({ ...prev, open }))}
-          loan={updateInstallmentsModal.loan}
-          onConfirm={() => toast({ title: "Cuotas actualizadas", description: "Las cuotas han sido actualizadas correctamente." })}
-        />
-        <PaymentScheduleModal
-          open={scheduleModal.open}
-          onOpenChange={(open) => setScheduleModal(prev => ({ ...prev, open }))}
-          loan={scheduleModal.loan}
-        />
+            const firstName = user.first_name || personal.firstName || '';
+            const lastName = user.last_name || personal.lastName || '';
+            const fullName = `${firstName} ${lastName}`.trim() || 'Usuario';
+            const userInitial = firstName?.[0]?.toUpperCase() || '?';
+            const profileColor = ['bg-blue-500', 'bg-green-500', 'bg-purple-500', 'bg-pink-500', 'bg-indigo-500', 'bg-red-500', 'bg-yellow-500', 'bg-teal-500'][Math.abs((loan?.id ?? '')?.charCodeAt(0) ?? 0) % 8];
 
-        {approvingState.open && (
-          <div className="fixed inset-0 z-[100] bg-black/60 flex items-center justify-center">
-            <div className="bg-white rounded-xl p-8 max-w-sm w-full mx-4 text-center shadow-2xl">
-              <div className="animate-spin h-12 w-12 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4" />
-              <h3 className="text-lg font-bold text-gray-900 mb-2">Aprobando Solicitud</h3>
-              <p className="text-sm text-muted-foreground">{approvingState.message}</p>
-            </div>
+            const phone = user.phone || personal.phone || '-';
+            const phoneCountry = user.phone_country_code || '+52';
+            const fullPhone = phone !== '-' ? `${phoneCountry}${phone.replace(/^\+\d+/, '')}` : '-';
+            const birthDate = user.birth_date ? formatDisplayDate(new Date(user.birth_date).toISOString().slice(0, 10)) : (personal.birthDate ? formatDisplayDate(personal.birthDate) : '-');
+            const ineKey = user.ine_key || personal.ineKey || '-';
+            const curp = user.curp || personal.curp || '-';
+            const address = user.address || personal.address || '-';
+            const email = user.email || personal.email || '-';
+
+            const membershipName = userMembership.name || loan?.membership || 'Sin membresía';
+            const membershipColor = userMembership.color || 'bg-gray-100';
+            const membershipIcon = userMembership.icon || '★';
+            const loanInterestRateDecimal = Number(loan?.raw?.interest_rate ?? loan?.interest_rate) || 0.20;
+
+            const loanAmount = Number(loan?.amount ?? 0);
+            const loanInstallments = Number(loan?.installments ?? 0);
+            const calculatedMonthlyPayment = loan?.monthly_payment
+              ? Number(loan.monthly_payment)
+              : (loanAmount > 0 && loanInstallments > 0
+                ? (loanAmount * (loanInterestRateDecimal / 12) * Math.pow(1 + loanInterestRateDecimal / 12, loanInstallments)) / (Math.pow(1 + loanInterestRateDecimal / 12, loanInstallments) - 1)
+                : null);
+
+            return (
+              <div className="space-y-4">
+                {/* Profile Header */}
+                <div className="flex items-center gap-4 pb-4 border-b border-gray-200">
+                  {user.avatar_url ? (
+                    <img src={user.avatar_url} alt={fullName} className="w-12 h-12 rounded-full object-cover shadow-sm" />
+                  ) : (
+                    <div className={`w-12 h-12 rounded-full ${profileColor} flex items-center justify-center text-white text-lg font-bold shadow-sm`}>
+                      {userInitial}
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-base font-bold truncate">{fullName}</h3>
+                    <p className="text-xs text-muted-foreground truncate">{email}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className={`text-[10px] ${membershipColor} px-2 py-0.5 rounded-full font-medium flex items-center gap-1`}>
+                        <span>{membershipIcon}</span> {membershipName}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="bg-gray-50 rounded-xl px-3 py-2 text-right">
+                    <p className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wider">Total Préstamo</p>
+                    <p className="text-xl font-black text-primary">${Number(loan?.amount ?? 0).toLocaleString()}</p>
+                    <p className="text-[9px] text-muted-foreground">MXN</p>
+                  </div>
+                </div>
+
+                {/* Loan Summary Cards */}
+                <div className="grid grid-cols-4 gap-2">
+                  <div className="border border-gray-200 rounded-lg p-2.5 text-center bg-white">
+                    <p className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wider mb-0.5">Plazo</p>
+                    <p className="text-lg font-bold">{loan?.installments ?? '-'}</p>
+                    <p className="text-[9px] text-muted-foreground">cuotas</p>
+                  </div>
+                  <div className="border border-gray-200 rounded-lg p-2.5 text-center bg-white">
+                    <p className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wider mb-0.5">Cuota Mensual</p>
+                    <p className="text-base font-bold">${calculatedMonthlyPayment ? Number(calculatedMonthlyPayment).toLocaleString() : '-'}</p>
+                  </div>
+                  <div className="border border-gray-200 rounded-lg p-2.5 text-center bg-white">
+                    <p className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wider mb-0.5">Solicitud</p>
+                    <p className="text-sm font-bold font-mono">{loan?.id ? String(loan.id).slice(-6) : '-'}</p>
+                  </div>
+                  <div className="border border-gray-200 rounded-lg p-2.5 text-center bg-white">
+                    <p className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wider mb-0.5">Estatus</p>
+                    <p className="text-sm font-bold">{getStatusBadge(loan?.status || '-')}</p>
+                  </div>
+                </div>
+
+                {/* Personal Data */}
+                <div className="space-y-2">
+                  <h4 className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Datos Personales</h4>
+                  <div className="grid grid-cols-4 gap-2">
+                    <div className="border border-gray-200 rounded-lg p-2 bg-white">
+                      <p className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wider mb-0.5">Teléfono</p>
+                      <p className="text-xs font-bold font-mono">{fullPhone}</p>
+                    </div>
+                    <div className="border border-gray-200 rounded-lg p-2 bg-white">
+                      <p className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wider mb-0.5">Fecha Nac.</p>
+                      <p className="text-xs font-bold">{birthDate}</p>
+                    </div>
+                    <div className="border border-gray-200 rounded-lg p-2 bg-white">
+                      <p className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wider mb-0.5">INE</p>
+                      <p className="text-xs font-bold font-mono">{ineKey}</p>
+                    </div>
+                    <div className="border border-gray-200 rounded-lg p-2 bg-white">
+                      <p className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wider mb-0.5">CURP</p>
+                      <p className="text-xs font-bold font-mono">{curp}</p>
+                    </div>
+                    <div className="border border-gray-200 rounded-lg p-2 bg-white col-span-4">
+                      <p className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wider mb-0.5">Dirección</p>
+                      <p className="text-xs font-bold truncate">{address}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Bank Account */}
+                {loan?.bank || loan?.accountNumber ? (
+                  <div className="space-y-2">
+                    <h4 className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Cuenta Bancaria</h4>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="border border-gray-200 rounded-lg p-2 bg-white">
+                        <p className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wider mb-0.5">Banco</p>
+                        <p className="text-xs font-bold">{loan?.bank || '-'}</p>
+                      </div>
+                      <div className="border border-gray-200 rounded-lg p-2 bg-white">
+                        <p className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wider mb-0.5">CLABE</p>
+                        <p className="text-xs font-bold font-mono">{loan?.accountNumber ? `••••${loan.accountNumber.slice(-4)}` : '-'}</p>
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+
+                {/* Membership Details */}
+                {loan?.membershipRaw?.name ? (
+                  <div className="space-y-2">
+                    <h4 className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Membresía</h4>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="border border-gray-200 rounded-lg p-2 bg-white">
+                        <p className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wider mb-0.5">Plan</p>
+                        <p className="text-xs font-bold">{loan.membershipRaw.name}</p>
+                      </div>
+                      <div className="border border-gray-200 rounded-lg p-2 bg-white">
+                        <p className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wider mb-0.5">Tasa Anual</p>
+                        <p className="text-xs font-bold">{(loanInterestRateDecimal * 100).toFixed(2)}%</p>
+                      </div>
+                      <div className="border border-gray-200 rounded-lg p-2 bg-white">
+                        <p className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wider mb-0.5">Estatus</p>
+                        <p className="text-xs font-bold">{loan.membershipRaw.active !== false ? 'Activa' : 'Inactiva'}</p>
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            );
+          })()}
+          <AlertDialogFooter className="gap-2 mt-4 pt-3 border-t border-gray-200">
+            <AlertDialogCancel onClick={() => setDetailsModal({ open: false, loan: null })} className="gap-2">Cerrar</AlertDialogCancel>
+            {detailsModal.sourceTab !== 'active' && (
+              <>
+                <AlertDialogAction
+                  className="bg-danger hover:bg-danger/90"
+                  onClick={() => {
+                    const loan = detailsModal.loan as any;
+                    setDetailsModal({ open: false, loan: null });
+                    setRejectDialog({ open: true, loan });
+                  }}
+                >
+                  Rechazar
+                </AlertDialogAction>
+                <AlertDialogAction
+                  onClick={() => {
+                    const loan = detailsModal.loan as any;
+                    setDetailsModal({ open: false, loan: null });
+                    setApproveDialog({ open: true, loan });
+                  }}
+                >
+                  Aprobar
+                </AlertDialogAction>
+              </>
+            )}
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={approveDialog.open} onOpenChange={(open) => setApproveDialog(prev => ({ ...prev, open }))}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Aprobar Solicitud?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se aprobará la solicitud de préstamo {approveDialog.loan?.id} por ${approveDialog.loan?.amount.toLocaleString()} MXN.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={() => handleApproveLoan()}>
+              Aprobar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={rejectDialog.open} onOpenChange={(open) => setRejectDialog(prev => ({ ...prev, open }))}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Rechazar Solicitud?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se rechazará la solicitud de préstamo {rejectDialog.loan?.id}. El cliente será notificado.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction className="bg-danger hover:bg-danger/90" onClick={() => handleRejectLoan()}>
+              Rechazar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <ResendContractModal
+        open={resendModal.open}
+        onOpenChange={(open) => setResendModal(prev => ({ ...prev, open }))}
+        loan={resendModal.loan}
+        onResend={() => toast({ title: "Reenviado", description: "El contrato ha sido reenviado al cliente." })}
+      />
+
+      <AttachContractModal
+        open={attachModal.open}
+        onOpenChange={(open) => setAttachModal(prev => ({ ...prev, open }))}
+        loan={attachModal.loan}
+        onConfirm={() => toast({ title: "Adjuntado", description: "Los contratos firmados han sido adjuntados." })}
+      />
+
+      <ModifyDisbursementModal
+        open={modifyDisbursementModal.open}
+        onOpenChange={(open) => setModifyDisbursementModal(prev => ({ ...prev, open }))}
+        loan={modifyDisbursementModal.loan}
+        onSave={() => toast({ title: "Guardado", description: "Los datos bancarios se actualizaron." })}
+      />
+
+      <ConfirmDisbursementModal
+        open={confirmDisbursementModal.open}
+        onOpenChange={(open) => setConfirmDisbursementModal(prev => ({ ...prev, open }))}
+        loan={confirmDisbursementModal.loan}
+        onConfirm={(file) => handleConfirmDisbursement(file)}
+      />
+
+      <SendReminderModal
+        open={reminderModal.open}
+        onOpenChange={(open) => setReminderModal(prev => ({ ...prev, open }))}
+        loan={reminderModal.loan}
+        onConfirm={handleSendReminder}
+      />
+
+      <SellPortfolioModal
+        open={sellPortfolioModal.open}
+        onOpenChange={(open) => setSellPortfolioModal(prev => ({ ...prev, open }))}
+        loan={sellPortfolioModal.loan}
+        onConfirm={() => toast({ title: "Cartera vendida", description: "La venta de cartera ha sido registrada." })}
+      />
+
+      <UpdateInstallmentsModal
+        open={updateInstallmentsModal.open}
+        onOpenChange={(open) => setUpdateInstallmentsModal(prev => ({ ...prev, open }))}
+        loan={updateInstallmentsModal.loan}
+        onConfirm={() => toast({ title: "Cuotas actualizadas", description: "Las cuotas han sido actualizadas correctamente." })}
+      />
+      <PaymentScheduleModal
+        open={scheduleModal.open}
+        onOpenChange={(open) => setScheduleModal(prev => ({ ...prev, open }))}
+        loan={scheduleModal.loan}
+      />
+
+      {approvingState.open && (
+        <div className="fixed inset-0 z-[100] bg-black/60 flex items-center justify-center">
+          <div className="bg-white rounded-xl p-8 max-w-sm w-full mx-4 text-center shadow-2xl">
+            <div className="animate-spin h-12 w-12 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4" />
+            <h3 className="text-lg font-bold text-gray-900 mb-2">Aprobando Solicitud</h3>
+            <p className="text-sm text-muted-foreground">{approvingState.message}</p>
           </div>
-        )}
-      </div>
-    );
-  };
+        </div>
+      )}
+    </div>
+  );
+};
 
 export default LoanManagement;
