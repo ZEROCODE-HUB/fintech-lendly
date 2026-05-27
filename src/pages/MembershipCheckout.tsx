@@ -355,10 +355,11 @@ const MembershipCheckout = () => {
                 Cancelar
               </Button>
             </CardContent>
+            </Card>
           </div>
         </div>
+        </div>
       </div>
-    </div>
 
 
       {/* Terms Modal */}
