@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -7,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { CreditCard, Building2, Plus, Edit, Trash2, CheckCircle, Star } from "lucide-react";
+import { CreditCard, Building2, Plus, Edit, Trash2, CheckCircle, Star, ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
@@ -44,7 +45,13 @@ type Institution = { id: string; name: string; status?: string };
 const PaymentMethods = () => {
   const { userId } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
+  const location = useLocation();
   const conektaPublicKey = (import.meta.env.VITE_CONEKTA_PUBLIC_KEY ?? "").trim();
+
+  const locationState = location.state as { returnTo?: string; fromLoanProcess?: boolean } | null;
+  const returnTo = locationState?.returnTo || null;
+  const fromCheckout = Boolean(returnTo);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -205,6 +212,9 @@ const PaymentMethods = () => {
         toast({ title: 'Tarjeta agregada', description: 'La tarjeta fue agregada correctamente.' });
         setAddDialogOpen(false);
         await loadPaymentMethods();
+        if (fromCheckout && returnTo) {
+          setTimeout(() => navigate(returnTo, { state: { fromLoanProcess: true } }), 500);
+        }
       } else {
         if (!formData.bankName || !formData.clabe || !formData.accountHolder) {
           toast({ title: "Campos requeridos", description: "Completa todos los campos", variant: "destructive" }); return;
@@ -220,6 +230,9 @@ const PaymentMethods = () => {
         toast({ title: "Método agregado", description: "La cuenta bancaria fue agregada exitosamente." });
         setAddDialogOpen(false);
         await loadPaymentMethods();
+        if (fromCheckout && returnTo) {
+          setTimeout(() => navigate(returnTo, { state: { fromLoanProcess: true } }), 500);
+        }
       }
     } catch (err) {
       console.error('Error adding payment method:', err);
@@ -348,8 +361,13 @@ const PaymentMethods = () => {
         </CardContent>
       </Card>
 
-      <div className="flex justify-end mt-3">
-        <Button onClick={openAddDialog} className="gap-2"><Plus className="h-4 w-4" />Agregar Método de Pago</Button>
+      <div className="flex justify-between items-center mt-3">
+        {fromCheckout && (
+          <Button variant="outline" onClick={() => navigate(returnTo!, { state: { fromLoanProcess: true } })} className="gap-2">
+            <ArrowLeft className="h-4 w-4" />Volver
+          </Button>
+        )}
+        <Button onClick={openAddDialog} className="gap-2 ml-auto"><Plus className="h-4 w-4" />Agregar Método de Pago</Button>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">

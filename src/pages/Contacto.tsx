@@ -42,7 +42,9 @@ const Contacto = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
           <div className="text-lg text-muted-foreground mb-8 flex flex-col gap-1">
             <span>¿Tienes alguna pregunta o comentario?</span>
-            <span>Estamos aquí para ayudarte. Completa el formulario o contáctanos directamente.</span>
+            <span>Estamos aquí para ayudarte.</span>
+            <span>Completa el formulario o contáctanos directamente.</span>
+
           </div>
 
           <div className="grid lg:grid-cols-2 gap-8 lg:gap-12">

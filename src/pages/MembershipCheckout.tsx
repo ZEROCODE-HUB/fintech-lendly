@@ -23,7 +23,8 @@ import {
   CreditCard,
   FileText,
   Zap,
-  X
+  X,
+  ArrowLeft
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
@@ -36,6 +37,7 @@ interface LocationState {
   membershipId?: string;
   membership?: any;
   returnTo?: string;
+  fromLoanProcess?: boolean;
 }
 
 const MembershipCheckout = () => {
@@ -47,6 +49,7 @@ const MembershipCheckout = () => {
   const state = (location.state || {}) as LocationState;
   const membershipId = state?.membershipId;
   const returnTo = state?.returnTo || "/memberships";
+  const fromLoanProcess = state?.fromLoanProcess || (returnTo && returnTo.includes('loan-process'));
 
   const [userProfile, setUserProfile] = useState<{ first_name?: string; last_name?: string; email?: string } | null>(null);
 
@@ -133,7 +136,7 @@ const MembershipCheckout = () => {
 
   const handleProceedToPayment = () => {
     if (!termsAccepted) {
-      toast({ title: "Acepta los términos", description: "Debes aceptaarlos para continuar", variant: "destructive" });
+      toast({ title: "Acepta los términos", description: "Debes aceptarlos para continuar", variant: "destructive" });
       return;
     }
     if (requestInvoice && (!rfc || !fiscalAddress)) {
@@ -188,14 +191,36 @@ const MembershipCheckout = () => {
       <div className="p-4 sm:p-6 md:px-8 mx-auto space-y-4">
         {/* Header */}
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-lg sm:text-xl font-bold">Adquirir Membresía</h1>
-            <p className="text-xs sm:text-sm text-muted-foreground">Confirma y completa tu compra</p>
+          <div className="flex items-center gap-3">
+            {fromLoanProcess && (
+              <Button variant="ghost" size="sm" onClick={() => navigate('/loan-process')} className="text-muted-foreground shrink-0">
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+            )}
+            <div>
+              <h1 className="text-lg sm:text-xl font-bold">Adquirir Membresía</h1>
+              <p className="text-xs sm:text-sm text-muted-foreground">
+                {fromLoanProcess ? 'Completa tu pago para continuar con tu préstamo' : 'Confirma y completa tu compra'}
+              </p>
+            </div>
           </div>
-          <Button variant="ghost" size="sm" onClick={() => navigate(returnTo)} className="text-muted-foreground shrink-0">
+          <Button variant="ghost" size="sm" onClick={() => navigate(fromLoanProcess ? '/loan-process' : returnTo)} className="text-muted-foreground shrink-0">
             <X className="h-4 w-4" />
           </Button>
         </div>
+
+        {/* Back to loan process banner */}
+        {fromLoanProcess && (
+          <div className="bg-primary/5 border border-primary/20 rounded-lg p-3 flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
+              <ArrowLeft className="h-4 w-4 text-primary" />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-medium">Navegas desde tu solicitud de préstamo</p>
+              <p className="text-xs text-muted-foreground">Una vez completada la membresía, continuarás con tu proceso de préstamo.</p>
+            </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 xl:grid-cols-5 gap-4">
           {/* Left column */}
@@ -268,6 +293,12 @@ const MembershipCheckout = () => {
                 )}
               </CardContent>
             </Card>
+            {fromLoanProcess && (
+              <Button variant="outline" onClick={() => navigate('/loan-process')} className="w-full gap-2">
+                <ArrowLeft className="h-4 w-4" />
+                Volver al Préstamo
+              </Button>
+            )}
           </div>
 
           {/* Right column: summary */}
@@ -320,15 +351,14 @@ const MembershipCheckout = () => {
                 {acquiring ? 'Procesando...' : 'Confirmar compra'}
               </Button>
 
-              <Button variant="ghost" className="w-full text-muted-foreground" size="sm" onClick={() => navigate(returnTo)}>
+              <Button variant="ghost" className="w-full text-muted-foreground" size="sm" onClick={() => navigate(fromLoanProcess ? '/loan-process' : returnTo)}>
                 Cancelar
               </Button>
             </CardContent>
-          </Card>
+          </div>
         </div>
       </div>
     </div>
-  </div>
 
 
       {/* Terms Modal */}
@@ -423,7 +453,7 @@ const MembershipCheckout = () => {
 
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setPreviewOpen(false)}>Cerrar</Button>
-            <Button onClick={() => { setPreviewOpen(false); navigate(returnTo); }}>Finalizar</Button>
+            <Button onClick={() => { setPreviewOpen(false); navigate(fromLoanProcess ? '/loan-process' : returnTo); }}>Finalizar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -437,7 +467,7 @@ const MembershipCheckout = () => {
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCardErrorOpen(false)}>Cerrar</Button>
-            <Button onClick={() => { setCardErrorOpen(false); navigate('/payment-methods'); }}>Agregar</Button>
+            <Button onClick={() => { setCardErrorOpen(false); navigate('/payment-methods', { state: { returnTo: '/membership-checkout', membership, fromLoanProcess } }); }}>Ir a Métodos de Pago</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -451,7 +481,7 @@ const MembershipCheckout = () => {
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setNoConektaModalOpen(false)}>Cerrar</Button>
-            <Button onClick={() => { setNoConektaModalOpen(false); navigate('/payment-methods'); }}>Ir a Métodos de Pago</Button>
+            <Button onClick={() => { setNoConektaModalOpen(false); navigate('/payment-methods', { state: { returnTo: '/membership-checkout', membership, fromLoanProcess } }); }}>Ir a Métodos de Pago</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

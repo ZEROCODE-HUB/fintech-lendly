@@ -36,13 +36,13 @@ const helpCategories = [
 const getIcon = (icon: string, className: string) => {
   switch (icon) {
     case "credit-card":
-      return <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>;
+      return <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2" /><line x1="1" y1="10" x2="23" y2="10" /></svg>;
     case "shield":
-      return <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>;
+      return <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>;
     case "file-text":
-      return <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>;
+      return <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /></svg>;
     case "help-circle":
-      return <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>;
+      return <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>;
     default:
       return null;
   }
@@ -56,20 +56,22 @@ const CentroAyuda = () => {
       <main className="pt-20 sm:pt-24 pb-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
           <h2 className="text-lg sm:text-xl font-bold text-foreground mb-2">Centro de Ayuda</h2>
-          <p className="text-sm text-muted-foreground mb-8">
-            Estamos aquí para ayudarte. Encuentra la información que necesitas o contáctanos directamente.
+          <p className="text-sm text-muted-foreground ">
+            Estamos aquí para ayudarte.
           </p>
+          <p className="text-sm text-muted-foreground mb-8">
 
+            Encuentra la información que necesitas o contáctanos directamente.
+          </p>
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
             {helpCategories.map((category, index) => (
               <div
                 key={index}
                 className="p-5 bg-card rounded-xl border border-border hover:shadow-md hover:border-primary/20 transition-all"
               >
-                <div className={`h-11 w-11 rounded-lg flex items-center justify-center mb-4 ${
-                  category.color === 'primary' ? 'bg-primary/10' :
+                <div className={`h-11 w-11 rounded-lg flex items-center justify-center mb-4 ${category.color === 'primary' ? 'bg-primary/10' :
                   category.color === 'success' ? 'bg-success/10' : 'bg-destructive/10'
-                }`}>
+                  }`}>
                   <div className={category.color === 'primary' ? 'text-primary' : category.color === 'success' ? 'text-success' : 'text-destructive'}>
                     {getIcon(category.icon, "h-5 w-5")}
                   </div>
