@@ -1047,12 +1047,24 @@ const LoanProcess = () => {
 
         const { data, error } = await supabase
           .from('users')
-          .select('first_name, last_name, address, birth_date, phone, ine_key, curp, phone_country_code')
+          .select('first_name, last_name, address, birth_date, phone, ine_key, curp, phone_country_code, ine_front_url, ine_back_url, selfie_url, curp_url')
           .eq('id', userId)
           .maybeSingle();
 
         if (error) throw error;
         if (!data) return;
+
+        // Set document URLs if they exist in the database
+        const ineFrontUrl = data.ine_front_url || '';
+        const ineBackUrl = data.ine_back_url || '';
+        const selfieWithIneUrl = data.selfie_url || '';
+        const curpUrl = data.curp_url || '';
+
+        // Set previews from database URLs if no local file is selected
+        if (ineFrontUrl && !ineFrontFile) setIneFrontPreview(ineFrontUrl);
+        if (ineBackUrl && !ineBackFile) setIneBackPreview(ineBackUrl);
+        if (selfieWithIneUrl && !selfieWithIneFile) setSelfieWithInePreview(selfieWithIneUrl);
+        if (curpUrl && !curpFile) setCurpPreview(curpUrl);
 
         setPersonalData({
           firstName: data.first_name ?? '',
@@ -1062,10 +1074,10 @@ const LoanProcess = () => {
           phone: data.phone ?? '',
           ineKey: data.ine_key ?? '',
           curp: data.curp ?? '',
-          ineFrontUrl: '',
-          ineBackUrl: '',
-          selfieWithIneUrl: '',
-          curpUrl: '',
+          ineFrontUrl,
+          ineBackUrl,
+          selfieWithIneUrl,
+          curpUrl,
         });
       } catch (err) {
         // ignore errors (unauthenticated/demo)
@@ -1646,7 +1658,16 @@ const LoanProcess = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="border-2 border-dashed border-border rounded-xl p-6 flex flex-col items-center justify-center gap-3 bg-muted/30 hover:bg-muted/50 transition-colors">
               {ineFrontPreview ? (
-                <img src={ineFrontPreview} alt="INE Frente" className="max-h-40 object-contain rounded" />
+                ineFrontFile ? (
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="w-12 h-12 rounded-full bg-success/20 flex items-center justify-center">
+                      <CheckCircle2 className="h-6 w-6 text-success" />
+                    </div>
+                    <p className="text-sm font-medium text-success text-center">INE Frente cargado</p>
+                  </div>
+                ) : (
+                  <img src={ineFrontPreview} alt="INE Frente" className="max-h-40 object-contain rounded" />
+                )
               ) : (
                 <CreditCard className="h-8 w-8 text-muted-foreground" />
               )}
@@ -1663,7 +1684,7 @@ const LoanProcess = () => {
                 <Button variant="outline" size="sm" className="gap-1" onClick={() => openCamera('ineFront')}>
                   <Camera className="h-4 w-4" /> Cámara
                 </Button>
-                {ineFrontPreview && (
+                {ineFrontFile && (
                   <Button variant="destructive" size="sm" className="gap-1" onClick={() => removeFile('ineFront')}>
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -1673,7 +1694,16 @@ const LoanProcess = () => {
             </div>
             <div className="border-2 border-dashed border-border rounded-xl p-6 flex flex-col items-center justify-center gap-3 bg-muted/30 hover:bg-muted/50 transition-colors">
               {ineBackPreview ? (
-                <img src={ineBackPreview} alt="INE Reverso" className="max-h-40 object-contain rounded" />
+                ineBackFile ? (
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="w-12 h-12 rounded-full bg-success/20 flex items-center justify-center">
+                      <CheckCircle2 className="h-6 w-6 text-success" />
+                    </div>
+                    <p className="text-sm font-medium text-success text-center">INE Reverso cargado</p>
+                  </div>
+                ) : (
+                  <img src={ineBackPreview} alt="INE Reverso" className="max-h-40 object-contain rounded" />
+                )
               ) : (
                 <CreditCard className="h-8 w-8 text-muted-foreground" />
               )}
@@ -1690,7 +1720,7 @@ const LoanProcess = () => {
                 <Button variant="outline" size="sm" className="gap-1" onClick={() => openCamera('ineBack')}>
                   <Camera className="h-4 w-4" /> Cámara
                 </Button>
-                {ineBackPreview && (
+                {ineBackFile && (
                   <Button variant="destructive" size="sm" className="gap-1" onClick={() => removeFile('ineBack')}>
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -1700,7 +1730,16 @@ const LoanProcess = () => {
             </div>
             <div className="border-2 border-dashed border-border rounded-xl p-6 flex flex-col items-center justify-center gap-3 bg-muted/30 hover:bg-muted/50 transition-colors">
               {selfieWithInePreview ? (
-                <img src={selfieWithInePreview} alt="Selfie con INE" className="max-h-40 object-contain rounded" />
+                selfieWithIneFile ? (
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="w-12 h-12 rounded-full bg-success/20 flex items-center justify-center">
+                      <CheckCircle2 className="h-6 w-6 text-success" />
+                    </div>
+                    <p className="text-sm font-medium text-success text-center">Selfie cargado</p>
+                  </div>
+                ) : (
+                  <img src={selfieWithInePreview} alt="Selfie con INE" className="max-h-40 object-contain rounded" />
+                )
               ) : (
                 <Camera className="h-8 w-8 text-muted-foreground" />
               )}
@@ -1717,7 +1756,7 @@ const LoanProcess = () => {
                 <Button variant="outline" size="sm" className="gap-1" onClick={() => openCamera('selfieWithIne')}>
                   <Camera className="h-4 w-4" /> Cámara
                 </Button>
-                {selfieWithInePreview && (
+                {selfieWithIneFile && (
                   <Button variant="destructive" size="sm" className="gap-1" onClick={() => removeFile('selfieWithIne')}>
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -1744,13 +1783,31 @@ const LoanProcess = () => {
                 placeholder="18 dígitos numéricos"
                 maxLength={18}
                 value={personalData.curp}
-                onChange={(e) => handlePersonalDataChange("curp", e.target.value.replace(/[^0-9]/g, '').toUpperCase())}
+                onChange={(e) => handlePersonalDataChange("curp", e.target.value.replace(/[^A-Z0-9]/g, '').toUpperCase())}
               />
               {validationErrors.curp && <p className="text-xs text-destructive">{validationErrors.curp}</p>}
             </div>
           <div className="border-2 border-dashed border-border rounded-xl p-6 flex flex-col items-center justify-center gap-3 bg-muted/30 hover:bg-muted/50 transition-colors">
             {curpPreview ? (
-              <img src={curpPreview} alt="CURP" className="max-h-40 object-contain rounded" />
+              curpFile ? (
+                <div className="flex flex-col items-center gap-2">
+                  <div className="w-12 h-12 rounded-full bg-success/20 flex items-center justify-center">
+                    <CheckCircle2 className="h-6 w-6 text-success" />
+                  </div>
+                  <p className="text-sm font-medium text-success">{curpFile.name}</p>
+                  <p className="text-xs text-muted-foreground">Archivo cargado</p>
+                </div>
+              ) : (
+                <img src={curpPreview} alt="CURP" className="max-h-40 object-contain rounded" />
+              )
+            ) : curpFile ? (
+              <div className="flex flex-col items-center gap-2">
+                <div className="w-12 h-12 rounded-full bg-success/20 flex items-center justify-center">
+                  <CheckCircle2 className="h-6 w-6 text-success" />
+                </div>
+                <p className="text-sm font-medium text-success">{curpFile.name}</p>
+                <p className="text-xs text-muted-foreground">Archivo listo para subir</p>
+              </div>
             ) : (
               <FileText className="h-8 w-8 text-muted-foreground" />
             )}
@@ -1767,7 +1824,7 @@ const LoanProcess = () => {
               <Button variant="outline" size="sm" className="gap-2" onClick={() => openCamera('curp')}>
                 <Camera className="h-4 w-4" /> Cámara
               </Button>
-              {curpPreview && (
+              {curpFile && (
                 <Button variant="destructive" size="sm" className="gap-2" onClick={() => removeFile('curp')}>
                   <Trash2 className="h-4 w-4" />
                 </Button>
