@@ -35,7 +35,7 @@ const Memberships = () => {
       setLoadingMemberships(true);
       try {
         const { data, error } = await supabase
-          .from<any>("membership_plans")
+          .from("membership_plans")
           .select("*")
           .eq("active", true)
           .order("price", { ascending: true });

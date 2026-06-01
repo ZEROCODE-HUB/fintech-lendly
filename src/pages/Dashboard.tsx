@@ -24,9 +24,11 @@ const Dashboard: React.FC = () => {
     const paid = Number(activeLoan.metadata?.paid_amount ?? 0);
     const amount = Number(activeLoan.amount ?? 0);
     const installments = Number(activeLoan.installments ?? 12);
+    const totalDebt = Number((activeLoan as any).total_to_pay ?? amount);
     return {
       id: activeLoan.id,
       originalAmount: amount,
+      totalDebt,
       paidAmount: paid,
       status: activeLoan.status,
       installments,
@@ -40,7 +42,8 @@ const Dashboard: React.FC = () => {
     const amount = Number(activeLoan.amount ?? 0);
     const installments = Number(activeLoan.installments ?? 12);
     const paidAmount = Number(activeLoan.metadata?.paid_amount ?? 0);
-    const monthlyPayment = installments > 0 ? amount / installments : 0;
+    const totalDebt = Number((activeLoan as any).total_to_pay ?? amount);
+    const monthlyPayment = installments > 0 ? totalDebt / installments : 0;
     const paidInstallments = monthlyPayment > 0 ? Math.floor(paidAmount / monthlyPayment) : 0;
 
     const approvedDate = activeLoan.approved_at
@@ -151,21 +154,21 @@ const Dashboard: React.FC = () => {
         </CardHeader>
         <CardContent className="p-4 sm:p-6 pt-0">
           <div className="flex flex-col sm:flex-row gap-3">
-            <Button 
+            <Button
               className="flex-1"
               onClick={() => setShowLoanOnboarding(true)}
             >
               <DollarSign className="mr-2 h-4 w-4" />
               Solicitar Préstamo
             </Button>
-            <Button 
+            <Button
               className="flex-1"
               onClick={() => navigate('/payment-methods')}
             >
               <CreditCard className="mr-2 h-4 w-4" />
               Método de Pago
             </Button>
-            <Button 
+            <Button
               className="flex-1"
               onClick={() => navigate('/my-loans')}
             >
@@ -197,25 +200,25 @@ const Dashboard: React.FC = () => {
           </CardHeader>
           <CardContent className="p-4 sm:p-6 pt-0 space-y-4">
             <div className="flex justify-between items-center">
-              <span className="text-xs sm:text-sm text-muted-foreground">Monto Original:</span>
+              <span className="text-xs sm:text-sm text-muted-foreground">Monto Solicitado:</span>
               <span className="text-sm sm:text-base font-semibold">${currentLoan.originalAmount.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} MXN</span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-xs sm:text-sm text-muted-foreground">Saldo Restante:</span>
-              <span className="text-sm sm:text-base font-semibold text-primary">${Math.max(0, currentLoan.originalAmount - currentLoan.paidAmount).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} MXN</span>
+              <span className="text-sm sm:text-base font-semibold text-primary">${Math.max(0, currentLoan.totalDebt - currentLoan.paidAmount).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} MXN</span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-xs sm:text-sm text-muted-foreground">Pagos Realizados:</span>
-              <span className="text-sm sm:text-base font-semibold">{Math.floor(currentLoan.paidAmount / (currentLoan.originalAmount / currentLoan.installments))} de {currentLoan.installments}</span>
+              <span className="text-sm sm:text-base font-semibold">{Math.floor(currentLoan.paidAmount / (currentLoan.totalDebt / currentLoan.installments))} de {currentLoan.installments}</span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-xs sm:text-sm text-muted-foreground">Estado:</span>
               <Badge className="bg-success text-success-foreground text-xs sm:text-sm">Al Corriente</Badge>
             </div>
             <div className="w-full bg-muted rounded-full h-3 mt-4">
-              <div className="bg-success h-3 rounded-full" style={{ width: `${Math.min(100, (currentLoan.paidAmount / currentLoan.originalAmount) * 100)}%` }}></div>
+              <div className="bg-success h-3 rounded-full" style={{ width: `${Math.min(100, (currentLoan.paidAmount / currentLoan.totalDebt) * 100)}%` }}></div>
             </div>
-            <p className="text-xs text-muted-foreground text-center">{Math.min(100, Math.round((currentLoan.paidAmount / currentLoan.originalAmount) * 100))}% completado</p>
+            <p className="text-xs text-muted-foreground text-center">{Math.min(100, Math.round((currentLoan.paidAmount / currentLoan.totalDebt) * 100))}% completado</p>
           </CardContent>
         </Card>
       ) : (
@@ -258,9 +261,9 @@ const Dashboard: React.FC = () => {
         </Card>
       )}
 
-      <LoanOnboardingModal 
-        open={showLoanOnboarding} 
-        onOpenChange={setShowLoanOnboarding} 
+      <LoanOnboardingModal
+        open={showLoanOnboarding}
+        onOpenChange={setShowLoanOnboarding}
       />
     </div>
   );

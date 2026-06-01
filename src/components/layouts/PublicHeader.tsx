@@ -60,7 +60,7 @@ export const PublicHeader = () => {
 
   return (
     <header className="fixed top-0 w-full bg-card/95 backdrop-blur-sm border-b border-border z-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className=" mx-auto px-4 sm:px-6 lg:px-24">
         <div className="flex items-center justify-between h-14 sm:h-16">
           <Link to="/" className="flex items-center flex-shrink-0">
             <img

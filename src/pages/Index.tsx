@@ -57,10 +57,10 @@ const Index = () => {
   };
 
   return (
-    <div className="overflow-x-hidden">
+    <div className="">
       {/* Hero Section */}
-      <section className="relative overflow-hidden pb-12 sm:pb-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
+      <section className=" pb-12 px-4 sm:px-24">
+        <div className="mx-auto  sm:px-6 lg:px-8 grid lg:grid-cols-2 gap-8 lg:gap-12 items-center justify-center flex-col-reverse  sm:flex-row">
           <div className="space-y-5 sm:space-y-6">
             <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight">
               Increscendo <span className="text-primary">Fintech</span>

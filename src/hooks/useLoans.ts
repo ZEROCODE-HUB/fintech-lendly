@@ -55,7 +55,7 @@ export const useUpdateLoanStatus = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, status }: { id: string; status: LoanStatus }) => 
+    mutationFn: ({ id, status }: { id: string; status: LoanStatus }) =>
       loanService.updateStatus(id, status),
     onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({ queryKey: LOAN_KEYS.byId(id) });
@@ -85,6 +85,7 @@ export const useLoanStats = (userId: string | undefined): { stats: LoanStats; is
 
     loans.forEach((loan) => {
       const amount = Number(loan.amount ?? 0);
+      const totalDebt = Number((loan as any).total_to_pay ?? amount);
       const paid = Number(loan.metadata?.paid_amount ?? 0);
       const installments = Number(loan.installments ?? 12);
 
@@ -92,7 +93,7 @@ export const useLoanStats = (userId: string | undefined): { stats: LoanStats; is
       totalPaid += paid;
 
       if (loan.status === 'active') {
-        const remaining = Math.max(0, amount - paid);
+        const remaining = Math.max(0, totalDebt - paid);
         totalOutstanding += remaining;
         activeCount += 1;
 
@@ -130,7 +131,7 @@ export const useAdminPendingLoans = (page: number) => {
 export const useAdminContractLoans = (page: number) => {
   return useQuery({
     queryKey: LOAN_KEYS.adminContract(page),
-    queryFn: () => loanService.getAdminLoans({ status: ['approved', 'signed'], page, pageSize: PAGE_SIZE }),
+    queryFn: () => loanService.getAdminLoans({ status: ['approved'], page, pageSize: PAGE_SIZE }),
     staleTime: 1000 * 60 * 2,
   });
 };
