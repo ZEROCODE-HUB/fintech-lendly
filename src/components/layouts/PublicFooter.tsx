@@ -8,8 +8,8 @@ export const PublicFooter = () => {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8 mb-8">
           <div className="space-y-4 col-span-2 md:col-span-1">
             <div className="flex items-center gap-2 sm:gap-3">
-              <div className="h-8 w-8 sm:h-9 sm:w-9 bg-gradient-hero rounded-lg flex items-center justify-center flex-shrink-0">
-                <span className="text-white font-bold text-sm sm:text-base">I</span>
+              <div className="h-8 w-8 sm:h-9 sm:w-9  rounded-lg flex items-center justify-center flex-shrink-0">
+                <img src="iconincrescendo.png" alt="Increscendo Fintech" className="h-full w-full object-contain" />
               </div>
               <h3 className="font-semibold text-sm sm:text-base">Increscendo Fintech</h3>
             </div>

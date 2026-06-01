@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   CheckCircle2,
   ArrowRight,
@@ -95,6 +96,7 @@ const isOfMinimumAge = (value: string, minAge = 18) => {
 const isValidCurp = (value: string) => /^[A-Z0-9]{18}$/.test(value.trim().toUpperCase());
 const isValidIne = (value: string) => /^[A-Z0-9]{6,20}$/.test(value.trim().toUpperCase());
 const isValidClabe = (value: string) => /^\d{18}$/.test(value.trim());
+const hasDocumentSource = (file: File | null, url: string) => Boolean(file || normalizeText(url));
 
 const LoanProcess = () => {
   const navigate = useNavigate();
@@ -251,6 +253,7 @@ const LoanProcess = () => {
     clabe: "",
   });
   const [depositSource, setDepositSource] = useState<'saved' | 'new'>('new');
+  const [isDepositMethodModalOpen, setIsDepositMethodModalOpen] = useState(false);
 
   // Disbursement account state
   const [useSameAccount, setUseSameAccount] = useState(true);
@@ -267,17 +270,19 @@ const LoanProcess = () => {
     setPersonalData(prev => ({ ...prev, [field]: value }));
   };
 
-  const addReference = () => {
-    setReferences(prev => [...prev, { name: "", relationship: "", phone: "" }]);
-  };
-
   const updateReference = (index: number, field: "name" | "relationship" | "phone", value: string) => {
     setReferences(prev => prev.map((ref, i) => (i === index ? { ...ref, [field]: value } : ref)));
   };
 
-  const removeReference = (index: number) => {
-    setReferences(prev => (prev.length > 1 ? prev.filter((_, i) => i !== index) : prev));
-  };
+  useEffect(() => {
+    if (!includeSolidario) return;
+
+    setReferences(prev => {
+      if (prev.length === 1) return prev;
+      if (prev.length === 0) return [{ name: "", relationship: "", phone: "" }];
+      return [prev[0]];
+    });
+  }, [includeSolidario]);
 
   const handleDepositDataChange = (field: string, value: string) => {
     setDepositData(prev => ({ ...prev, [field]: value }));
@@ -318,6 +323,8 @@ const LoanProcess = () => {
       }));
     }
   };
+
+  const selectedSavedMethod = bankPaymentMethods.find(method => method.id === depositData.paymentMethodId) ?? null;
 
   const validateStepOne = () => {
     const nextErrors: Record<string, string> = {};
@@ -368,21 +375,20 @@ const LoanProcess = () => {
     }
 
     if (includeSolidario) {
-      if (!references.length) {
-        nextErrors.references = "Agrega al menos una referencia.";
+      const solidario = references[0];
+      if (!solidario) {
+        nextErrors.references = "Agrega un obligado solidario.";
       } else {
-        references.forEach((reference, index) => {
-          if (!normalizeText(reference.name)) nextErrors[`reference-${index}-name`] = "El nombre de la referencia es obligatorio.";
-          if (!normalizeText(reference.relationship)) nextErrors[`reference-${index}-relationship`] = "Indica la relación.";
-          if (!isValidPhone(reference.phone)) nextErrors[`reference-${index}-phone`] = "Ingresa un teléfono válido.";
-        });
+        if (!normalizeText(solidario.name)) nextErrors.reference_name = "El nombre del obligado solidario es obligatorio.";
+        if (!normalizeText(solidario.relationship)) nextErrors.reference_relationship = "Indica la relación.";
+        if (!isValidPhone(solidario.phone)) nextErrors.reference_phone = "Ingresa un teléfono válido.";
       }
     }
 
-    if (!ineFrontFile) nextErrors.ineFront = "Adjunta la parte frontal de tu INE.";
-    if (!ineBackFile) nextErrors.ineBack = "Adjunta el reverso de tu INE.";
-    if (!selfieWithIneFile) nextErrors.selfieWithIne = "Adjunta tu selfie con INE.";
-    if (!curpFile && !normalizeText(personalData.curp)) nextErrors.curpFile = "Adjunta tu CURP o completa el campo.";
+    if (!hasDocumentSource(ineFrontFile, personalData.ineFrontUrl)) nextErrors.ineFront = "Adjunta la parte frontal de tu INE.";
+    if (!hasDocumentSource(ineBackFile, personalData.ineBackUrl)) nextErrors.ineBack = "Adjunta el reverso de tu INE.";
+    if (!hasDocumentSource(selfieWithIneFile, personalData.selfieWithIneUrl)) nextErrors.selfieWithIne = "Adjunta tu selfie con INE.";
+    if (!hasDocumentSource(curpFile, personalData.curpUrl) && !normalizeText(personalData.curp)) nextErrors.curpFile = "Adjunta tu CURP o completa el campo.";
 
     if (!useSameAccount) {
       if (!normalizeText(disbursementData.bank)) nextErrors.disbursementBank = "Selecciona un banco para el desembolso.";
@@ -397,6 +403,39 @@ const LoanProcess = () => {
     if (currentStep === 3) return validateStepThree();
     return {};
   };
+
+  useEffect(() => {
+    if (currentStep !== 3) return;
+
+    setValidationErrors(validateStepThree());
+  }, [
+    currentStep,
+    personalData.firstName,
+    personalData.lastName,
+    personalData.address,
+    personalData.birthDate,
+    personalData.phone,
+    personalData.ineKey,
+    personalData.curp,
+    personalData.ineFrontUrl,
+    personalData.ineBackUrl,
+    personalData.selfieWithIneUrl,
+    personalData.curpUrl,
+    depositData.paymentMethodId,
+    depositData.bank,
+    depositData.clabe,
+    depositSource,
+    includeSolidario,
+    references,
+    ineFrontFile,
+    ineBackFile,
+    selfieWithIneFile,
+    curpFile,
+    useSameAccount,
+    disbursementData.bank,
+    disbursementData.clabe,
+    bankPaymentMethods,
+  ]);
 
   // Map API error messages to Spanish user-friendly messages
   const getErrorMessage = (errorData: any): string => {
@@ -486,7 +525,7 @@ const LoanProcess = () => {
 
       // Build metadata object with references only when the user enabled the section
       const updatedMetadata = includeSolidario
-        ? { references }
+        ? { references: references.slice(0, 1) }
         : {};
 
       // Update users table with document URLs and metadata
@@ -1353,7 +1392,7 @@ const LoanProcess = () => {
 
   // Step 3: KYC Validation (Updated with Deposit section)
   const StepValidation = () => (
-    <div className="space-y-6">
+    <div className="space-y-6 ">
       {/* Personal Information */}
       <Card className="shadow-medium">
         <CardHeader>
@@ -1424,62 +1463,86 @@ const LoanProcess = () => {
             Ingresa los datos de tu cuenta principal para domiciliar tus pagos. Por seguridad, realizaremos una validación automática de titularidad con tu banco.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
-          {bankPaymentMethods.length > 0 && (
-            <div className="flex items-center gap-3">
-              <Label className="text-xs text-muted-foreground">Origen de cuenta</Label>
-              <Select value={depositSource} onValueChange={(v) => handleDepositSourceChange(v as 'saved' | 'new')}>
-                <SelectTrigger className="h-9 w-[220px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="saved">Método guardado</SelectItem>
-                  <SelectItem value="new">Cuenta nueva</SelectItem>
-                </SelectContent>
-              </Select>
+        <CardContent className="space-y-4">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+
+
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                variant={depositSource === 'new' ? 'default' : 'outline'}
+                size="sm"
+                className="h-9 rounded-full px-4"
+                onClick={() => handleDepositSourceChange('new')}
+              >
+                Nueva cuenta
+              </Button>
+              <Button
+                type="button"
+                variant={depositSource === 'saved' ? 'default' : 'outline'}
+                size="sm"
+                className="h-9 rounded-full px-4"
+                onClick={() => setIsDepositMethodModalOpen(true)}
+              >
+                Mis cuentas guardadas
+              </Button>
             </div>
-          )}
+          </div>
+
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {depositSource === 'saved' ? (
-              <div className="space-y-2">
-                <Label>Método bancario guardado</Label>
-                <Select value={depositData.paymentMethodId} onValueChange={handleDepositMethodChange}>
-                  <SelectTrigger>
-                    <SelectValue placeholder={loadingBankPaymentMethods ? "Cargando métodos..." : "Selecciona un banco guardado"} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {bankPaymentMethods.map((method) => (
-                      <SelectItem key={method.id} value={method.id}>
-                        {method.bank_name || "Banco"} {method.validation_status === 'validada' ? "(validado)" : "(pendiente)"}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {validationErrors.paymentMethodId && <p className="text-xs text-destructive">{validationErrors.paymentMethodId}</p>}
-                <p className="text-xs text-muted-foreground">¿No encuentras tu banco? <Button variant="link" className="h-auto p-0 text-xs text-primary" onClick={() => navigate('/payment-methods')}>Agregar método de pago</Button></p>
+              <div className="space-y-2 md:col-span-2">
+
+
+                <div className="rounded-xl border border-border/70 bg-background px-4 py-3 shadow-sm">
+                  {selectedSavedMethod ? (
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium text-foreground">{selectedSavedMethod.bank_name || 'Banco'}</p>
+                        <p className="text-xs text-muted-foreground">CLABE •••• {selectedSavedMethod.clabe?.slice?.(-4) || selectedSavedMethod.last_digits || '----'} · {selectedSavedMethod.validation_status === 'validada' ? 'Validado' : 'Pendiente'}</p>
+                      </div>
+                      <Button variant="ghost" size="sm" className="h-8 rounded-full px-3 text-primary" onClick={() => setIsDepositMethodModalOpen(true)}>
+                        Cambiar
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-medium text-foreground">Sin método guardado</p>
+                        <p className="text-xs text-muted-foreground">Selecciona uno en el modal si quieres usar una cuenta validada.</p>
+                      </div>
+                      <Button variant="ghost" size="sm" className="h-8 rounded-full px-3 text-primary" onClick={() => setIsDepositMethodModalOpen(true)}>
+                        Seleccionar
+                      </Button>
+                    </div>
+                  )}
+
+                  {validationErrors.paymentMethodId && <p className="text-xs text-destructive">{validationErrors.paymentMethodId}</p>}
+                </div>
               </div>
-            ) : (
-              <div className="space-y-2">
-                <Label>Banco</Label>
-                <Select value={depositData.bank} onValueChange={(v) => handleDepositDataChange("bank", v)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder={loadingInstitutions ? "Cargando bancos..." : "Selecciona tu banco"} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {bankOptions.map((bank) => (
-                      <SelectItem key={bank.id} value={bank.id}>
-                        {bank.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {validationErrors.bank && <p className="text-xs text-destructive">{validationErrors.bank}</p>}
-                {!loadingInstitutions && bankOptions.length === 0 && (
-                  <p className="text-xs text-muted-foreground">No se pudo cargar la lista de instituciones.</p>
-                )}
-              </div>
-            )}
+            ) : null
+
+            }
+            <div className="space-y-2">
+              <Label>Banco</Label>
+              <Select value={depositData.bank} onValueChange={(v) => handleDepositDataChange("bank", v)}>
+                <SelectTrigger>
+                  <SelectValue placeholder={loadingInstitutions ? "Cargando bancos..." : "Selecciona tu banco"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {bankOptions.map((bank) => (
+                    <SelectItem key={bank.id} value={bank.id}>
+                      {bank.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {validationErrors.bank && <p className="text-xs text-destructive">{validationErrors.bank}</p>}
+              {!loadingInstitutions && bankOptions.length === 0 && (
+                <p className="text-xs text-muted-foreground">No se pudo cargar la lista de instituciones.</p>
+              )}
+            </div>
             <div className="space-y-2">
               <Label>Cuenta CLABE</Label>
               <Input
@@ -1493,14 +1556,85 @@ const LoanProcess = () => {
                 }}
                 disabled={depositSource === 'saved' && !!depositData.paymentMethodId}
               />
-              <p className="text-xs text-muted-foreground">
-                {depositSource === 'saved' && depositData.paymentMethodId
-                  ? depositData.paymentMethodLabel || "CLABE cargada desde tu método bancario"
-                  : "Ingresa los 18 dígitos de tu CLABE"}
-              </p>
+              {
+                depositSource === 'saved' && depositData.paymentMethodId && (
+                  <Badge variant={selectedSavedMethod?.validation_status === 'validada' ? 'secondary' : 'outline'} className="text-[10px] uppercase tracking-wide">
+                    {selectedSavedMethod?.validation_status === 'validada' ? 'Validado' : 'Pendiente'}
+                  </Badge>
+                )
+              }
+
               {validationErrors.clabe && <p className="text-xs text-destructive">{validationErrors.clabe}</p>}
             </div>
+
           </div>
+
+          <Dialog open={isDepositMethodModalOpen} onOpenChange={setIsDepositMethodModalOpen}>
+            <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[560px]">
+              <DialogHeader>
+                <DialogTitle>Selecciona un método guardado</DialogTitle>
+                <DialogDescription>
+                  Elige una cuenta ya validada o vuelve a usar la cuenta nueva para capturar otra CLABE.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleDepositSourceChange('new');
+                    setIsDepositMethodModalOpen(false);
+                  }}
+                  className={`w-full rounded-2xl border p-4 text-left transition-all ${depositSource === 'new' ? 'border-primary bg-primary/5 shadow-sm' : 'border-border hover:border-primary/40 hover:bg-muted/40'}`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="space-y-1">
+                      <p className="font-medium text-foreground">Cuenta nueva</p>
+                      <p className="text-xs text-muted-foreground">Captura banco y CLABE manualmente.</p>
+                    </div>
+                    {depositSource === 'new' ? <CheckCircle2 className="h-5 w-5 text-primary" /> : <div className="mt-0.5 h-5 w-5 rounded-full border border-muted-foreground/30" />}
+                  </div>
+                </button>
+
+                <div className="grid gap-3">
+                  {bankPaymentMethods.map((method) => {
+                    const isSelected = depositData.paymentMethodId === method.id && depositSource === 'saved';
+                    const isValidated = method.validation_status === 'validada';
+                    const clabeLastDigits = method.clabe?.slice?.(-4) || method.last_digits || '----';
+
+                    return (
+                      <button
+                        key={method.id}
+                        type="button"
+                        onClick={() => {
+                          handleDepositMethodChange(method.id);
+                          setDepositSource('saved');
+                          setIsDepositMethodModalOpen(false);
+                        }}
+                        className={`w-full rounded-2xl border p-4 text-left transition-all ${isSelected ? 'border-primary bg-primary/5 shadow-sm' : 'border-border hover:border-primary/40 hover:bg-muted/40'}`}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="space-y-1">
+                            <p className="font-medium text-foreground">{method.bank_name || 'Banco'}</p>
+                            <p className="text-xs text-muted-foreground">CLABE •••• {clabeLastDigits}</p>
+                          </div>
+                          <Badge variant={isValidated ? 'secondary' : 'outline'} className="text-[10px] uppercase tracking-wide">
+                            {isValidated ? 'Validado' : 'Pendiente'}
+                          </Badge>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {!bankPaymentMethods.length && (
+                  <div className="rounded-xl border border-dashed border-border/70 px-4 py-5 text-sm text-muted-foreground">
+                    No tienes métodos guardados todavía.
+                  </div>
+                )}
+              </div>
+            </DialogContent>
+          </Dialog>
 
           {/* Same account checkbox */}
           <div className="flex items-center space-x-2">
@@ -1583,55 +1717,41 @@ const LoanProcess = () => {
           </div>
 
           {includeSolidario && (
-            <>
-              {references.map((ref, index) => (
-                <div key={`ref-${index}`} className="rounded-xl border border-border bg-muted/20 p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <p className="text-sm font-medium">Referencia {index + 1}</p>
-                    {references.length > 1 && (
-                      <Button variant="ghost" size="sm" onClick={() => removeReference(index)}>
-                        Quitar
-                      </Button>
-                    )}
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="space-y-2">
-                      <Label>Nombre completo</Label>
-                      <Input
-                        placeholder="Ej: Ana Perez"
-                        value={ref.name}
-                        onChange={(e) => updateReference(index, "name", e.target.value)}
-                      />
-                      {validationErrors[`reference-${index}-name`] && <p className="text-xs text-destructive">{validationErrors[`reference-${index}-name`]}</p>}
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Relacion</Label>
-                      <Input
-                        placeholder="Ej: Hermana, Amigo"
-                        value={ref.relationship}
-                        onChange={(e) => updateReference(index, "relationship", e.target.value)}
-                      />
-                      {validationErrors[`reference-${index}-relationship`] && <p className="text-xs text-destructive">{validationErrors[`reference-${index}-relationship`]}</p>}
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Telefono</Label>
-                      <Input
-                        placeholder="Ej: +52 55 1234 5678"
-                        value={ref.phone}
-                        onChange={(e) => updateReference(index, "phone", e.target.value)}
-                      />
-                      {validationErrors[`reference-${index}-phone`] && <p className="text-xs text-destructive">{validationErrors[`reference-${index}-phone`]}</p>}
-                    </div>
-                  </div>
-                </div>
-              ))}
-
-              <div>
-                <Button variant="outline" onClick={addReference}>
-                  Agregar otra referencia
-                </Button>
+            <div className="rounded-xl border border-border bg-muted/20 p-4">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-sm font-medium">Obligado solidario 1</p>
               </div>
-            </>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label>Nombre completo</Label>
+                  <Input
+                    placeholder="Ej: Ana Perez"
+                    value={references[0]?.name || ""}
+                    onChange={(e) => updateReference(0, "name", e.target.value)}
+                  />
+                  {validationErrors.reference_name && <p className="text-xs text-destructive">{validationErrors.reference_name}</p>}
+                </div>
+                <div className="space-y-2">
+                  <Label>Relacion</Label>
+                  <Input
+                    placeholder="Ej: Hermana, Amigo"
+                    value={references[0]?.relationship || ""}
+                    onChange={(e) => updateReference(0, "relationship", e.target.value)}
+                  />
+                  {validationErrors.reference_relationship && <p className="text-xs text-destructive">{validationErrors.reference_relationship}</p>}
+                </div>
+                <div className="space-y-2">
+                  <Label>Telefono</Label>
+                  <Input
+                    placeholder="Ej: +52 55 1234 5678"
+                    value={references[0]?.phone || ""}
+                    onChange={(e) => updateReference(0, "phone", e.target.value)}
+                  />
+                  {validationErrors.reference_phone && <p className="text-xs text-destructive">{validationErrors.reference_phone}</p>}
+                </div>
+              </div>
+              <p className="mt-3 text-xs text-muted-foreground">Solo se permite un obligado solidario por contrato.</p>
+            </div>
           )}
         </CardContent>
       </Card>
@@ -1777,16 +1897,16 @@ const LoanProcess = () => {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label>CURP</Label>
-              <Input
-                placeholder="18 dígitos numéricos"
-                maxLength={18}
-                value={personalData.curp}
-                onChange={(e) => handlePersonalDataChange("curp", e.target.value.replace(/[^A-Z0-9]/g, '').toUpperCase())}
-              />
-              {validationErrors.curp && <p className="text-xs text-destructive">{validationErrors.curp}</p>}
-            </div>
+          <div className="space-y-2">
+            <Label>CURP</Label>
+            <Input
+              placeholder="18 dígitos numéricos"
+              maxLength={18}
+              value={personalData.curp}
+              onChange={(e) => handlePersonalDataChange("curp", e.target.value.replace(/[^A-Z0-9]/g, '').toUpperCase())}
+            />
+            {validationErrors.curp && <p className="text-xs text-destructive">{validationErrors.curp}</p>}
+          </div>
           <div className="border-2 border-dashed border-border rounded-xl p-6 flex flex-col items-center justify-center gap-3 bg-muted/30 hover:bg-muted/50 transition-colors">
             {curpPreview ? (
               curpFile ? (
@@ -2051,54 +2171,54 @@ const LoanProcess = () => {
         </div>
       )}
 
-            {/* Stepper */}
-            <Stepper />
+      {/* Stepper */}
+      <Stepper />
 
-            {/* Step Content */}
-            <div className="mt-6">
-              {renderStepContent()}
+      {/* Step Content */}
+      <div className="mt-6">
+        {renderStepContent()}
+      </div>
+
+      {/* Camera modal for capture (local only) */}
+      {isCameraOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+          <div className="bg-card p-4 rounded-lg w-full max-w-2xl">
+            <div className="relative">
+              <video ref={videoRef} className="w-full rounded" playsInline />
+              <canvas ref={canvasRef} className="hidden" />
             </div>
-
-            {/* Camera modal for capture (local only) */}
-            {isCameraOpen && (
-              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-                <div className="bg-card p-4 rounded-lg w-full max-w-2xl">
-                  <div className="relative">
-                    <video ref={videoRef} className="w-full rounded" playsInline />
-                    <canvas ref={canvasRef} className="hidden" />
-                  </div>
-                  <div className="flex justify-between mt-3">
-                    <Button variant="ghost" onClick={() => { stopCamera(); setIsCameraOpen(false); }}>Cancelar</Button>
-                    <div className="flex gap-2">
-                      <Button onClick={takePhoto}>Tomar foto</Button>
-                    </div>
-                  </div>
-                </div>
+            <div className="flex justify-between mt-3">
+              <Button variant="ghost" onClick={() => { stopCamera(); setIsCameraOpen(false); }}>Cancelar</Button>
+              <div className="flex gap-2">
+                <Button onClick={takePhoto}>Tomar foto</Button>
               </div>
-            )}
-
-            {/* Navigation Buttons */}
-            {!isSubmitted && (
-              <div className="flex justify-between mt-6 gap-4">
-                {currentStep > 1 && currentStep < 6 && (
-                  <Button variant="outline" onClick={handleBack} className="gap-2">
-                    <ArrowLeft className="h-4 w-4" />
-                    Atrás
-                  </Button>
-                )}
-                {currentStep === 1 && <div />}
-
-                <Button
-                  onClick={currentStep === 6 ? handleGoToDashboard : handleNext}
-                  disabled={currentStep === 4 && !canProceed()}
-                  className="gap-2 ml-auto"
-                >
-                  {getNextButtonText()}
-                  {currentStep < 6 && <ArrowRight className="h-4 w-4" />}
-                </Button>
-              </div>
-            )}
+            </div>
           </div>
+        </div>
+      )}
+
+      {/* Navigation Buttons */}
+      {!isSubmitted && (
+        <div className="flex justify-between mt-6 gap-4">
+          {currentStep > 1 && currentStep < 6 && (
+            <Button variant="outline" onClick={handleBack} className="gap-2">
+              <ArrowLeft className="h-4 w-4" />
+              Atrás
+            </Button>
+          )}
+          {currentStep === 1 && <div />}
+
+          <Button
+            onClick={currentStep === 6 ? handleGoToDashboard : handleNext}
+            disabled={currentStep === 4 && !canProceed()}
+            className="gap-2 ml-auto"
+          >
+            {getNextButtonText()}
+            {currentStep < 6 && <ArrowRight className="h-4 w-4" />}
+          </Button>
+        </div>
+      )}
+    </div>
   );
 };
 

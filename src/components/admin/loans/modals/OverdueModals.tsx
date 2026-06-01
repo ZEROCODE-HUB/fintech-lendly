@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +17,13 @@ interface SendReminderModalProps {
 
 export const SendReminderModal = ({ open, onOpenChange, loan, onConfirm }: SendReminderModalProps) => {
   const [emails, setEmails] = useState<string[]>(['']);
+
+  const primaryEmail = loan?.email?.trim() || '';
+
+  useEffect(() => {
+    if (!open) return;
+    setEmails([primaryEmail]);
+  }, [open, primaryEmail]);
 
   const addEmail = () => setEmails([...emails, '']);
   const removeEmail = (idx: number) => setEmails(emails.filter((_, i) => i !== idx));
@@ -44,12 +51,12 @@ export const SendReminderModal = ({ open, onOpenChange, loan, onConfirm }: SendR
               <strong>Estado:</strong> {loan.status} - {loan.paidInstallments}/{loan.installments} cuotas pagadas
             </p>
             <p className="text-sm">
-              <strong>Último pago:</strong> {loan.lastPaymentDate}
+              <strong>Fecha Próximo Pago:</strong> {loan.lastPaymentDate}
             </p>
           </div>
 
           <div>
-            <Label className="mb-2 block">Correos adicionales</Label>
+            <Label className="mb-2 block">Correo electrónico</Label>
             {emails.map((email, idx) => (
               <div key={idx} className="flex gap-2 mb-2">
                 <Input
@@ -57,8 +64,10 @@ export const SendReminderModal = ({ open, onOpenChange, loan, onConfirm }: SendR
                   value={email}
                   onChange={(e) => updateEmail(idx, e.target.value)}
                   placeholder="correo@ejemplo.com"
+                  readOnly={idx === 0}
+                  disabled={idx === 0}
                 />
-                {emails.length > 1 && (
+                {idx > 0 && (
                   <Button variant="ghost" size="icon" onClick={() => removeEmail(idx)}>
                     <X className="h-4 w-4" />
                   </Button>

@@ -528,7 +528,7 @@ const MyAccount = () => {
   }
 
   return (
-    <>
+    <div className="pb-24">
       <Card className="shadow-soft border-border/50 mb-4">
         <CardHeader className="p-4 sm:p-5">
           <div className="flex flex-col sm:flex-row items-start sm:items-center sm:justify-between gap-3 sm:gap-4">
@@ -831,7 +831,7 @@ const MyAccount = () => {
           </CardContent>
         </Card>
       )}
-    </>
+    </div>
   );
 };
 

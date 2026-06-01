@@ -46,6 +46,7 @@ export interface OverdueLoan extends LoanBase {
   paidInstallments: number;
   lastPaymentDate: string;
   status: 'Atrasado' | 'Urgente';
+  email?: string;
 }
 
 export interface HistoryLoan extends LoanBase {

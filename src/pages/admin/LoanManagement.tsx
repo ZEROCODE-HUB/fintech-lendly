@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Eye, CheckCircle, XCircle, CheckCircle2, Edit, MoreHorizontal, Send, FileText, DollarSign, Bell, TrendingDown, RefreshCw, Calendar, Star } from "lucide-react";
+import { Eye, EyeOff, CheckCircle, XCircle, CheckCircle2, Edit, MoreHorizontal, Send, FileText, DollarSign, Bell, TrendingDown, RefreshCw, Calendar, Star } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Skeleton } from "@/components/ui/skeleton";
 import PaymentScheduleModal from '@/components/admin/loans/modals/PaymentScheduleModal';
@@ -91,8 +91,7 @@ const defaultContractColumns: ColumnConfig[] = [
   { key: 'ine', label: 'INE', visible: true },
   { key: 'curp', label: 'CURP', visible: true },
   { key: 'consent', label: 'Consentimiento', visible: false },
-  { key: 'resend', label: 'Reenviar', visible: true },
-  { key: 'attach', label: 'Adjuntar', visible: true },
+  { key: 'actions', label: 'Acciones', visible: true },
   { key: 'preApproval', label: 'Pre-Aprob.', visible: false },
   { key: 'requestDate', label: 'F. Solicitud', visible: false },
 ];
@@ -142,6 +141,7 @@ const defaultOverdueColumns: ColumnConfig[] = [
   { key: 'ine', label: 'INE', visible: false },
   { key: 'consent', label: 'Consentimiento', visible: false },
   { key: 'lastPaymentDate', label: 'F. Últ. Pago', visible: false },
+  { key: 'nextPaymentDate', label: 'Próximo Pago', visible: true },
   { key: 'requestDate', label: 'F. Solicitud', visible: false },
 ];
 
@@ -158,6 +158,7 @@ const defaultHistoryColumns: ColumnConfig[] = [
   { key: 'consent', label: 'Consentimiento', visible: false },
   { key: 'lastPaymentDate', label: 'F. Últ. Pago', visible: false },
   { key: 'requestDate', label: 'F. Solicitud', visible: false },
+  { key: 'actions', label: 'Acciones', visible: true },
 ];
 
 type PaymentRow = {
@@ -195,6 +196,17 @@ const formatDisplayDate = (dateStr: string) => {
   } catch {
     return dateStr;
   }
+};
+
+const getMembershipLabel = (value: unknown) => {
+  if (!value) return '';
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number') return String(value);
+  if (typeof value === 'object') {
+    const record = value as Record<string, any>;
+    return record.name || record.title || record.label || record.membership_name || record.membership || record.status || '';
+  }
+  return String(value);
 };
 
 const normalizeMonthlyRate = (annualRate: number) => {
@@ -352,7 +364,7 @@ const LoanManagement = () => {
 
     const userMemberships = user.user_memberships;
     const membershipPlan = Array.isArray(userMemberships) && userMemberships.length > 0 ? userMemberships[0]?.membership_plans : null;
-    const membershipVal = membershipPlan?.name || l.metadata?.membership?.name || l.metadata?.membership?.title || l.metadata?.membership || '';
+    const membershipVal = getMembershipLabel(membershipPlan) || getMembershipLabel(l.metadata?.membership);
     const membershipRaw = membershipPlan || null;
 
     const paidAmount = Number(l.metadata?.paid_amount ?? 0);
@@ -440,10 +452,9 @@ const LoanManagement = () => {
   const disbursementTotal = disbursementData?.total ?? 0;
   const activeLoansData = activeData?.loans.map(mapLoan) ?? [];
   const activeTotal = activeData?.total ?? 0;
-  const overdueLoansData = overdueData?.loans.filter((l: any) => {
-    const mapped = mapLoan(l);
-    return mapped.overdue;
-  }) ?? [];
+  const overdueLoansData = overdueData?.loans
+    .map(mapLoan)
+    .filter((loan) => loan.overdue) ?? [];
   const overdueTotal = overdueLoansData.length;
   const historyLoansData = historyData?.loans.map(mapLoan) ?? [];
   const historyTotal = historyData?.total ?? 0;
@@ -581,6 +592,7 @@ const LoanManagement = () => {
 
   // Modal states
   const [detailsModal, setDetailsModal] = useState<{ open: boolean; loan: any | null; sourceTab?: string }>({ open: false, loan: null });
+  const [showDetailClabe, setShowDetailClabe] = useState(false);
   const [ineCurpModal, setIneCurpModal] = useState<{ open: boolean; loan: any | null; type: 'ine' | 'curp' }>({ open: false, loan: null, type: 'ine' });
   const [modifyModal, setModifyModal] = useState<{ open: boolean; loan: any | null }>({ open: false, loan: null });
   const [approveDialog, setApproveDialog] = useState<{ open: boolean; loan: any | null }>({ open: false, loan: null });
@@ -639,6 +651,8 @@ const LoanManagement = () => {
               });
           }
         });
+    } else if (!detailsModal.open) {
+      setShowDetailClabe(false);
     }
   }, [detailsModal.open]);
 
@@ -1110,7 +1124,7 @@ const LoanManagement = () => {
                           {isColumnVisible(pendingColumns, 'actions') && (
                             <TableCell>
                               <div className="flex gap-1">
-                                <Button size="sm" variant="ghost" onClick={() => setDetailsModal({ open: true, loan })} title="Ver detalles">
+                                <Button size="sm" variant="ghost" onClick={() => setDetailsModal({ open: true, loan, sourceTab: 'pending' })} title="Ver detalles">
                                   <Eye className="h-4 w-4" />
                                 </Button>
                                 <Button size="sm" variant="ghost" onClick={() => setModifyModal({ open: true, loan })} title="Modificar">
@@ -1174,8 +1188,7 @@ const LoanManagement = () => {
                       {isColumnVisible(contractColumns, 'curp') && <TableHead>CURP</TableHead>}
                       {isColumnVisible(contractColumns, 'preApproval') && <TableHead>Pre-Aprob.</TableHead>}
                       {isColumnVisible(contractColumns, 'signatureStatus') && <TableHead>Estado Firma</TableHead>}
-                      {isColumnVisible(contractColumns, 'resend') && <TableHead>Reenviar</TableHead>}
-                      {isColumnVisible(contractColumns, 'attach') && <TableHead>Adjuntar</TableHead>}
+                      {isColumnVisible(contractColumns, 'actions') && <TableHead>Acciones</TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1237,18 +1250,19 @@ const LoanManagement = () => {
                           {isColumnVisible(contractColumns, 'signatureStatus') && (
                             <TableCell>{getSignatureStatusBadge(loan.signatureStatus)}</TableCell>
                           )}
-                          {isColumnVisible(contractColumns, 'resend') && (
+                          {isColumnVisible(contractColumns, 'actions') && (
                             <TableCell>
-                              <Button size="sm" variant="outline" onClick={() => setResendModal({ open: true, loan })}>
-                                <Send className="h-4 w-4" />
-                              </Button>
-                            </TableCell>
-                          )}
-                          {isColumnVisible(contractColumns, 'attach') && (
-                            <TableCell>
-                              <Button size="sm" variant="outline" onClick={() => setAttachModal({ open: true, loan })}>
-                                <FileText className="h-4 w-4" />
-                              </Button>
+                              <div className="flex gap-1">
+                                <Button size="sm" variant="outline" onClick={() => setResendModal({ open: true, loan })} title="Reenviar Firma">
+                                  <Send className="h-4 w-4" />
+                                </Button>
+                                <Button size="sm" variant="ghost" onClick={() => setDetailsModal({ open: true, loan, sourceTab: 'contract' })} title="Ver Detalles">
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                                <Button size="sm" variant="outline" onClick={() => setAttachModal({ open: true, loan })} title="Adjuntar Contratos">
+                                  <FileText className="h-4 w-4" />
+                                </Button>
+                              </div>
                             </TableCell>
                           )}
                         </TableRow>
@@ -1352,6 +1366,9 @@ const LoanManagement = () => {
                           {isColumnVisible(disbursementColumns, 'actions') && (
                             <TableCell>
                               <div className="flex gap-1">
+                                <Button size="sm" variant="ghost" onClick={() => setDetailsModal({ open: true, loan, sourceTab: 'disbursement' })} title="Ver Detalles">
+                                  <Eye className="h-4 w-4" />
+                                </Button>
                                 <Button size="sm" variant="default" onClick={() => setConfirmDisbursementModal({ open: true, loan: { ...loan, bankName: getBankName(loan.bank) } })} title="Confirmar Desembolso">
                                   <DollarSign className="h-4 w-4" />
                                 </Button>
@@ -1518,6 +1535,7 @@ const LoanManagement = () => {
                       {isColumnVisible(overdueColumns, 'ine') && <TableHead>INE</TableHead>}
                       {isColumnVisible(overdueColumns, 'consent') && <TableHead>Consentimiento</TableHead>}
                       {isColumnVisible(overdueColumns, 'lastPaymentDate') && <TableHead>F. Últ. Pago</TableHead>}
+                      {isColumnVisible(overdueColumns, 'nextPaymentDate') && <TableHead>Próximo Pago</TableHead>}
                       {isColumnVisible(overdueColumns, 'status') && <TableHead>Estado</TableHead>}
                       {isColumnVisible(overdueColumns, 'actions') && <TableHead>Acciones</TableHead>}
                     </TableRow>
@@ -1554,7 +1572,8 @@ const LoanManagement = () => {
                           {isColumnVisible(overdueColumns, 'ine') && <TableCell>{loan.ineNumber?.slice(0, 10) ?? 'N/A'}...</TableCell>}
                           {isColumnVisible(overdueColumns, 'consent') && <TableCell>{getConsentBadge(loan.status_consent || loan.raw?.status_consent || loan.statusConsent)}</TableCell>}
                           {isColumnVisible(overdueColumns, 'lastPaymentDate') && <TableCell className="whitespace-nowrap">{formatDisplayDate(loan.lastPaymentDate)}</TableCell>}
-                          {isColumnVisible(overdueColumns, 'status') && <TableCell>{getStatusBadge(loan.status)}</TableCell>}
+                          {isColumnVisible(overdueColumns, 'nextPaymentDate') && <TableCell className="whitespace-nowrap">{formatDisplayDate(loan.nextPaymentDate)}</TableCell>}
+                          {isColumnVisible(overdueColumns, 'status') && <TableCell>{getStatusBadge('Atrasado')}</TableCell>}
                           {isColumnVisible(overdueColumns, 'actions') && (
                             <TableCell>
                               <DropdownMenu>
@@ -1564,6 +1583,10 @@ const LoanManagement = () => {
                                   </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
+                                  <DropdownMenuItem onClick={() => setDetailsModal({ open: true, loan, sourceTab: 'overdue' })}>
+                                    <Eye className="h-4 w-4 mr-2" />
+                                    Ver detalle
+                                  </DropdownMenuItem>
                                   <DropdownMenuItem onClick={() => setReminderModal({ open: true, loan })}>
                                     <Bell className="h-4 w-4 mr-2" />
                                     Enviar recordatorio
@@ -1628,6 +1651,7 @@ const LoanManagement = () => {
                       {isColumnVisible(historyColumns, 'consent') && <TableHead>Consentimiento</TableHead>}
                       {isColumnVisible(historyColumns, 'lastPaymentDate') && <TableHead>F. Últ. Pago</TableHead>}
                       {isColumnVisible(historyColumns, 'status') && <TableHead>Estado</TableHead>}
+                      {isColumnVisible(historyColumns, 'actions') && <TableHead>Acciones</TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1663,6 +1687,13 @@ const LoanManagement = () => {
                           {isColumnVisible(historyColumns, 'consent') && <TableCell>{getConsentBadge(loan.status_consent || loan.raw?.status_consent || loan.statusConsent)}</TableCell>}
                           {isColumnVisible(historyColumns, 'lastPaymentDate') && <TableCell className="whitespace-nowrap">{formatDisplayDate(loan.lastPaymentDate)}</TableCell>}
                           {isColumnVisible(historyColumns, 'status') && <TableCell>{getStatusBadge(loan.status)}</TableCell>}
+                          {isColumnVisible(historyColumns, 'actions') && (
+                            <TableCell>
+                              <Button size="sm" variant="ghost" onClick={() => setDetailsModal({ open: true, loan, sourceTab: 'history' })} title="Ver Detalles">
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                            </TableCell>
+                          )}
                         </TableRow>
                       )))}
                   </TableBody>
@@ -1724,10 +1755,11 @@ const LoanManagement = () => {
             const address = user.address || personal.address || '-';
             const email = user.email || personal.email || '-';
 
-            const membershipName = userMembership.name || loan?.membership || 'Sin membresía';
+            const membershipName = getMembershipLabel(userMembership) || getMembershipLabel(loan?.membership) || 'Sin membresía';
             const membershipColor = userMembership.color || 'bg-gray-100';
             const membershipIcon = userMembership.icon || '★';
             const loanInterestRateDecimal = Number(loan?.raw?.interest_rate ?? loan?.interest_rate) || 0.20;
+            const clabeValue = loan?.accountNumber ? (showDetailClabe ? loan.accountNumber : `••••${loan.accountNumber.slice(-4)}`) : '-';
 
             const loanAmount = Number(loan?.amount ?? 0);
             const loanInstallments = Number(loan?.installments ?? 0);
@@ -1822,8 +1854,22 @@ const LoanManagement = () => {
                         <p className="text-xs font-bold">{loan?.bank || '-'}</p>
                       </div>
                       <div className="border border-gray-200 rounded-lg p-2 bg-white">
-                        <p className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wider mb-0.5">CLABE</p>
-                        <p className="text-xs font-bold font-mono">{loan?.accountNumber ? `••••${loan.accountNumber.slice(-4)}` : '-'}</p>
+                        <div className="flex items-center justify-between gap-2 mb-0.5">
+                          <p className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wider">CLABE</p>
+                          {loan?.accountNumber ? (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 w-6 p-0"
+                              onClick={() => setShowDetailClabe(prev => !prev)}
+                              title={showDetailClabe ? 'Ocultar CLABE' : 'Ver CLABE'}
+                            >
+                              {showDetailClabe ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                            </Button>
+                          ) : null}
+                        </div>
+                        <p className="text-xs font-bold font-mono">{clabeValue}</p>
                       </div>
                     </div>
                   </div>
@@ -1854,7 +1900,7 @@ const LoanManagement = () => {
           })()}
           <AlertDialogFooter className="gap-2 mt-4 pt-3 border-t border-gray-200">
             <AlertDialogCancel onClick={() => setDetailsModal({ open: false, loan: null })} className="gap-2">Cerrar</AlertDialogCancel>
-            {detailsModal.sourceTab !== 'active' && (
+            {detailsModal.sourceTab === 'pending' && (
               <>
                 <AlertDialogAction
                   className="bg-danger hover:bg-danger/90"
