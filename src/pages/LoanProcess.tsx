@@ -93,9 +93,10 @@ const isOfMinimumAge = (value: string, minAge = 18) => {
   }
   return age >= minAge;
 };
-const isValidCurp = (value: string) => /^[A-Z0-9]{18}$/.test(value.trim().toUpperCase());
-const isValidIne = (value: string) => /^[A-Z0-9]{6,20}$/.test(value.trim().toUpperCase());
-const isValidClabe = (value: string) => /^\d{18}$/.test(value.trim());
+const isValidCurp = (value: string) => value ? /^[A-Z0-9]{18}$/.test(value.trim().toUpperCase()) : false;
+const isValidIne = (value: string) => value ? /^[A-Z0-9]{6,20}$/.test(value.trim().toUpperCase()) : false;
+const isValidClabe = (value: string) => value ? /^\d{18}$/.test(value.trim()) : false;
+const isValidRfc = (value: string) => value ? /^[A-Za-z0-9]+$/.test(value.trim()) : false;
 const hasDocumentSource = (file: File | null, url: string) => Boolean(file || normalizeText(url));
 
 const LoanProcess = () => {
@@ -202,6 +203,56 @@ const LoanProcess = () => {
     };
   }, [location.state]);
 
+  const SAVED_STATE_KEY = 'loan_process_state';
+
+  const saveLoanProcessState = () => {
+    try {
+      sessionStorage.setItem(SAVED_STATE_KEY, JSON.stringify({
+        currentStep,
+        loanAmount,
+        loanInstallments,
+        monthlyPayment,
+        totalToPay,
+        interestRateDecimal,
+        personalData,
+        depositData,
+        disbursementData,
+        references,
+        includeSolidario,
+        selectedMembership,
+        hasMembership,
+        useSameAccount,
+        depositSource,
+      }));
+    } catch { }
+  };
+
+  // Restore full state from sessionStorage when returning from membership-checkout
+  useEffect(() => {
+    try {
+      const saved = sessionStorage.getItem(SAVED_STATE_KEY);
+      if (saved) {
+        const state = JSON.parse(saved);
+        if (state.currentStep) setCurrentStep(state.currentStep);
+        if (state.loanAmount) setLoanAmount(state.loanAmount);
+        if (state.loanInstallments) setLoanInstallments(state.loanInstallments);
+        if (state.monthlyPayment) setMonthlyPayment(state.monthlyPayment);
+        if (state.totalToPay) setTotalToPay(state.totalToPay);
+        if (state.interestRateDecimal) setInterestRateDecimal(state.interestRateDecimal);
+        if (state.personalData) setPersonalData(state.personalData);
+        if (state.depositData) setDepositData(state.depositData);
+        if (state.disbursementData) setDisbursementData(state.disbursementData);
+        if (state.references) setReferences(state.references);
+        if (typeof state.includeSolidario === 'boolean') setIncludeSolidario(state.includeSolidario);
+        if (typeof state.selectedMembership === 'string') setSelectedMembership(state.selectedMembership);
+        if (typeof state.hasMembership === 'boolean') setHasMembership(state.hasMembership);
+        if (typeof state.useSameAccount === 'boolean') setUseSameAccount(state.useSameAccount);
+        if (state.depositSource) setDepositSource(state.depositSource);
+        sessionStorage.removeItem(SAVED_STATE_KEY);
+      }
+    } catch { }
+  }, []);
+
   // Editable loan data state for Step 1
   const [loanAmount, setLoanAmount] = useState(String(initialLoanData.amount ?? 10000));
   const [loanInstallments, setLoanInstallments] = useState(String(initialLoanData.installments ?? 12));
@@ -215,6 +266,7 @@ const LoanProcess = () => {
     address: "",
     birthDate: "",
     phone: "",
+    rfc: "",
     ineKey: "",
     curp: "",
     ineFrontUrl: "",
@@ -356,6 +408,7 @@ const LoanProcess = () => {
       nextErrors.birthDate = "Debes ser mayor de 18 años.";
     }
     if (!isValidPhone(personalData.phone)) nextErrors.phone = "Ingresa un teléfono válido.";
+    if (!isValidRfc(personalData.rfc)) nextErrors.rfc = "Ingresa un RFC válido.";
     if (!isValidIne(personalData.ineKey)) nextErrors.ineKey = "Ingresa una clave INE válida.";
     if (!isValidCurp(personalData.curp)) nextErrors.curp = "Ingresa una CURP válida de 18 caracteres.";
 
@@ -528,10 +581,11 @@ const LoanProcess = () => {
         ? { references: references.slice(0, 1) }
         : {};
 
-      // Update users table with document URLs and metadata
+      // Update users table with document URLs, RFC, and metadata
       const { error: updateError } = await supabase
         .from('users')
         .update({
+          rfc: personalData.rfc || undefined,
           ine_front_url: ineFrontUrl || undefined,
           ine_back_url: ineBackUrl || undefined,
           curp_url: curpUrl || undefined,
@@ -577,6 +631,7 @@ const LoanProcess = () => {
         personalData: {
           firstName: personalData.firstName,
           lastName: personalData.lastName,
+          rfc: personalData.rfc,
           curp: personalData.curp,
           ineKey: personalData.ineKey,
         },
@@ -876,6 +931,19 @@ const LoanProcess = () => {
         loan = await createLoanRecord();
         setIsSubmitting(false);
         if (!loan) return; // creation failed
+
+        // Update RFC in users table only after loan creation succeeds
+        if (personalData.rfc && userId) {
+          try {
+            const { error: rfcError } = await supabase
+              .from('users')
+              .update({ rfc: personalData.rfc })
+              .eq('id', userId);
+            if (rfcError) console.error('Error updating RFC:', rfcError);
+          } catch (err) {
+            console.error('Error updating RFC:', err);
+          }
+        }
       }
 
       setIsAnalyzing(true);
@@ -1319,7 +1387,7 @@ const LoanProcess = () => {
                         Membresía seleccionada
                       </Button>
                     ) : (
-                      <Button className="w-full mt-auto" size="lg" onClick={(e) => { e.stopPropagation(); navigate('/membership-checkout', { state: { membership, returnTo: '/loan-process' } }); }}>
+                      <Button className="w-full mt-auto" size="lg" onClick={(e) => { e.stopPropagation(); saveLoanProcessState(); navigate('/membership-checkout', { state: { membership, returnTo: '/loan-process' } }); }}>
                         Adquirir Membresía
                       </Button>
                     )}
@@ -1374,7 +1442,7 @@ const LoanProcess = () => {
                             Membresía seleccionada
                           </Button>
                         ) : (
-                          <Button className="w-full mt-auto" size="lg" onClick={(e) => { e.stopPropagation(); navigate('/membership-checkout', { state: { membership, returnTo: '/loan-process' } }); }}>
+                          <Button className="w-full mt-auto" size="lg" onClick={(e) => { e.stopPropagation(); saveLoanProcessState(); navigate('/membership-checkout', { state: { membership, returnTo: '/loan-process' } }); }}>
                             Adquirir Membresía
                           </Button>
                         )}
@@ -1447,6 +1515,16 @@ const LoanProcess = () => {
                 onChange={(e) => handlePersonalDataChange("phone", e.target.value)}
               />
               {validationErrors.phone && <p className="text-xs text-destructive">{validationErrors.phone}</p>}
+            </div>
+            <div className="space-y-2">
+              <Label>RFC</Label>
+              <Input
+                placeholder="ABCD123456XYZ1"
+                maxLength={13}
+                value={personalData.rfc}
+                onChange={(e) => handlePersonalDataChange("rfc", e.target.value.toUpperCase())}
+              />
+              {validationErrors.rfc && <p className="text-xs text-destructive">{validationErrors.rfc}</p>}
             </div>
           </div>
         </CardContent>
@@ -2016,6 +2094,10 @@ const LoanProcess = () => {
                   <p className="text-sm font-medium">
                     {`${personalData.firstName} ${personalData.lastName}`.trim() || "Sin nombre registrado"}
                   </p>
+                </div>
+                <div className="rounded-lg bg-muted/40 p-3">
+                  <p className="text-[11px] text-muted-foreground">RFC</p>
+                  <p className="text-sm font-medium">{personalData.rfc || "Sin RFC"}</p>
                 </div>
                 <div className="rounded-lg bg-muted/40 p-3">
                   <p className="text-[11px] text-muted-foreground">Contacto</p>

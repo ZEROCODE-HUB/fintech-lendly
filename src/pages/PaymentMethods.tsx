@@ -49,9 +49,10 @@ const PaymentMethods = () => {
   const location = useLocation();
   const conektaPublicKey = (import.meta.env.VITE_CONEKTA_PUBLIC_KEY ?? "").trim();
 
-  const locationState = location.state as { returnTo?: string; fromLoanProcess?: boolean } | null;
+  const locationState = location.state as { returnTo?: string; fromLoanProcess?: boolean; membership?: any } | null;
   const returnTo = locationState?.returnTo || null;
   const fromCheckout = Boolean(returnTo);
+  const checkoutState = locationState; // preserve full state for return navigation
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -213,7 +214,7 @@ const PaymentMethods = () => {
         setAddDialogOpen(false);
         await loadPaymentMethods();
         if (fromCheckout && returnTo) {
-          setTimeout(() => navigate(returnTo, { state: { fromLoanProcess: true } }), 500);
+          setTimeout(() => navigate(returnTo, { state: checkoutState }), 500);
         }
       } else {
         if (!formData.bankName || !formData.clabe || !formData.accountHolder) {
@@ -231,7 +232,7 @@ const PaymentMethods = () => {
         setAddDialogOpen(false);
         await loadPaymentMethods();
         if (fromCheckout && returnTo) {
-          setTimeout(() => navigate(returnTo, { state: { fromLoanProcess: true } }), 500);
+          setTimeout(() => navigate(returnTo, { state: checkoutState }), 500);
         }
       }
     } catch (err) {
@@ -363,7 +364,7 @@ const PaymentMethods = () => {
 
       <div className="flex justify-between items-center mt-3">
         {fromCheckout && (
-          <Button variant="outline" onClick={() => navigate(returnTo!, { state: { fromLoanProcess: true } })} className="gap-2">
+          <Button variant="outline" onClick={() => navigate(returnTo!, { state: checkoutState })} className="gap-2">
             <ArrowLeft className="h-4 w-4" />Volver
           </Button>
         )}
@@ -372,7 +373,7 @@ const PaymentMethods = () => {
 
       <div className="grid gap-4 lg:grid-cols-3">
         {isLoading ? (<><PaymentMethodSkeleton /><PaymentMethodSkeleton /></>) : paymentMethods.length === 0 ? (
-          <Card className="shadow-soft md:col-span-2">
+          <Card className="shadow-soft lg:col-span-3">
             <CardContent className="py-12 text-center">
               <CreditCard className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
               <h3 className="text-lg font-semibold mb-2">No tienes métodos de pago</h3>
