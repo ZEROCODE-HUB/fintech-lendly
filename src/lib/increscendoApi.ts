@@ -33,8 +33,22 @@ export const increscendoApiFetch = async (path: string, init: RequestInit = {}) 
         headers.set('Content-Type', 'application/json');
     }
 
-    return fetch(url, {
-        ...init,
-        headers,
-    });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
+
+    try {
+        const response = await fetch(url, {
+            ...init,
+            headers,
+            signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+        return response;
+    } catch (error) {
+        clearTimeout(timeoutId);
+        if (error instanceof Error && error.name === 'AbortError') {
+            throw new Error('La solicitud tardó demasiado tiempo (timeout: 30s)');
+        }
+        throw error;
+    }
 };

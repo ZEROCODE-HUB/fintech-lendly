@@ -134,7 +134,28 @@ const History = () => {
         };
       });
 
-      setPaymentHistory(mappedPayments);
+      const { data: memberships, error: membershipsError } = await supabase
+        .from('user_memberships')
+        .select('id, status, created_at, started_at, membership_plans(name, price)')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+
+      if (membershipsError) throw membershipsError;
+
+      const mappedMemberships = (memberships || []).map((m: any) => ({
+        id: `memb-${m.id.slice(0, 8)}`,
+        loan: m.membership_plans?.name || 'Membresía',
+        amount: Number(m.membership_plans?.price || 0),
+        date: new Date(m.started_at || m.created_at).toISOString().split('T')[0],
+        method: 'Membresía',
+        status: m.status === 'active' ? 'Activo' : m.status === 'expired' ? 'Vencida' : m.status.charAt(0).toUpperCase() + m.status.slice(1),
+        installment: null,
+        reference: m.id,
+        paymentRequestId: null,
+        raw: m,
+      }));
+
+      setPaymentHistory([...mappedPayments, ...mappedMemberships]);
     } catch (err) {
       console.error('Error loading history:', err);
     } finally {

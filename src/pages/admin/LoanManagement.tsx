@@ -18,6 +18,8 @@ import { useAdminPendingLoans, useAdminContractLoans, useAdminDisbursementLoans,
 import { supabase } from "@/lib/supabase";
 import { authService } from '@/utils/auth';
 import { increscendoApiFetch } from "@/lib/increscendoApi";
+import { sendEmail } from "@/lib/emailService";
+import { loanApprovedTemplate, loanRejectedTemplate, paymentReminderTemplate, disbursementConfirmedTemplate } from "@/lib/emailTemplates";
 import { LoanTableFilters } from "@/components/admin/loans/LoanTableFilters";
 import { INECURPModal } from "@/components/admin/loans/modals/INECURPModal";
 import { ModifyLoanModal } from "@/components/admin/loans/modals/ModifyLoanModal";
@@ -710,6 +712,7 @@ const LoanManagement = () => {
     'Validando información del cliente...',
     'Preparando contrato digital...',
     'Enviando invitación de firma...',
+    'Enviando correo de notificación...',
     'Finalizando proceso de aprobación...',
   ];
 
@@ -798,6 +801,30 @@ const LoanManagement = () => {
           console.warn('[admin] signnow invite error', e);
         }
       }
+
+      // Send approval email to client
+      if (loan.email) {
+        setApprovingState(prev => ({ ...prev, message: 'Enviando correo de notificación...' }));
+        const userName = loan.firstName ? `${loan.firstName} ${loan.lastName || ''}`.trim() : 'Cliente';
+        try {
+          await sendEmail({
+            to: loan.email,
+            subject: '¡Préstamo Aprobado!',
+            html: loanApprovedTemplate({
+              name: userName,
+              loanId: loan.id || loan.uuid || loan.loan_id || '',
+              amount: (loan.amount || 0).toLocaleString('es-MX'),
+              installments: String(loan.installments || loan.raw?.installments || ''),
+              bank: loan.bank ? getBankName(loan.bank) : 'No especificado',
+              clabe: loan.accountNumber ? `****${loan.accountNumber.slice(-4)}` : 'No especificada',
+            }),
+            text: `Hola ${userName}, tu préstamo ha sido aprobado. Folio: ${loan.id}. Monto: $${(loan.amount || 0).toLocaleString('es-MX')} MXN. Revisa tu correo para firmar el contrato.`,
+          });
+        } catch (e) {
+          console.warn('[admin] failed to send approval email', e);
+        }
+      }
+
       clearInterval(messageInterval);
       setApprovingState({ open: false, message: '' });
       toast({ title: 'Aprobado', description: `La solicitud ${loan.id} pasó a estado Aprobado (firma pendiente).` });
@@ -852,6 +879,24 @@ const LoanManagement = () => {
       toast({ title: 'Rechazado', description: `La solicitud ${loan.id} ha sido rechazada.`, variant: 'destructive' });
       setRejectDialog({ open: false, loan: null });
       await reloadCurrentTab();
+
+      // Send rejection email to client
+      if (loan.email) {
+        const userName = loan.firstName ? `${loan.firstName} ${loan.lastName || ''}`.trim() : 'Cliente';
+        try {
+          await sendEmail({
+            to: loan.email,
+            subject: 'Solicitud No Aprobada',
+            html: loanRejectedTemplate({
+              name: userName,
+              loanId: loan.id || loan.uuid || loan.loan_id || '',
+            }),
+            text: `Hola ${userName}, lamentamos informarte que tu solicitud de préstamo Folio ${loan.id} no ha sido aprobada en esta ocasión.`,
+          });
+        } catch (e) {
+          console.warn('[admin] failed to send rejection email', e);
+        }
+      }
     } catch (err) {
       console.error('Error rechazando solicitud', err);
       toast({ title: 'Error', description: 'No se pudo rechazar la solicitud.' });
@@ -910,6 +955,27 @@ const LoanManagement = () => {
       setConfirmDisbursementModal({ open: false, loan: null });
       await reloadCurrentTab();
       queryClient.invalidateQueries({ queryKey: ['loans', 'admin', 'active'] });
+
+      // Send disbursement email to client
+      if (loan.email) {
+        const userName = loan.firstName ? `${loan.firstName} ${loan.lastName || ''}`.trim() : 'Cliente';
+        try {
+          await sendEmail({
+            to: loan.email,
+            subject: '¡Desembolso Exitoso!',
+            html: disbursementConfirmedTemplate({
+              name: userName,
+              loanId: loan.id || loan.uuid || '',
+              amount: (loan.amount || 0).toLocaleString('es-MX'),
+              bank: loan.bankName || (loan.bank ? getBankName(loan.bank) : 'No especificado'),
+              clabe: loan.accountNumber ? `****${loan.accountNumber.slice(-4)}` : 'No especificada',
+            }),
+            text: `Hola ${userName}, el desembolso de tu préstamo por $${(loan.amount || 0).toLocaleString('es-MX')} MXN ha sido procesado exitosamente. Los fondos están siendo transferidos a tu cuenta.`,
+          });
+        } catch (e) {
+          console.warn('[admin] failed to send disbursement email', e);
+        }
+      }
     } catch (err) {
       console.error('Error confirmando desembolso', err);
       toast({ title: 'Error', description: 'No se pudo confirmar el desembolso.', variant: 'destructive' });
@@ -923,20 +989,29 @@ const LoanManagement = () => {
       return;
     }
     try {
-      const title = 'Recordatorio de pago';
-      const message = 'Te recordamos que tu proxima cuota esta por vencer. Revisa tu calendario de pagos en tu cuenta.';
-      const { error } = await supabase.from('notifications').insert([
-        {
-          user_id: loan.user_id,
-          type: 'loan_payment_reminder',
-          title,
-          message,
-          url: '/my-loans',
-          channels: ['email'],
-        },
-      ]);
-      if (error) throw error;
-      toast({ title: 'Recordatorio enviado', description: 'La notificacion fue enviada al usuario.' });
+      const nextPaymentDate = loan.nextPaymentDate || loan.raw?.next_payment_date || 'Próximamente';
+      const userName = loan.firstName ? `${loan.firstName} ${loan.lastName || ''}`.trim() : 'Cliente';
+      const installmentLabel = loan.paidInstallments
+        ? `Cuota ${(loan.paidInstallments || 0) + 1} de ${loan.installments}`
+        : `Cuota 1 de ${loan.installments}`;
+
+      if (loan.email) {
+        await sendEmail({
+          to: loan.email,
+          subject: 'Recordatorio de Pago',
+          html: paymentReminderTemplate({
+            name: userName,
+            loanId: loan.id || loan.uuid || '',
+            amount: (loan.amount || 0).toLocaleString('es-MX'),
+            nextPaymentDate: typeof nextPaymentDate === 'string' ? nextPaymentDate : new Date(nextPaymentDate).toLocaleDateString('es-MX'),
+            installment: installmentLabel,
+            clabe: loan.accountNumber ? `****${loan.accountNumber.slice(-4)}` : 'No especificada',
+          }),
+          text: `Hola ${userName}, te recordamos que tu próxima cuota está por vencer. Tu próxima cuota (${installmentLabel}) por $${(loan.amount || 0).toLocaleString('es-MX')} MXN tiene como fecha límite ${nextPaymentDate}. Realiza tu pago a tiempo.`,
+        });
+      }
+
+      toast({ title: 'Recordatorio enviado', description: 'El recordatorio fue enviado al correo del usuario.' });
       setReminderModal({ open: false, loan: null });
     } catch (err) {
       console.error('Error enviando recordatorio', err);
@@ -1900,6 +1975,7 @@ const LoanManagement = () => {
           })()}
           <AlertDialogFooter className="gap-2 mt-4 pt-3 border-t border-gray-200">
             <AlertDialogCancel onClick={() => setDetailsModal({ open: false, loan: null })} className="gap-2">Cerrar</AlertDialogCancel>
+            <Button variant="outline" size="sm" onClick={handleTestSignNow}>Test SignNow</Button>
             {detailsModal.sourceTab === 'pending' && (
               <>
                 <AlertDialogAction

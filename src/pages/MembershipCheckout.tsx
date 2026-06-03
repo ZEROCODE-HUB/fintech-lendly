@@ -32,6 +32,8 @@ import { defaultMemberships } from "@/data/memberships";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { increscendoApiFetch } from "@/lib/increscendoApi";
+import { sendEmail } from "@/lib/emailService";
+import { membershipAcquiredTemplate } from "@/lib/emailTemplates";
 
 interface LocationState {
   membershipId?: string;
@@ -163,7 +165,26 @@ const MembershipCheckout = () => {
           return;
         }
 
-        if (json.ok === true) setPreviewData(json), setPreviewOpen(true);
+        if (json.ok === true) {
+          setPreviewData(json), setPreviewOpen(true);
+          // Send membership confirmation email
+          if (userProfile?.email) {
+            const userName = `${userProfile.first_name ?? ''} ${userProfile.last_name ?? ''}`.trim() || 'Usuario';
+            const um = json.user_membership ?? null;
+            sendEmail({
+              to: userProfile.email,
+              subject: '¡Membresía Activada!',
+              html: membershipAcquiredTemplate({
+                name: userName,
+                planName: membership.name ?? membership.title ?? 'Membresía',
+                amount: (finalTotal || originalPrice).toLocaleString('es-MX'),
+                startDate: um?.started_at ? new Date(um.started_at).toLocaleDateString('es-MX') : new Date().toLocaleDateString('es-MX'),
+                expirationDate: um?.expires_at ? new Date(um.expires_at).toLocaleDateString('es-MX') : '—',
+              }),
+              text: `Hola ${userName}, tu membresía ${membership.name ?? membership.title} ha sido activada correctamente. Ya puedes disfrutar de todos los beneficios.`,
+            }).catch(e => console.warn('[membership] email error', e));
+          }
+        }
         else {
           const msg = json.message || JSON.stringify(json);
           if (isMissingCardError(msg)) setCardErrorOpen(true);
