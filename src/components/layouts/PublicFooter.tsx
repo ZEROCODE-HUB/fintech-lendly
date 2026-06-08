@@ -49,6 +49,8 @@ export const PublicFooter = () => {
               <li><Link to="/#features" className="hover:text-primary transition-colors">Recargas</Link></li>
               <li><Link to="/#features" className="hover:text-primary transition-colors">Monederos</Link></li>
               <li><Link to="/#features" className="hover:text-primary transition-colors">Tiempo aire</Link></li>
+              <li><Link to="/#features" className="hover:text-primary transition-colors">Tarjetas internacionales</Link></li>
+
             </ul>
           </div>
 

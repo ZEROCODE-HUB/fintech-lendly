@@ -153,7 +153,7 @@ const Index = () => {
               </p>
             </div>
 
-            <div className="bg-card p-5 sm:p-6 rounded-lg shadow-soft hover:shadow-medium transition-all">
+            {/* <div className="bg-card p-5 sm:p-6 rounded-lg shadow-soft hover:shadow-medium transition-all">
               <div className="h-10 w-10 bg-success/20 rounded-lg flex items-center justify-center mb-4">
                 <Users className="h-5 w-5 text-success" />
               </div>
@@ -161,7 +161,7 @@ const Index = () => {
               <p className="text-xs sm:text-sm text-muted-foreground">
                 Asistencia 24/7 con chatbot inteligente y equipo de expertos siempre disponibles.
               </p>
-            </div>
+            </div> */}
 
             <div className="bg-card p-5 sm:p-6 rounded-lg shadow-soft hover:shadow-medium transition-all">
               <div className="h-10 w-10 bg-primary/20 rounded-lg flex items-center justify-center mb-4">
@@ -204,6 +204,10 @@ const Index = () => {
                 <li className="flex items-start gap-3">
                   <div className="w-1.5 h-1.5 bg-accent rounded-full mt-1.5 flex-shrink-0" />
                   <span>Monederos digitales con seguridad bancaria</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <div className="w-1.5 h-1.5 bg-accent rounded-full mt-1.5 flex-shrink-0" />
+                  <span>Soporte personalizado 24/7 con chatbot inteligente y equipo de expertos siempre disponibles</span>
                 </li>
                 <li className="flex items-start gap-3">
                   <div className="w-1.5 h-1.5 bg-accent rounded-full mt-1.5 flex-shrink-0" />
