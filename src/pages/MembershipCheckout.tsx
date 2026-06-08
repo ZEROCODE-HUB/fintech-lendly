@@ -42,6 +42,8 @@ interface LocationState {
   fromLoanProcess?: boolean;
 }
 
+const CHECKOUT_STATE_KEY = 'membership_checkout_state';
+
 const MembershipCheckout = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -93,6 +95,44 @@ const MembershipCheckout = () => {
   const [previewData, setPreviewData] = useState<any | null>(null);
   const [cardErrorOpen, setCardErrorOpen] = useState(false);
   const [noConektaModalOpen, setNoConektaModalOpen] = useState(false);
+
+  // Persist checkout form state across payment-methods navigation
+  const saveCheckoutState = () => {
+    try {
+      sessionStorage.setItem(CHECKOUT_STATE_KEY, JSON.stringify({
+        couponCode,
+        appliedCoupon,
+        discountPercent,
+        discountFixedAmount,
+        requestInvoice,
+        rfc,
+        fiscalAddress,
+        termsAccepted,
+        membership,
+        membershipId,
+        returnTo,
+        fromLoanProcess,
+      }));
+    } catch { }
+  };
+
+  useEffect(() => {
+    try {
+      const saved = sessionStorage.getItem(CHECKOUT_STATE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (typeof parsed.couponCode === 'string') setCouponCode(parsed.couponCode);
+        if (parsed.appliedCoupon) setAppliedCoupon(parsed.appliedCoupon);
+        if (typeof parsed.discountPercent === 'number') setDiscountPercent(parsed.discountPercent);
+        if (typeof parsed.discountFixedAmount === 'number') setDiscountFixedAmount(parsed.discountFixedAmount);
+        if (typeof parsed.requestInvoice === 'boolean') setRequestInvoice(parsed.requestInvoice);
+        if (typeof parsed.rfc === 'string') setRfc(parsed.rfc);
+        if (typeof parsed.fiscalAddress === 'string') setFiscalAddress(parsed.fiscalAddress);
+        if (typeof parsed.termsAccepted === 'boolean') setTermsAccepted(parsed.termsAccepted);
+        sessionStorage.removeItem(CHECKOUT_STATE_KEY);
+      }
+    } catch { }
+  }, []);
 
   const isMissingCardError = (value: unknown) => {
     const text = typeof value === 'string' ? value : JSON.stringify(value ?? '');
@@ -225,7 +265,7 @@ const MembershipCheckout = () => {
               </p>
             </div>
           </div>
-          <Button variant="ghost" size="sm" onClick={() => navigate(fromLoanProcess ? '/loan-process' : returnTo)} className="text-muted-foreground shrink-0">
+          <Button variant="ghost" size="sm" onClick={() => { sessionStorage.removeItem(CHECKOUT_STATE_KEY); navigate(fromLoanProcess ? '/loan-process' : returnTo); }} className="text-muted-foreground shrink-0">
             <X className="h-4 w-4" />
           </Button>
         </div>
@@ -315,7 +355,7 @@ const MembershipCheckout = () => {
               </CardContent>
             </Card>
             {fromLoanProcess && (
-              <Button variant="outline" onClick={() => navigate('/loan-process')} className="w-full gap-2">
+              <Button variant="outline" onClick={() => { sessionStorage.removeItem(CHECKOUT_STATE_KEY); navigate('/loan-process'); }} className="w-full gap-2">
                 <ArrowLeft className="h-4 w-4" />
                 Volver al Préstamo
               </Button>
@@ -372,7 +412,7 @@ const MembershipCheckout = () => {
                 {acquiring ? 'Procesando...' : 'Confirmar compra'}
               </Button>
 
-              <Button variant="ghost" className="w-full text-muted-foreground" size="sm" onClick={() => navigate(fromLoanProcess ? '/loan-process' : returnTo)}>
+              <Button variant="ghost" className="w-full text-muted-foreground" size="sm" onClick={() => { sessionStorage.removeItem(CHECKOUT_STATE_KEY); navigate(fromLoanProcess ? '/loan-process' : returnTo); }}>
                 Cancelar
               </Button>
             </CardContent>
@@ -475,7 +515,7 @@ const MembershipCheckout = () => {
 
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setPreviewOpen(false)}>Cerrar</Button>
-            <Button onClick={() => { setPreviewOpen(false); navigate(fromLoanProcess ? '/loan-process' : returnTo); }}>Finalizar</Button>
+            <Button onClick={() => { setPreviewOpen(false); sessionStorage.removeItem(CHECKOUT_STATE_KEY); navigate(fromLoanProcess ? '/loan-process' : returnTo); }}>Finalizar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -489,7 +529,7 @@ const MembershipCheckout = () => {
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCardErrorOpen(false)}>Cerrar</Button>
-            <Button onClick={() => { setCardErrorOpen(false); navigate('/payment-methods', { state: { returnTo: '/membership-checkout', membership, fromLoanProcess } }); }}>Ir a Métodos de Pago</Button>
+            <Button onClick={() => { setCardErrorOpen(false); saveCheckoutState(); navigate('/payment-methods', { state: { returnTo: '/membership-checkout', membership, fromLoanProcess, openAddDialog: true } }); }}>Ir a Métodos de Pago</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -503,7 +543,7 @@ const MembershipCheckout = () => {
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setNoConektaModalOpen(false)}>Cerrar</Button>
-            <Button onClick={() => { setNoConektaModalOpen(false); navigate('/payment-methods', { state: { returnTo: '/membership-checkout', membership, fromLoanProcess } }); }}>Ir a Métodos de Pago</Button>
+            <Button onClick={() => { setNoConektaModalOpen(false); saveCheckoutState(); navigate('/payment-methods', { state: { returnTo: '/membership-checkout', membership, fromLoanProcess, openAddDialog: true } }); }}>Ir a Métodos de Pago</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

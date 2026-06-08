@@ -267,71 +267,105 @@ const generateLoanSchedulePdfBase64 = (loan: any) => {
   const doc = new jsPDF({ unit: 'pt', format: 'a4' });
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
-  const left = 36;
-  const right = pageWidth - 36;
-  const tableTop = 142;
-  const rowHeight = 16;
-  const colX = [left, 84, 152, 256, 348, 438, 528];
+  const left = 34;
+  const right = pageWidth - 34;
+  const rowHeight = 18;
+  const tableTop = 148;
+  const annualPercent = (storedAnnualRate > 1 ? storedAnnualRate : storedAnnualRate * 100).toFixed(2);
+  const fullName = `${loan.firstName ?? ''} ${loan.lastName ?? ''}`.trim() || 'N/D';
 
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(12);
-  doc.text('Cronograma de Pagos', left, 42);
-  doc.setFontSize(9);
+  const columns = [
+    { label: 'CUOTA', x: left + 10, width: 46, align: 'left' as const },
+    { label: 'FECHA', x: left + 62, width: 92, align: 'left' as const },
+    { label: 'CAPITAL', x: left + 162, width: 92, align: 'right' as const },
+    { label: 'INTERES', x: left + 258, width: 92, align: 'right' as const },
+    { label: 'TOTAL', x: left + 354, width: 92, align: 'right' as const },
+    { label: 'SALDO', x: left + 450, width: 92, align: 'right' as const },
+  ];
+
+  const drawTopHeader = () => {
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(21, 77, 156);
+    doc.setFontSize(17);
+    doc.text('Tabla de amortizacion', left, 46);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(44, 44, 44);
+    doc.setFontSize(9);
+    doc.text(`Cliente: ${fullName}`, left, 66);
+    doc.text(`Solicitud: ${loan.id ?? 'N/D'}`, left, 80);
+    doc.text(`Pagos: ${months}`, left, 94);
+
+    doc.text(`Monto: ${formatMoney(principal)}`, right, 66, { align: 'right' });
+    doc.text(`Pago mensual: ${formatMoney(monthlyPayment)}`, right, 80, { align: 'right' });
+    doc.text(`Total a pagar: ${formatMoney(totalToPay)}`, right, 94, { align: 'right' });
+
+    doc.text(`TNA: ${annualPercent}%`, left, 108);
+    doc.text(`Tasa mensual: ${(monthlyRate * 100).toFixed(4)}%`, right, 108, { align: 'right' });
+
+    doc.setDrawColor(196, 204, 214);
+    doc.line(left, 118, right, 118);
+  };
+
+  const drawTableHeader = (y: number) => {
+    doc.setFillColor(234, 239, 246);
+    doc.rect(left, y - 11, right - left, 18, 'F');
+    doc.setDrawColor(188, 196, 206);
+    doc.rect(left, y - 11, right - left, 18);
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(46, 46, 46);
+    columns.forEach((column) => {
+      const textX = column.align === 'right' ? column.x + column.width : column.x;
+      doc.text(column.label, textX, y, { align: column.align });
+    });
+
+    doc.setDrawColor(205, 212, 220);
+    for (let i = 1; i < columns.length; i++) {
+      const lineX = columns[i].x - 8;
+      doc.line(lineX, y - 11, lineX, y + 7);
+    }
+  };
+
+  drawTopHeader();
+  drawTableHeader(tableTop);
+
   doc.setFont('helvetica', 'normal');
-  doc.text(`Cliente: ${loan.firstName ?? ''} ${loan.lastName ?? ''}`.trim(), left, 58);
-  doc.text(`Solicitud: ${loan.id ?? ''}`, left, 72);
-  doc.text(`Monto: ${formatMoney(principal)}`, left, 86);
-  doc.text(`TNA: ${(storedAnnualRate > 1 ? storedAnnualRate : storedAnnualRate * 100).toFixed(2)}%`, 220, 86);
-  doc.text(`Tasa mensual: ${(monthlyRate * 100).toFixed(4)}%`, 220, 100);
-  doc.text(`Pagos: ${months}`, 420, 86);
-  doc.text(`Pago mensual: ${formatMoney(monthlyPayment)}`, 420, 100);
-  doc.text(`Total a pagar: ${formatMoney(totalToPay)}`, 420, 114);
+  let y = tableTop + 16;
 
-  doc.setDrawColor(190, 190, 190);
-  doc.line(left, tableTop - 12, right, tableTop - 12);
-
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8);
-  doc.text('CUOTA', colX[0], tableTop);
-  doc.text('FECHA', colX[1], tableTop);
-  doc.text('CAPITAL', colX[2], tableTop);
-  doc.text('INTERES', colX[3], tableTop);
-  doc.text('TOTAL', colX[4], tableTop);
-  doc.text('SALDO', colX[5], tableTop);
-
-  doc.setFont('helvetica', 'normal');
-  let y = tableTop + 14;
-
-  rows.forEach((r) => {
-    if (y > pageHeight - 96) {
+  rows.forEach((r, index) => {
+    if (y > pageHeight - 84) {
       doc.addPage();
-      y = 48;
-      doc.setFont('helvetica', 'bold');
-      doc.text('CUOTA', colX[0], y);
-      doc.text('FECHA', colX[1], y);
-      doc.text('CAPITAL', colX[2], y);
-      doc.text('INTERES', colX[3], y);
-      doc.text('TOTAL', colX[4], y);
-      doc.text('SALDO', colX[5], y);
-      doc.setFont('helvetica', 'normal');
-      y += 14;
+      drawTopHeader();
+      drawTableHeader(tableTop);
+      y = tableTop + 16;
+    }
+
+    if (index % 2 === 0) {
+      doc.setFillColor(248, 250, 253);
+      doc.rect(left, y - 10, right - left, rowHeight, 'F');
+    }
+
+    doc.setDrawColor(225, 230, 236);
+    doc.line(left, y + 8, right, y + 8);
+    for (let i = 1; i < columns.length; i++) {
+      const lineX = columns[i].x - 8;
+      doc.line(lineX, y - 10, lineX, y + 8);
     }
 
     doc.setFontSize(8);
-    doc.text(String(r.installment), colX[0], y);
-    doc.text(r.date, colX[1], y);
-    doc.text(formatMoney(r.principal), colX[2], y, { align: 'left' });
-    doc.text(formatMoney(r.interest), colX[3], y, { align: 'left' });
-    doc.text(formatMoney(r.total), colX[4], y, { align: 'left' });
-    doc.text(formatMoney(r.balance), colX[5], y, { align: 'left' });
+    doc.setTextColor(50, 50, 50);
+    doc.text(String(r.installment), columns[0].x, y);
+    doc.text(r.date, columns[1].x, y);
+    doc.text(formatMoney(r.principal), columns[2].x + columns[2].width, y, { align: 'right' });
+    doc.text(formatMoney(r.interest), columns[3].x + columns[3].width, y, { align: 'right' });
+    doc.text(formatMoney(r.total), columns[4].x + columns[4].width, y, { align: 'right' });
+    doc.text(formatMoney(r.balance), columns[5].x + columns[5].width, y, { align: 'right' });
     y += rowHeight;
   });
 
-  const signatureY = Math.max(y + 28, pageHeight - 96);
-  doc.setDrawColor(60, 60, 60);
-  doc.line(left + 8, signatureY, 230, signatureY);
-  doc.setFontSize(8);
-  doc.text('Firma del cliente', left + 8, signatureY + 14);
+  // No client signature field per request — leave document without client signature area.
 
   const dataUri = doc.output('datauristring');
   return dataUri.split(',')[1] ?? '';
@@ -776,7 +810,7 @@ const LoanManagement = () => {
         try {
           setApprovingState(prev => ({ ...prev, message: 'Preparando documento de contrato...' }));
           const optionalPdfBase64 = generateLoanSchedulePdfBase64(loan);
-          const optionalPdfName = `cronograma-${loan.id ?? loan.uuid ?? 'prestamo'}.pdf`;
+          const optionalPdfName = `tabla-amortizacion-${loan.id ?? loan.uuid ?? 'prestamo'}.pdf`;
           setApprovingState(prev => ({ ...prev, message: 'Enviando invitación de firma...' }));
           const resp = await increscendoApiFetch('/signnow-invite', {
             method: 'POST',
@@ -809,7 +843,7 @@ const LoanManagement = () => {
         try {
           await sendEmail({
             to: loan.email,
-            subject: '¡Préstamo Aprobado!',
+            subject: '¡Préstamo Pre Aprobado!',
             html: loanApprovedTemplate({
               name: userName,
               loanId: loan.id || loan.uuid || loan.loan_id || '',
@@ -818,7 +852,7 @@ const LoanManagement = () => {
               bank: loan.bank ? getBankName(loan.bank) : 'No especificado',
               clabe: loan.accountNumber ? `****${loan.accountNumber.slice(-4)}` : 'No especificada',
             }),
-            text: `Hola ${userName}, tu préstamo ha sido aprobado. Folio: ${loan.id}. Monto: $${(loan.amount || 0).toLocaleString('es-MX')} MXN. Revisa tu correo para firmar el contrato.`,
+            text: `Hola ${userName}, tu préstamo ha sido preaprobado. Folio: ${loan.id}. Monto: $${(loan.amount || 0).toLocaleString('es-MX')} MXN. Revisa tu correo para firmar el contrato.`,
           });
         } catch (e) {
           console.warn('[admin] failed to send approval email', e);
@@ -846,7 +880,7 @@ const LoanManagement = () => {
     const loanId = loan.uuid ?? loan.raw?.id ?? loan.id;
     try {
       const optionalPdfBase64 = generateLoanSchedulePdfBase64(loan);
-      const optionalPdfName = `cronograma-${loan.id ?? loan.uuid ?? 'prestamo'}.pdf`;
+      const optionalPdfName = `tabla-amortizacion-${loan.id ?? loan.uuid ?? 'prestamo'}.pdf`;
       const resp = await increscendoApiFetch('/signnow-invite', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

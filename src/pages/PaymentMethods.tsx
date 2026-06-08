@@ -49,7 +49,7 @@ const PaymentMethods = () => {
   const location = useLocation();
   const conektaPublicKey = (import.meta.env.VITE_CONEKTA_PUBLIC_KEY ?? "").trim();
 
-  const locationState = location.state as { returnTo?: string; fromLoanProcess?: boolean; membership?: any } | null;
+  const locationState = location.state as { returnTo?: string; fromLoanProcess?: boolean; membership?: any; openAddDialog?: boolean } | null;
   const returnTo = locationState?.returnTo || null;
   const fromCheckout = Boolean(returnTo);
   const checkoutState = locationState; // preserve full state for return navigation
@@ -81,6 +81,12 @@ const PaymentMethods = () => {
     setFormData({ cardNumber: "", expiry: "", cvv: "", cardholder: "", bankName: "", clabe: "", accountHolder: "" });
     setAddDialogOpen(true);
   };
+
+  useEffect(() => {
+    if (locationState?.openAddDialog) {
+      openAddDialog();
+    }
+  }, []);
 
   useEffect(() => {
     loadPaymentMethods();
