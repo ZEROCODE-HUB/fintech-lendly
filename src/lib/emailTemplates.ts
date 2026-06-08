@@ -52,11 +52,11 @@ export const loanApprovedTemplate = (data: {
   bank: string;
   clabe: string;
 }) => wrapper(`
-  ${header(BRAND.primary, '¡Préstamo Aprobado!')}
+  ${header(BRAND.primary, '¡Préstamo Pre Aprobado!')}
   <tr><td style="padding:24px">
     <p style="margin:0 0 16px;font-size:15px;color:${BRAND.fg}">Hola <strong>${data.name}</strong>,</p>
     <p style="margin:0 0 16px;font-size:14px;color:${BRAND.fg};line-height:1.6">
-      Nos complace informarte que tu solicitud de préstamo ha sido <strong style="color:${BRAND.success}">aprobada</strong>.
+      Nos complace informarte que tu solicitud de préstamo ha sido <strong style="color:${BRAND.success}">preaprobada</strong>.
       Revisa tu correo para firmar el contrato digital y completar el proceso.
     </p>
   </td></tr>
@@ -79,7 +79,7 @@ export const loanRejectedTemplate = (data: {
   name: string;
   loanId: string;
 }) => wrapper(`
-  ${header(BRAND.danger, 'Solicitud No Aprobada')}
+  ${header(BRAND.danger, 'Solicitud rechazada')}
   <tr><td style="padding:24px">
     <p style="margin:0 0 16px;font-size:15px;color:${BRAND.fg}">Hola <strong>${data.name}</strong>,</p>
     <p style="margin:0 0 16px;font-size:14px;color:${BRAND.fg};line-height:1.6">
