@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-import { ArrowRight, Shield, Zap, TrendingUp, Users, Clock, Wallet, Smartphone, Facebook, Instagram } from "lucide-react";
+import { ArrowRight, Shield, Zap, TrendingUp, Users, Clock, Wallet, Smartphone, Facebook, Instagram, CreditCard } from "lucide-react";
 import heroImage from "@/assets/hero-landing.webp";
 import { supabase } from "@/lib/supabase";
 
@@ -153,15 +153,15 @@ const Index = () => {
               </p>
             </div>
 
-            {/* <div className="bg-card p-5 sm:p-6 rounded-lg shadow-soft hover:shadow-medium transition-all">
+            <div className="bg-card p-5 sm:p-6 rounded-lg shadow-soft hover:shadow-medium transition-all">
               <div className="h-10 w-10 bg-success/20 rounded-lg flex items-center justify-center mb-4">
-                <Users className="h-5 w-5 text-success" />
+                <CreditCard className="h-5 w-5 text-success" />
               </div>
-              <h3 className="text-base sm:text-lg font-semibold mb-2">Soporte Personalizado</h3>
+              <h3 className="text-base sm:text-lg font-semibold mb-2">Tarjeta Internacional</h3>
               <p className="text-xs sm:text-sm text-muted-foreground">
-                Asistencia 24/7 con chatbot inteligente y equipo de expertos siempre disponibles.
+                Tu tarjeta es aceptada en TPV, compra en Línea, comercios físicos, electrónicos y retiros de efectivo en ATM Internacional
               </p>
-            </div> */}
+            </div>
 
             <div className="bg-card p-5 sm:p-6 rounded-lg shadow-soft hover:shadow-medium transition-all">
               <div className="h-10 w-10 bg-primary/20 rounded-lg flex items-center justify-center mb-4">
