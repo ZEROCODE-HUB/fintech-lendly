@@ -270,24 +270,50 @@ const generateLoanSchedulePdfBase64 = (loan: any) => {
   const left = 34;
   const right = pageWidth - 34;
   const rowHeight = 18;
-  const tableTop = 148;
+  const tableTop = 146;
   const annualPercent = (storedAnnualRate > 1 ? storedAnnualRate : storedAnnualRate * 100).toFixed(2);
   const fullName = `${loan.firstName ?? ''} ${loan.lastName ?? ''}`.trim() || 'N/D';
 
   const columns = [
-    { label: 'CUOTA', x: left + 10, width: 46, align: 'left' as const },
-    { label: 'FECHA', x: left + 62, width: 92, align: 'left' as const },
-    { label: 'CAPITAL', x: left + 162, width: 92, align: 'right' as const },
-    { label: 'INTERES', x: left + 258, width: 92, align: 'right' as const },
-    { label: 'TOTAL', x: left + 354, width: 92, align: 'right' as const },
-    { label: 'SALDO', x: left + 450, width: 92, align: 'right' as const },
+    { label: 'CUOTA', width: 50, align: 'center' as const },
+    { label: 'FECHA', width: 84, align: 'center' as const },
+    { label: 'CAPITAL', width: 93, align: 'right' as const },
+    { label: 'INTERES', width: 93, align: 'right' as const },
+    { label: 'TOTAL', width: 93, align: 'right' as const },
+    { label: 'SALDO', width: 93, align: 'right' as const },
   ];
+
+  const tableWidth = columns.reduce((sum, column) => sum + column.width, 0);
+  const tableLeft = left;
+  const tableRight = tableLeft + tableWidth;
+
+  const getColumnX = (index: number) => {
+    return tableLeft + columns.slice(0, index).reduce((sum, column) => sum + column.width, 0);
+  };
+
+  const drawCellText = (text: string, index: number, y: number) => {
+    const column = columns[index];
+    const x = getColumnX(index);
+    const padding = 6;
+
+    if (column.align === 'right') {
+      doc.text(text, x + column.width - padding, y, { align: 'right' });
+      return;
+    }
+
+    if (column.align === 'center') {
+      doc.text(text, x + column.width / 2, y, { align: 'center' });
+      return;
+    }
+
+    doc.text(text, x + padding, y);
+  };
 
   const drawTopHeader = () => {
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(21, 77, 156);
     doc.setFontSize(17);
-    doc.text('Tabla de amortizacion', left, 46);
+    doc.text('Tabla de amortizacion', pageWidth / 2, 46, { align: 'center' });
 
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(44, 44, 44);
@@ -301,7 +327,6 @@ const generateLoanSchedulePdfBase64 = (loan: any) => {
     doc.text(`Total a pagar: ${formatMoney(totalToPay)}`, right, 94, { align: 'right' });
 
     doc.text(`TNA: ${annualPercent}%`, left, 108);
-    doc.text(`Tasa mensual: ${(monthlyRate * 100).toFixed(4)}%`, right, 108, { align: 'right' });
 
     doc.setDrawColor(196, 204, 214);
     doc.line(left, 118, right, 118);
@@ -309,22 +334,22 @@ const generateLoanSchedulePdfBase64 = (loan: any) => {
 
   const drawTableHeader = (y: number) => {
     doc.setFillColor(234, 239, 246);
-    doc.rect(left, y - 11, right - left, 18, 'F');
+    doc.rect(tableLeft, y - 11, tableWidth, 18, 'F');
     doc.setDrawColor(188, 196, 206);
-    doc.rect(left, y - 11, right - left, 18);
+    doc.rect(tableLeft, y - 11, tableWidth, 18);
 
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(8);
     doc.setTextColor(46, 46, 46);
-    columns.forEach((column) => {
-      const textX = column.align === 'right' ? column.x + column.width : column.x;
-      doc.text(column.label, textX, y, { align: column.align });
+    columns.forEach((column, index) => {
+      drawCellText(column.label, index, y);
     });
 
     doc.setDrawColor(205, 212, 220);
-    for (let i = 1; i < columns.length; i++) {
-      const lineX = columns[i].x - 8;
-      doc.line(lineX, y - 11, lineX, y + 7);
+    let separatorX = tableLeft;
+    for (let i = 0; i < columns.length - 1; i++) {
+      separatorX += columns[i].width;
+      doc.line(separatorX, y - 11, separatorX, y + 7);
     }
   };
 
@@ -344,24 +369,25 @@ const generateLoanSchedulePdfBase64 = (loan: any) => {
 
     if (index % 2 === 0) {
       doc.setFillColor(248, 250, 253);
-      doc.rect(left, y - 10, right - left, rowHeight, 'F');
+      doc.rect(tableLeft, y - 10, tableWidth, rowHeight, 'F');
     }
 
     doc.setDrawColor(225, 230, 236);
-    doc.line(left, y + 8, right, y + 8);
-    for (let i = 1; i < columns.length; i++) {
-      const lineX = columns[i].x - 8;
-      doc.line(lineX, y - 10, lineX, y + 8);
+    doc.line(tableLeft, y + 8, tableRight, y + 8);
+    let separatorX = tableLeft;
+    for (let i = 0; i < columns.length - 1; i++) {
+      separatorX += columns[i].width;
+      doc.line(separatorX, y - 10, separatorX, y + 8);
     }
 
     doc.setFontSize(8);
     doc.setTextColor(50, 50, 50);
-    doc.text(String(r.installment), columns[0].x, y);
-    doc.text(r.date, columns[1].x, y);
-    doc.text(formatMoney(r.principal), columns[2].x + columns[2].width, y, { align: 'right' });
-    doc.text(formatMoney(r.interest), columns[3].x + columns[3].width, y, { align: 'right' });
-    doc.text(formatMoney(r.total), columns[4].x + columns[4].width, y, { align: 'right' });
-    doc.text(formatMoney(r.balance), columns[5].x + columns[5].width, y, { align: 'right' });
+    drawCellText(String(r.installment), 0, y);
+    drawCellText(r.date, 1, y);
+    drawCellText(formatMoney(r.principal), 2, y);
+    drawCellText(formatMoney(r.interest), 3, y);
+    drawCellText(formatMoney(r.total), 4, y);
+    drawCellText(formatMoney(r.balance), 5, y);
     y += rowHeight;
   });
 
@@ -897,6 +923,29 @@ const LoanManagement = () => {
     } catch (err) {
       console.error('SignNow test error', err);
       toast({ title: "Error", description: "Falló el test de SignNow", variant: "destructive" });
+    }
+  };
+
+  const handleDownloadTestLoanPdf = () => {
+    const loan = detailsModal.loan as any;
+    if (!loan) {
+      toast({ title: "Error", description: "No hay préstamo para generar el PDF", variant: "destructive" });
+      return;
+    }
+
+    try {
+      const pdfBase64 = generateLoanSchedulePdfBase64(loan);
+      const fileName = `test-pdf-prestamo-${loan.id ?? loan.uuid ?? 'prestamo'}.pdf`;
+      const link = document.createElement('a');
+      link.href = `data:application/pdf;base64,${pdfBase64}`;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      toast({ title: "PDF descargado", description: `Se descargó ${fileName}.` });
+    } catch (err) {
+      console.error('Test PDF download error', err);
+      toast({ title: "Error", description: "No se pudo generar el PDF de prueba", variant: "destructive" });
     }
   };
 
@@ -2009,6 +2058,7 @@ const LoanManagement = () => {
           })()}
           <AlertDialogFooter className="gap-2 mt-4 pt-3 border-t border-gray-200">
             <AlertDialogCancel onClick={() => setDetailsModal({ open: false, loan: null })} className="gap-2">Cerrar</AlertDialogCancel>
+            <Button variant="outline" size="sm" onClick={handleDownloadTestLoanPdf}>Test PDF Préstamo</Button>
             <Button variant="outline" size="sm" onClick={handleTestSignNow}>Test SignNow</Button>
             {detailsModal.sourceTab === 'pending' && (
               <>
