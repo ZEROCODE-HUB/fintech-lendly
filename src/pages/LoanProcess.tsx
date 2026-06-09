@@ -1154,7 +1154,7 @@ const LoanProcess = () => {
 
         const { data, error } = await supabase
           .from('users')
-          .select('first_name, last_name, address, birth_date, phone, ine_key, curp, phone_country_code, ine_front_url, ine_back_url, selfie_url, curp_url')
+          .select('first_name, last_name, address, birth_date, phone, rfc, ine_key, curp, phone_country_code, ine_front_url, ine_back_url, selfie_url, curp_url')
           .eq('id', userId)
           .maybeSingle();
 
@@ -1179,6 +1179,7 @@ const LoanProcess = () => {
           address: data.address ?? '',
           birthDate: data.birth_date ? new Date(data.birth_date).toISOString().slice(0, 10) : '',
           phone: data.phone ?? '',
+          rfc: data.rfc ?? '',
           ineKey: data.ine_key ?? '',
           curp: data.curp ?? '',
           ineFrontUrl,
@@ -2074,7 +2075,7 @@ const LoanProcess = () => {
             </div>
             <div>
               <p className="text-2xl font-bold text-success">¡Felicitaciones!</p>
-              <p className="text-lg text-muted-foreground">Tu préstamo fue aprobado</p>
+              <p className="text-lg text-muted-foreground">Tu préstamo fue pre aprobado</p>
             </div>
             <Badge variant="outline" className="text-success border-success">
               Crédito Pre-aprobado
