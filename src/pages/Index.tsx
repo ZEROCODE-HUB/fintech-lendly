@@ -207,7 +207,7 @@ const Index = () => {
                 </li>
                 <li className="flex items-start gap-3">
                   <div className="w-1.5 h-1.5 bg-accent rounded-full mt-1.5 flex-shrink-0" />
-                  <span>Soporte personalizado 24/7 con chatbot inteligente y equipo de expertos siempre disponibles</span>
+                  <span>Soporte personalizado 24/7 con chatbot inteligente</span>
                 </li>
                 <li className="flex items-start gap-3">
                   <div className="w-1.5 h-1.5 bg-accent rounded-full mt-1.5 flex-shrink-0" />
