@@ -311,9 +311,7 @@ const PaymentMethods = () => {
   const isValidCardNumber = (cardNumber: string): boolean => {
     const digits = cardNumber.replace(/\D/g, "");
     if (!/^\d+$/.test(digits)) return false;
-    const expected = (/^3[47]/.test(digits)) ? [15] : (/^4/.test(digits)) ? [13, 16, 19] : (/^(5[1-5]|2[2-7])/.test(digits)) ? [16] : [13, 14, 15, 16, 17, 18, 19];
-    if (!expected.includes(digits.length)) return false;
-    return passesLuhnCheck(digits);
+    return digits.length >= 13 && digits.length <= 19;
   };
 
   const formatExpiry = (value: string) => {

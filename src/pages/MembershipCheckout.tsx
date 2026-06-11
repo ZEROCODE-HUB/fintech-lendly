@@ -196,12 +196,11 @@ const MembershipCheckout = () => {
           body: JSON.stringify({ user_id: userId, membership_plan_id: membership.id }),
         });
         const json = await resp.json().catch(() => null);
-        const hasConektaError = json?.error?.includes?.('ref_conekta') || json?.message?.includes?.('ref_conekta') || JSON.stringify(json).includes('ref_conekta');
 
         if (!resp.ok || !json) {
+          const errorMsg = json?.error || json?.message || 'Error al comunicar con el servicio';
           if (isMissingCardError(json) || isMissingCardError((json as any)?.message)) { setCardErrorOpen(true); return; }
-          if (hasConektaError) { setNoConektaModalOpen(true); return; }
-          toast({ title: 'Error', description: 'Error al comunicar con el servicio', variant: 'destructive' });
+          toast({ title: 'Error', description: errorMsg, variant: 'destructive' });
           return;
         }
 
@@ -226,14 +225,13 @@ const MembershipCheckout = () => {
           }
         }
         else {
-          const msg = json.message || JSON.stringify(json);
+          const msg = json.message || json.error || JSON.stringify(json);
           if (isMissingCardError(msg)) setCardErrorOpen(true);
-          else if (msg.includes('ref_conekta')) setNoConektaModalOpen(true);
           else toast({ title: 'Error', description: msg, variant: 'destructive' });
         }
       } catch (err) {
         const errMsg = err instanceof Error ? err.message : JSON.stringify(err);
-        if (isMissingCardError(errMsg) || errMsg.includes('ref_conekta')) setNoConektaModalOpen(true);
+        if (isMissingCardError(errMsg)) setCardErrorOpen(true);
         else toast({ title: 'Error', description: (err instanceof Error) ? err.message : 'Error al adquirir', variant: 'destructive' });
       } finally {
         setAcquiring(false);
