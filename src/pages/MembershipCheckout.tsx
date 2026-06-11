@@ -199,7 +199,7 @@ const MembershipCheckout = () => {
 
         if (!resp.ok || !json) {
           const errorMsg = json?.error || json?.message || 'Error al comunicar con el servicio';
-          if (isMissingCardError(json) || isMissingCardError((json as any)?.message)) { setCardErrorOpen(true); return; }
+          if (isMissingCardError(errorMsg)) { setCardErrorOpen(true); return; }
           toast({ title: 'Error', description: errorMsg, variant: 'destructive' });
           return;
         }
