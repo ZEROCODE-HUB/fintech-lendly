@@ -199,8 +199,8 @@ const MembershipManagement = () => {
       nextErrors.cost = 'El costo es obligatorio.';
     } else if (!Number.isFinite(costValue)) {
       nextErrors.cost = 'El costo debe ser un número válido.';
-    } else if (costValue <= 3) {
-      nextErrors.cost = 'El monto debe ser mayor a 3.';
+    } else if (costValue < 1) {
+      nextErrors.cost = 'El monto debe ser mayor a 1.';
     } else if (costValue > 999999.99) {
       nextErrors.cost = 'El costo es demasiado alto.';
     }
@@ -335,299 +335,299 @@ const MembershipManagement = () => {
 
   return (
     <div className="p-6 space-y-6">
-            {/* Header Section */}
-            <div className="bg-gradient-hero rounded-lg p-8 text-white">
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                <div>
-                  <h2 className="text-3xl font-bold mb-2">Administrar Membresías</h2>
-                  <p className="text-white/90">Crea, edita y gestiona los planes de membresía</p>
-                </div>
-                <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-                  <DialogTrigger asChild>
-                    <Button
-                      onClick={handleCreateOpen}
-                      className="bg-white text-primary hover:bg-white/90 shadow-lg"
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      Nueva Membresía
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="max-h-[85vh] overflow-y-auto w-[95vw] sm:w-full sm:max-w-[700px]">
-                    <DialogHeader className="mb-4">
-                      <DialogTitle className="text-lg sm:text-xl">
-                        {editingMembership ? 'Editar Membresía' : 'Nueva Membresía'}
-                      </DialogTitle>
-                      <DialogDescription className="text-xs sm:text-sm">
-                        {editingMembership
-                          ? 'Modifica los detalles de la membresía'
-                          : 'Completa los datos para crear una nueva membresía'}
-                      </DialogDescription>
-                    </DialogHeader>
-                    <div className="grid gap-3 sm:gap-4 py-4">
-                      <div className="grid gap-2">
-                        <Label htmlFor="title" className="text-xs sm:text-sm">Título *</Label>
-                        <Input
-                          id="title"
-                          value={formData.title}
-                          onChange={(e) => setFieldValue('title', e.target.value)}
-                          placeholder="Ej: Membresía Premium"
-                          maxLength={60}
-                          className="text-sm"
-                        />
-                        <p className="text-xs text-muted-foreground">3 a 60 caracteres, letras, números y signos básicos.</p>
-                        {fieldErrors.title && <p className="text-xs text-destructive">{fieldErrors.title}</p>}
-                      </div>
-                      <div className="grid grid-cols-2 gap-2 sm:gap-4">
-                        <div className="grid gap-2">
-                          <Label htmlFor="cost" className="text-xs sm:text-sm">Costo (MXN) *</Label>
-                          <Input
-                            id="cost"
-                            type="number"
-                            min={4}
-                            step="0.01"
-                            value={formData.cost}
-                            onChange={(e) => setFieldValue('cost', e.target.value)}
-                            placeholder="100"
-                            className="text-sm"
-                          />
-                          <p className="text-xs text-muted-foreground">Debe ser mayor a 3.</p>
-                          {costError && <p className="text-xs text-destructive">{costError}</p>}
-                        </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor="interestRate" className="text-xs sm:text-sm">Tasa (%)</Label>
-                          <Input
-                            id="interestRate"
-                            type="number"
-                            min={0}
-                            max={100}
-                            step="0.01"
-                            value={formData.interestRate}
-                            onChange={(e) => setFieldValue('interestRate', e.target.value)}
-                            placeholder="42"
-                            className="text-sm"
-                          />
-                          <p className="text-xs text-muted-foreground">Entre 0 y 100.</p>
-                          {fieldErrors.interestRate && <p className="text-xs text-destructive">{fieldErrors.interestRate}</p>}
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2 sm:gap-4">
-                        <div className="grid gap-2">
-                          <Label htmlFor="frequency" className="text-xs sm:text-sm">Frecuencia *</Label>
-                          <Input
-                            id="frequency"
-                            type="number"
-                            min={1}
-                            max={60}
-                            step={1}
-                            value={formData.frequency}
-                            onChange={(e) => setFieldValue('frequency', e.target.value)}
-                            placeholder="1"
-                            className="text-sm"
-                          />
-                          <p className="text-xs text-muted-foreground">Entero entre 1 y 60.</p>
-                          {fieldErrors.frequency && <p className="text-xs text-destructive">{fieldErrors.frequency}</p>}
-                        </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor="interval" className="text-xs sm:text-sm">Intervalo *</Label>
-                          <Select value={formData.interval} onValueChange={(value) => setFormData({ ...formData, interval: value })}>
-                            <SelectTrigger id="interval" className="text-sm">
-                              <SelectValue placeholder="Selecciona" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="week">Semana</SelectItem>
-                              <SelectItem value="month">Mes</SelectItem>
-                              <SelectItem value="year">Año</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                      <div className="grid gap-2">
-                        <Label htmlFor="targetAudience" className="text-xs sm:text-sm">Público Objetivo *</Label>
-                        <Select
-                          value={formData.targetAudience}
-                          onValueChange={(value) => setFieldValue('targetAudience', value)}
-                        >
-                          <SelectTrigger id="targetAudience" className="text-sm">
-                            <SelectValue placeholder="Selecciona el público objetivo" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Persona Natural">Persona Natural</SelectItem>
-                            <SelectItem value="Persona Moral">Persona Moral</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        {fieldErrors.targetAudience && <p className="text-xs text-destructive">{fieldErrors.targetAudience}</p>}
-                      </div>
-                      <div className="grid gap-2">
-                        <Label htmlFor="benefits" className="text-xs sm:text-sm">Beneficios (separados por coma)</Label>
-                        <Textarea
-                          id="benefits"
-                          value={formData.benefits}
-                          onChange={(e) => setFieldValue('benefits', e.target.value)}
-                          placeholder="Ej: Descuentos, Promociones, Atención preferencial"
-                          rows={3}
-                          maxLength={200}
-                          className="text-sm"
-                        />
-                        <p className="text-xs text-muted-foreground">Máximo 200 caracteres.</p>
-                        {fieldErrors.benefits && <p className="text-xs text-destructive">{fieldErrors.benefits}</p>}
-                      </div>
-                    </div>
-                    <DialogFooter className="flex gap-2 sm:gap-3 flex-col-reverse sm:flex-row">
-                      <Button variant="outline" onClick={() => setIsCreateOpen(false)} className="text-sm">
-                        Cancelar
-                      </Button>
-                      <Button onClick={handleSubmit} className="text-sm">
-                        {editingMembership ? 'Guardar Cambios' : 'Crear Membresía'}
-                      </Button>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
-              </div>
-            </div>
-
-            {/* Memberships Grid */}
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {loading ? (
-                // show 6 shimmer cards
-                Array.from({ length: 6 }).map((_, i) => (
-                  <Card key={`skeleton-${i}`} className="shadow-soft transition-all duration-300">
-                    <CardHeader className="pb-3">
-                      <div className="flex items-start justify-between">
-                        <div className="w-2/3">
-                          <Skeleton className="h-6 w-40" />
-                          <div className="mt-2"><Skeleton className="h-4 w-28" /></div>
-                        </div>
-                        <div>
-                          <Skeleton className="h-6 w-16" />
-                        </div>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="flex items-baseline gap-1">
-                        <Skeleton className="h-8 w-24" />
-                        <Skeleton className="h-4 w-20" />
-                      </div>
-                      <div className="space-y-2">
-                        <Skeleton className="h-4 w-32" />
-                        <Skeleton className="h-4 w-32" />
-                      </div>
-                      <div className="border-t pt-3">
-                        <Skeleton className="h-4 w-full" />
-                        <div className="mt-2 space-y-2">
-                          <Skeleton className="h-3 w-3/4" />
-                          <Skeleton className="h-3 w-1/2" />
-                        </div>
-                      </div>
-                      <div className="flex gap-2 pt-3 border-t">
-                        <Skeleton className="h-10 w-full" />
-                        <Skeleton className="h-10 w-12" />
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))
-              ) : (
-                memberships.map((membership) => (
-                  <Card key={membership.id} className="shadow-soft hover:shadow-medium transition-all duration-300">
-                    <CardHeader className="pb-3">
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <CardTitle className="text-xl">{membership.title}</CardTitle>
-                          <CardDescription className="flex items-center gap-1 mt-1">
-                            <Users className="h-3 w-3" />
-                            {membership.targetAudience}
-                          </CardDescription>
-                        </div>
-                        <Badge variant="default" className="bg-success text-success-foreground">
-                          Activo
-                        </Badge>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      {/* Pricing */}
-                      <div className="flex items-baseline gap-1">
-                        <span className="text-3xl font-bold text-primary">
-                          ${membership.cost.toLocaleString()}
-                        </span>
-                        <span className="text-muted-foreground">MXN / {membership.renewalPeriod}</span>
-                      </div>
-
-                      {/* Features */}
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <Percent className="h-4 w-4" />
-                          <span>Tasa: {membership.interestRate}%</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <CreditCard className="h-4 w-4" />
-                          <span>Renovación: {membership.renewalPeriod}</span>
-                        </div>
-                      </div>
-
-                      {/* Benefits */}
-                      <div className="border-t pt-3">
-                        <p className="text-sm font-medium mb-2">Beneficios:</p>
-                        <ul className="space-y-1">
-                          {membership.benefits.map((benefit, index) => (
-                            <li key={index} className="text-sm text-muted-foreground flex items-center gap-2">
-                              <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-                              {benefit}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-
-                      {/* Actions */}
-                      <div className="flex gap-2 pt-3 border-t">
-                        <Button
-                          variant="outline"
-                          className="flex-1"
-                          onClick={() => handleEditOpen(membership)}
-                        >
-                          <Edit className="h-4 w-4 mr-2" />
-                          Editar
-                        </Button>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="destructive" size="icon">
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>¿Eliminar membresía?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Esta acción no se puede deshacer. Se eliminará permanentemente "{membership.title}".
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => handleDelete(membership.id)}>
-                                Eliminar
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))
-              )}
-            </div>
-
-            {memberships.length === 0 && (
-              <div className="text-center py-12">
-                <CreditCard className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <h3 className="text-lg font-semibold mb-2">No hay membresías</h3>
-                <p className="text-muted-foreground mb-4">
-                  Crea tu primera membresía para comenzar
-                </p>
-                <Button onClick={handleCreateOpen}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Nueva Membresía
-                </Button>
-              </div>
-            )}
+      {/* Header Section */}
+      <div className="bg-gradient-hero rounded-lg p-8 text-white">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <h2 className="text-3xl font-bold mb-2">Administrar Membresías</h2>
+            <p className="text-white/90">Crea, edita y gestiona los planes de membresía</p>
           </div>
+          <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+            <DialogTrigger asChild>
+              <Button
+                onClick={handleCreateOpen}
+                className="bg-white text-primary hover:bg-white/90 shadow-lg"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Nueva Membresía
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-h-[85vh] overflow-y-auto w-[95vw] sm:w-full sm:max-w-[700px]">
+              <DialogHeader className="mb-4">
+                <DialogTitle className="text-lg sm:text-xl">
+                  {editingMembership ? 'Editar Membresía' : 'Nueva Membresía'}
+                </DialogTitle>
+                <DialogDescription className="text-xs sm:text-sm">
+                  {editingMembership
+                    ? 'Modifica los detalles de la membresía'
+                    : 'Completa los datos para crear una nueva membresía'}
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-3 sm:gap-4 py-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="title" className="text-xs sm:text-sm">Título *</Label>
+                  <Input
+                    id="title"
+                    value={formData.title}
+                    onChange={(e) => setFieldValue('title', e.target.value)}
+                    placeholder="Ej: Membresía Premium"
+                    maxLength={60}
+                    className="text-sm"
+                  />
+                  <p className="text-xs text-muted-foreground">3 a 60 caracteres, letras, números y signos básicos.</p>
+                  {fieldErrors.title && <p className="text-xs text-destructive">{fieldErrors.title}</p>}
+                </div>
+                <div className="grid grid-cols-2 gap-2 sm:gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="cost" className="text-xs sm:text-sm">Costo (MXN) *</Label>
+                    <Input
+                      id="cost"
+                      type="number"
+                      min={1}
+                      step="0.01"
+                      value={formData.cost}
+                      onChange={(e) => setFieldValue('cost', e.target.value)}
+                      placeholder="100"
+                      className="text-sm"
+                    />
+                    <p className="text-xs text-muted-foreground">Debe ser mayor a 1.</p>
+                    {costError && <p className="text-xs text-destructive">{costError}</p>}
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="interestRate" className="text-xs sm:text-sm">Tasa (%)</Label>
+                    <Input
+                      id="interestRate"
+                      type="number"
+                      min={0}
+                      max={100}
+                      step="0.01"
+                      value={formData.interestRate}
+                      onChange={(e) => setFieldValue('interestRate', e.target.value)}
+                      placeholder="42"
+                      className="text-sm"
+                    />
+                    <p className="text-xs text-muted-foreground">Entre 0 y 100.</p>
+                    {fieldErrors.interestRate && <p className="text-xs text-destructive">{fieldErrors.interestRate}</p>}
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2 sm:gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="frequency" className="text-xs sm:text-sm">Frecuencia *</Label>
+                    <Input
+                      id="frequency"
+                      type="number"
+                      min={1}
+                      max={60}
+                      step={1}
+                      value={formData.frequency}
+                      onChange={(e) => setFieldValue('frequency', e.target.value)}
+                      placeholder="1"
+                      className="text-sm"
+                    />
+                    <p className="text-xs text-muted-foreground">Entero entre 1 y 60.</p>
+                    {fieldErrors.frequency && <p className="text-xs text-destructive">{fieldErrors.frequency}</p>}
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="interval" className="text-xs sm:text-sm">Intervalo *</Label>
+                    <Select value={formData.interval} onValueChange={(value) => setFormData({ ...formData, interval: value })}>
+                      <SelectTrigger id="interval" className="text-sm">
+                        <SelectValue placeholder="Selecciona" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="week">Semana</SelectItem>
+                        <SelectItem value="month">Mes</SelectItem>
+                        <SelectItem value="year">Año</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="targetAudience" className="text-xs sm:text-sm">Público Objetivo *</Label>
+                  <Select
+                    value={formData.targetAudience}
+                    onValueChange={(value) => setFieldValue('targetAudience', value)}
+                  >
+                    <SelectTrigger id="targetAudience" className="text-sm">
+                      <SelectValue placeholder="Selecciona el público objetivo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Persona Natural">Persona Natural</SelectItem>
+                      <SelectItem value="Persona Moral">Persona Moral</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {fieldErrors.targetAudience && <p className="text-xs text-destructive">{fieldErrors.targetAudience}</p>}
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="benefits" className="text-xs sm:text-sm">Beneficios (separados por coma)</Label>
+                  <Textarea
+                    id="benefits"
+                    value={formData.benefits}
+                    onChange={(e) => setFieldValue('benefits', e.target.value)}
+                    placeholder="Ej: Descuentos, Promociones, Atención preferencial"
+                    rows={3}
+                    maxLength={200}
+                    className="text-sm"
+                  />
+                  <p className="text-xs text-muted-foreground">Máximo 200 caracteres.</p>
+                  {fieldErrors.benefits && <p className="text-xs text-destructive">{fieldErrors.benefits}</p>}
+                </div>
+              </div>
+              <DialogFooter className="flex gap-2 sm:gap-3 flex-col-reverse sm:flex-row">
+                <Button variant="outline" onClick={() => setIsCreateOpen(false)} className="text-sm">
+                  Cancelar
+                </Button>
+                <Button onClick={handleSubmit} className="text-sm">
+                  {editingMembership ? 'Guardar Cambios' : 'Crear Membresía'}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
+      </div>
+
+      {/* Memberships Grid */}
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        {loading ? (
+          // show 6 shimmer cards
+          Array.from({ length: 6 }).map((_, i) => (
+            <Card key={`skeleton-${i}`} className="shadow-soft transition-all duration-300">
+              <CardHeader className="pb-3">
+                <div className="flex items-start justify-between">
+                  <div className="w-2/3">
+                    <Skeleton className="h-6 w-40" />
+                    <div className="mt-2"><Skeleton className="h-4 w-28" /></div>
+                  </div>
+                  <div>
+                    <Skeleton className="h-6 w-16" />
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-baseline gap-1">
+                  <Skeleton className="h-8 w-24" />
+                  <Skeleton className="h-4 w-20" />
+                </div>
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-4 w-32" />
+                </div>
+                <div className="border-t pt-3">
+                  <Skeleton className="h-4 w-full" />
+                  <div className="mt-2 space-y-2">
+                    <Skeleton className="h-3 w-3/4" />
+                    <Skeleton className="h-3 w-1/2" />
+                  </div>
+                </div>
+                <div className="flex gap-2 pt-3 border-t">
+                  <Skeleton className="h-10 w-full" />
+                  <Skeleton className="h-10 w-12" />
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        ) : (
+          memberships.map((membership) => (
+            <Card key={membership.id} className="shadow-soft hover:shadow-medium transition-all duration-300">
+              <CardHeader className="pb-3">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <CardTitle className="text-xl">{membership.title}</CardTitle>
+                    <CardDescription className="flex items-center gap-1 mt-1">
+                      <Users className="h-3 w-3" />
+                      {membership.targetAudience}
+                    </CardDescription>
+                  </div>
+                  <Badge variant="default" className="bg-success text-success-foreground">
+                    Activo
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Pricing */}
+                <div className="flex items-baseline gap-1">
+                  <span className="text-3xl font-bold text-primary">
+                    ${membership.cost.toLocaleString()}
+                  </span>
+                  <span className="text-muted-foreground">MXN / {membership.renewalPeriod}</span>
+                </div>
+
+                {/* Features */}
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Percent className="h-4 w-4" />
+                    <span>Tasa: {membership.interestRate}%</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <CreditCard className="h-4 w-4" />
+                    <span>Renovación: {membership.renewalPeriod}</span>
+                  </div>
+                </div>
+
+                {/* Benefits */}
+                <div className="border-t pt-3">
+                  <p className="text-sm font-medium mb-2">Beneficios:</p>
+                  <ul className="space-y-1">
+                    {membership.benefits.map((benefit, index) => (
+                      <li key={index} className="text-sm text-muted-foreground flex items-center gap-2">
+                        <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                        {benefit}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                {/* Actions */}
+                <div className="flex gap-2 pt-3 border-t">
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => handleEditOpen(membership)}
+                  >
+                    <Edit className="h-4 w-4 mr-2" />
+                    Editar
+                  </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="destructive" size="icon">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>¿Eliminar membresía?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Esta acción no se puede deshacer. Se eliminará permanentemente "{membership.title}".
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => handleDelete(membership.id)}>
+                          Eliminar
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        )}
+      </div>
+
+      {memberships.length === 0 && (
+        <div className="text-center py-12">
+          <CreditCard className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+          <h3 className="text-lg font-semibold mb-2">No hay membresías</h3>
+          <p className="text-muted-foreground mb-4">
+            Crea tu primera membresía para comenzar
+          </p>
+          <Button onClick={handleCreateOpen}>
+            <Plus className="h-4 w-4 mr-2" />
+            Nueva Membresía
+          </Button>
+        </div>
+      )}
+    </div>
   );
 };
 
