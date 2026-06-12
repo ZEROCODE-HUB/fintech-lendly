@@ -1114,24 +1114,78 @@ const LoanManagement = () => {
   const getConsentBadge = (rawStatus?: string) => {
     const status = (rawStatus || '').toString();
     const key = status.toLowerCase();
+
     switch (key) {
       case 'pending_consent':
       case 'pending-consent':
       case 'pendingconsent':
-        return <Badge className="bg-warning/20 text-warning border-warning whitespace-nowrap">Pendiente</Badge>;
+        return (
+          <Badge className="bg-warning/20 text-warning border-warning whitespace-nowrap">
+            Pendiente
+          </Badge>
+        );
+
+      case 'awaiting_information':
+        return (
+          <Badge className="bg-warning/20 text-warning border-warning whitespace-nowrap">
+            Esperando información
+          </Badge>
+        );
+
+      case 'submitted':
+        return (
+          <Badge className="bg-info/20 text-info border-info whitespace-nowrap">
+            En revisión
+          </Badge>
+        );
+
       case 'consent_files_uploaded':
       case 'consent-files-uploaded':
       case 'files_uploaded':
-        return <Badge className="bg-info/20 text-info border-info whitespace-nowrap">Enviado</Badge>;
-      case 'verified':
+        return (
+          <Badge className="bg-info/20 text-info border-info whitespace-nowrap">
+            Documentos enviados
+          </Badge>
+        );
+
+      case 'incomplete_information':
+        return (
+          <Badge className="bg-destructive/20 text-destructive border-destructive whitespace-nowrap">
+            Información incompleta
+          </Badge>
+        );
+
       case 'confirmed':
+      case 'verified':
       case 'verified_consent':
-        return <Badge className="bg-success/20 text-success border-success whitespace-nowrap">Verificado</Badge>;
+        return (
+          <Badge className="bg-success/20 text-success border-success whitespace-nowrap">
+            Confirmado
+          </Badge>
+        );
+
+      case 'rejected':
+        return (
+          <Badge className="bg-destructive/20 text-destructive border-destructive whitespace-nowrap">
+            Rechazado
+          </Badge>
+        );
+
+      case 'received_chargeback':
+        return (
+          <Badge className="bg-destructive/20 text-destructive border-destructive whitespace-nowrap">
+            Chargeback
+          </Badge>
+        );
+
       default:
-        return <Badge variant="outline" className="whitespace-nowrap">{status || '—'}</Badge>;
+        return (
+          <Badge variant="outline" className="whitespace-nowrap">
+            {status || '—'}
+          </Badge>
+        );
     }
   };
-
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'pending': return <Badge className="bg-warning/20 text-warning border-warning whitespace-nowrap">Pendiente</Badge>;
