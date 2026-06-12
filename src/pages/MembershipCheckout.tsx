@@ -193,41 +193,55 @@ const MembershipCheckout = () => {
         const resp = await increscendoApiFetch('/acquire-membership', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ user_id: userId, membership_plan_id: membership.id }),
+          body: JSON.stringify({
+            user_id: userId,
+            membership_plan_id: membership.id,
+            ...(appliedCoupon ? { coupon_code: appliedCoupon.code } : {}),
+          }),
         });
         const json = await resp.json().catch(() => null);
 
-        if (!resp.ok || !json) {
-          const errorMsg = json?.error || json?.message || 'Error al comunicar con el servicio';
+        if (!resp.ok) {
+          const titleMap: Record<number, string> = {
+            400: 'Datos inválidos',
+            402: 'Pago no exitoso',
+            502: 'Error de procesador',
+            504: 'Tiempo de espera',
+          };
+          let errorMsg = json?.error || json?.message || json?.details || 'Error al comunicar con el servicio';
+          if (resp.status === 502) errorMsg = 'El procesador de pagos rechazó la solicitud. Intenta de nuevo.';
+          else if (resp.status === 504) errorMsg = 'El servidor no respondió a tiempo. Intenta de nuevo.';
           if (isMissingCardError(errorMsg)) { setCardErrorOpen(true); return; }
-          toast({ title: 'Error', description: errorMsg, variant: 'destructive' });
+          toast({ title: titleMap[resp.status] || 'Error', description: errorMsg, variant: 'destructive' });
           return;
         }
 
-        if (json.ok === true) {
-          setPreviewData(json), setPreviewOpen(true);
-          // Send membership confirmation email
-          if (userProfile?.email) {
-            const userName = `${userProfile.first_name ?? ''} ${userProfile.last_name ?? ''}`.trim() || 'Usuario';
-            const um = json.user_membership ?? null;
-            sendEmail({
-              to: userProfile.email,
-              subject: '¡Membresía Activada!',
-              html: membershipAcquiredTemplate({
-                name: userName,
-                planName: membership.name ?? membership.title ?? 'Membresía',
-                amount: (finalTotal || originalPrice).toLocaleString('es-MX'),
-                startDate: um?.started_at ? new Date(um.started_at).toLocaleDateString('es-MX') : new Date().toLocaleDateString('es-MX'),
-                expirationDate: um?.expires_at ? new Date(um.expires_at).toLocaleDateString('es-MX') : '—',
-              }),
-              text: `Hola ${userName}, tu membresía ${membership.name ?? membership.title} ha sido activada correctamente. Ya puedes disfrutar de todos los beneficios.`,
-            }).catch(e => console.warn('[membership] email error', e));
-          }
+        if (!json || json.ok !== true) {
+          const msg = json?.error || json?.message || JSON.stringify(json) || 'Respuesta inválida del servidor';
+          if (isMissingCardError(msg)) { setCardErrorOpen(true); return; }
+          toast({ title: 'Error', description: msg, variant: 'destructive' });
+          return;
         }
-        else {
-          const msg = json.message || json.error || JSON.stringify(json);
-          if (isMissingCardError(msg)) setCardErrorOpen(true);
-          else toast({ title: 'Error', description: msg, variant: 'destructive' });
+
+        setPreviewData(json);
+        setPreviewOpen(true);
+        toast({ title: '¡Membresía activada!', description: 'Tu membresía se ha activado correctamente.' });
+        // Send membership confirmation email
+        if (userProfile?.email) {
+          const userName = `${userProfile.first_name ?? ''} ${userProfile.last_name ?? ''}`.trim() || 'Usuario';
+          const um = json.user_membership ?? null;
+          sendEmail({
+            to: userProfile.email,
+            subject: '¡Membresía Activada!',
+            html: membershipAcquiredTemplate({
+              name: userName,
+              planName: membership.name ?? membership.title ?? 'Membresía',
+              amount: (finalTotal || originalPrice).toLocaleString('es-MX'),
+              startDate: um?.started_at ? new Date(um.started_at).toLocaleDateString('es-MX') : new Date().toLocaleDateString('es-MX'),
+              expirationDate: um?.expires_at ? new Date(um.expires_at).toLocaleDateString('es-MX') : '—',
+            }),
+            text: `Hola ${userName}, tu membresía ${membership.name ?? membership.title} ha sido activada correctamente. Ya puedes disfrutar de todos los beneficios.`,
+          }).catch(e => console.warn('[membership] email error', e));
         }
       } catch (err) {
         const errMsg = err instanceof Error ? err.message : JSON.stringify(err);
