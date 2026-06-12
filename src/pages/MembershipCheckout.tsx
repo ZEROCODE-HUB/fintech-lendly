@@ -136,7 +136,7 @@ const MembershipCheckout = () => {
 
   const isMissingCardError = (value: unknown) => {
     const text = typeof value === 'string' ? value : JSON.stringify(value ?? '');
-    return /tarjeta|card|payment\s*method|metodo\s*de\s*pago|método\s*de\s*pago|no\s*sources|no\s*cards|sin\s*tarjeta/i.test(text);
+    return /no\s*sources?|no\s*cards?|sin\s*tarjeta|missing\s*(card|source|payment|method)|add\s*(a\s*)?(card|payment|method|source)|not\s*found.*(card|tarjeta)|no\s*(payment\s*)?method|sin\s*(medio|metodo|método)/i.test(text);
   };
 
   const originalPrice = Number(membership?.cost ?? membership?.price ?? 0) || 0;
@@ -205,10 +205,22 @@ const MembershipCheckout = () => {
           const titleMap: Record<number, string> = {
             400: 'Datos inválidos',
             402: 'Pago no exitoso',
+            422: 'Error de pago',
             502: 'Error de procesador',
             504: 'Tiempo de espera',
           };
-          let errorMsg = json?.error || json?.message || json?.details || 'Error al comunicar con el servicio';
+          let errorMsg = '';
+          // Try to extract the Spanish user-friendly message from body (stringified Conekta error)
+          if (json?.body && typeof json.body === 'string') {
+            try {
+              const parsedBody = JSON.parse(json.body);
+              const detailMsg = parsedBody?.details?.[0]?.message;
+              if (detailMsg) errorMsg = detailMsg;
+            } catch {}
+          }
+          if (!errorMsg) {
+            errorMsg = json?.error || json?.message || json?.details || 'Error al comunicar con el servicio';
+          }
           if (resp.status === 502) errorMsg = 'El procesador de pagos rechazó la solicitud. Intenta de nuevo.';
           else if (resp.status === 504) errorMsg = 'El servidor no respondió a tiempo. Intenta de nuevo.';
           if (isMissingCardError(errorMsg)) { setCardErrorOpen(true); return; }
