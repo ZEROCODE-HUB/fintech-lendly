@@ -90,6 +90,8 @@ const MembershipCheckout = () => {
   const [fiscalAddress, setFiscalAddress] = useState("");
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [termsModalOpen, setTermsModalOpen] = useState(false);
+  const [cancelTermsAccepted, setCancelTermsAccepted] = useState(false);
+  const [cancelTermsModalOpen, setCancelTermsModalOpen] = useState(false);
   const [acquiring, setAcquiring] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewData, setPreviewData] = useState<any | null>(null);
@@ -108,6 +110,7 @@ const MembershipCheckout = () => {
         rfc,
         fiscalAddress,
         termsAccepted,
+        cancelTermsAccepted,
         membership,
         membershipId,
         returnTo,
@@ -129,6 +132,7 @@ const MembershipCheckout = () => {
         if (typeof parsed.rfc === 'string') setRfc(parsed.rfc);
         if (typeof parsed.fiscalAddress === 'string') setFiscalAddress(parsed.fiscalAddress);
         if (typeof parsed.termsAccepted === 'boolean') setTermsAccepted(parsed.termsAccepted);
+        if (typeof parsed.cancelTermsAccepted === 'boolean') setCancelTermsAccepted(parsed.cancelTermsAccepted);
         sessionStorage.removeItem(CHECKOUT_STATE_KEY);
       }
     } catch { }
@@ -136,7 +140,7 @@ const MembershipCheckout = () => {
 
   const isMissingCardError = (value: unknown) => {
     const text = typeof value === 'string' ? value : JSON.stringify(value ?? '');
-    return /no\s*sources?|no\s*cards?|sin\s*tarjeta|missing\s*(card|source|payment|method)|add\s*(a\s*)?(card|payment|method|source)|not\s*found.*(card|tarjeta)|no\s*(payment\s*)?method|sin\s*(medio|metodo|método)/i.test(text);
+    return /no\s*sources?|no\s*cards?|sin\s*tarjeta|missing\s*(card|source|payment|method)|add\s*(a\s*)?(card|payment|method|source)|not\s*found.*(card|tarjeta)|no\s*(payment\s*)?method|sin\s*(medio|metodo|método)|ref_conekta|create\s*customer/i.test(text);
   };
 
   const originalPrice = Number(membership?.cost ?? membership?.price ?? 0) || 0;
@@ -178,7 +182,11 @@ const MembershipCheckout = () => {
 
   const handleProceedToPayment = () => {
     if (!termsAccepted) {
-      toast({ title: "Acepta los términos", description: "Debes aceptarlos para continuar", variant: "destructive" });
+      toast({ title: "Acepta los términos", description: "Debes aceptar los Términos y Condiciones para continuar", variant: "destructive" });
+      return;
+    }
+    if (!cancelTermsAccepted) {
+      toast({ title: "Acepta los términos de cancelación", description: "Debes aceptar los Términos de Cancelación para continuar", variant: "destructive" });
       return;
     }
     if (requestInvoice && (!rfc || !fiscalAddress)) {
@@ -269,6 +277,12 @@ const MembershipCheckout = () => {
     setTermsAccepted(true);
     setTermsModalOpen(false);
     toast({ title: "Términos aceptados" });
+  };
+
+  const handleAcceptCancelTerms = () => {
+    setCancelTermsAccepted(true);
+    setCancelTermsModalOpen(false);
+    toast({ title: "Términos de cancelación aceptados" });
   };
 
   return (
@@ -432,7 +446,17 @@ const MembershipCheckout = () => {
                 </Label>
               </div>
 
-              <Button className="w-full" size="lg" onClick={handleProceedToPayment} disabled={!termsAccepted || acquiring}>
+              <div className="flex items-center gap-2">
+                <Checkbox id="cancel-terms-inline" checked={cancelTermsAccepted} onCheckedChange={(c) => setCancelTermsAccepted(!!c)} />
+                <Label htmlFor="cancel-terms-inline" className="text-xs cursor-pointer leading-relaxed">
+                  Acepto los{" "}
+                  <button type="button" onClick={() => setCancelTermsModalOpen(true)} className="text-primary hover:underline">
+                    Términos de Cancelación
+                  </button>
+                </Label>
+              </div>
+
+              <Button className="w-full" size="lg" onClick={handleProceedToPayment} disabled={!termsAccepted || !cancelTermsAccepted || acquiring}>
                 {acquiring ? 'Procesando...' : 'Confirmar compra'}
               </Button>
 
@@ -486,6 +510,54 @@ const MembershipCheckout = () => {
           <DialogFooter className="pt-4 border-t">
             <Button variant="outline" onClick={() => setTermsModalOpen(false)}>Cerrar</Button>
             <Button onClick={handleAcceptTerms}>Aceptar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Cancel Terms Modal */}
+      <Dialog open={cancelTermsModalOpen} onOpenChange={setCancelTermsModalOpen}>
+        <DialogContent className="max-w-[95vw] md:max-w-xl max-h-[85vh] flex flex-col p-4">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="h-4 w-4 text-primary" />
+              Términos de Cancelación
+            </DialogTitle>
+            <DialogDescription>Lee antes de continuar</DialogDescription>
+          </DialogHeader>
+
+          <ScrollArea className="flex-1">
+            <div className="space-y-4 text-sm text-muted-foreground pr-4 leading-relaxed">
+              <p>El Cliente podrá solicitar la cancelación de su cuenta y de los servicios asociados en cualquier momento mediante solicitud escrita o a través de los canales autorizados por INCRESCENDO FINTECH.</p>
+              <section>
+                <h3 className="text-sm font-semibold text-foreground mb-1">1. Verificación y saldos</h3>
+                <p>La cancelación surtirá efectos una vez que se verifique la identidad del Cliente y se confirme que no existen saldos pendientes, operaciones en tránsito o controversias abiertas.</p>
+              </section>
+              <section>
+                <h3 className="text-sm font-semibold text-foreground mb-1">2. Retiro de fondos</h3>
+                <p>El Cliente deberá retirar o transferir previamente los fondos disponibles en su cuenta.</p>
+              </section>
+              <section>
+                <h3 className="text-sm font-semibold text-foreground mb-1">3. Rechazo temporal</h3>
+                <p>INCRESCENDO FINTECH podrá rechazar temporalmente la cancelación cuando existan obligaciones legales, requerimientos de autoridades competentes o investigaciones relacionadas con la cuenta.</p>
+              </section>
+              <section>
+                <h3 className="text-sm font-semibold text-foreground mb-1">4. Deshabilitación de acceso</h3>
+                <p>Una vez concluido el proceso de cancelación, el acceso a la plataforma y a los servicios asociados quedará deshabilitado.</p>
+              </section>
+              <section>
+                <h3 className="text-sm font-semibold text-foreground mb-1">5. Obligaciones previas</h3>
+                <p>La cancelación no libera al Cliente de las obligaciones generadas con anterioridad a la fecha efectiva de cancelación.</p>
+              </section>
+              <section>
+                <h3 className="text-sm font-semibold text-foreground mb-1">6. Conservación de información</h3>
+                <p>INCRESCENDO FINTECH conservará la información y documentación del Cliente durante los plazos exigidos por la legislación aplicable.</p>
+              </section>
+            </div>
+          </ScrollArea>
+
+          <DialogFooter className="pt-4 border-t">
+            <Button variant="outline" onClick={() => setCancelTermsModalOpen(false)}>Cerrar</Button>
+            <Button onClick={handleAcceptCancelTerms}>Aceptar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

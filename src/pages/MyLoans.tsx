@@ -8,34 +8,69 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Skeleton } from '@/components/ui/skeleton';
-import { CreditCard, Eye, Calendar, DollarSign, Loader2, Shield, RefreshCw, Check } from 'lucide-react';
+import { CreditCard, Eye, Calendar, DollarSign, Loader2, Shield, Check } from 'lucide-react';
 import { useAuth, useLoans } from '@/hooks';
-import { supabase } from '@/lib/supabase';
 import { increscendoApiFetch } from '@/lib/increscendoApi';
 
 interface Installment {
-  number: number;
-  dueDate: string;
+  installment_number: number;
+  status: string;
   amount: number;
-  status: 'paid' | 'pending';
-  principal?: number;
-  interest?: number;
+  due_date: string;
+  payment_request_id: string | null;
+  paid_at: string | null;
+  failed_reason: string | null;
+  failed_reason_message: string | null;
+}
+
+interface InstallmentsResponse {
+  ok: boolean;
+  loan_id: string;
+  loan_number: string;
+  total_installments: number;
+  monthly_payment: number;
+  total_paid: number;
+  summary: { paid: number; pending: number; failed: number };
+  installments: Installment[];
 }
 
 const getPaymentRequestStatusBadge = (status?: string) => {
   const normalized = (status || '').toLowerCase();
   switch (normalized) {
-    case 'initial':
+    case 'pending':
       return <Badge className="bg-warning/20 text-warning border-warning">Pendiente</Badge>;
+    case 'initial':
     case 'processing':
       return <Badge className="bg-warning/20 text-warning border-warning">En proceso</Badge>;
+    case 'paid':
     case 'completed':
+    case 'successful':
       return <Badge className="bg-success/20 text-success border-success">Pagado</Badge>;
     case 'failed':
       return <Badge className="bg-danger/20 text-danger border-danger">Rechazado</Badge>;
+    case 'canceled':
+      return <Badge className="bg-muted text-muted-foreground border-muted-foreground">Cancelado</Badge>;
+    case 'chargeback':
+      return <Badge className="bg-danger/20 text-danger border-danger">Contracargo</Badge>;
     default:
       return <Badge variant="outline">Sin estado</Badge>;
   }
+};
+
+const getFailedReasonMessage = (reason: string | null): string | null => {
+  if (!reason) return null;
+  const map: Record<string, string> = {
+    'account_invalid': 'Cuenta inválida',
+    'canceled_by_operations': 'Cancelado por operaciones',
+    'canceled_by_merchant': 'Cancelado por el comercio',
+    'consent_not_confirmed': 'Consentimiento no confirmado',
+    'customer_blocked': 'Cliente bloqueado',
+    'document_invalid': 'Documento inválido',
+    'high_risk': 'Riesgo alto',
+    'high_risk_institution': 'Riesgo alto en institución',
+    'transaction_limits_exceeded': 'Límite de transacción excedido',
+  };
+  return map[reason] || reason;
 };
 
 const getStatusBadge = (status: string) => {
@@ -67,103 +102,48 @@ const MyLoans: React.FC = () => {
   const [paymentLoan, setPaymentLoan] = useState<any>(null);
   const [selectedInstallments, setSelectedInstallments] = useState<number[]>([]);
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [isRefreshingPaymentRequest, setIsRefreshingPaymentRequest] = useState(false);
-
-  const paymentRequestStatusInfo = useMemo(() => {
-    if (!paymentLoan?.raw?.metadata) return { status: null, paymentRequestId: null, updatedAt: null };
-    const meta = paymentLoan.raw.metadata;
-    return {
-      status: meta.payment_request_status ?? null,
-      paymentRequestId: meta.last_payment_request_id ?? null,
-      updatedAt: meta.payment_request_status_updated_at ?? null,
-    };
-  }, [paymentLoan]);
+  const [installments, setInstallments] = useState<Installment[]>([]);
+  const [installmentsLoading, setInstallmentsLoading] = useState(false);
 
   const loadLoans = async () => {
     await refetch();
   };
 
-  const refreshPaymentRequestStatus = async () => {
-    if (!paymentLoan?.id || !paymentRequestStatusInfo.paymentRequestId) return;
-    setIsRefreshingPaymentRequest(true);
+  const fetchInstallments = async (loanId: string) => {
+    setInstallmentsLoading(true);
+    setInstallments([]);
     try {
-      const resp = await increscendoApiFetch(`/belvo/loans/${paymentLoan.id}/payment-request/${paymentRequestStatusInfo.paymentRequestId}`);
-      const data = await resp.json().catch(() => null);
-      if (data?.payment_request_status) {
-        setPaymentLoan((prev: any) => {
-          if (!prev?.raw) return prev;
-          return {
-            ...prev,
-            raw: {
-              ...prev.raw,
-              metadata: {
-                ...prev.raw.metadata,
-                payment_request_status: data.payment_request_status,
-                payment_request_status_updated_at: new Date().toISOString(),
-              },
-            },
-          };
-        });
+      const resp = await increscendoApiFetch(`/belvo/loans/${loanId}/installments`);
+      const data: InstallmentsResponse = await resp.json();
+      if (data.ok && data.installments) {
+        setInstallments(data.installments);
       }
     } catch (e) {
-      console.error('Error refreshing payment request status', e);
+      console.error('Error fetching installments', e);
+      setInstallments([]);
     } finally {
-      setIsRefreshingPaymentRequest(false);
+      setInstallmentsLoading(false);
     }
   };
 
-  const generateInstallments = (loan: any): Installment[] => {
-    if (!loan) return [];
-    const installments: Installment[] = [];
-    const P = Number(loan.amount ?? 0);
-    const annualRate = Number(loan.interest_rate ?? 0) * 100;
-    const n = Number(loan.installments ?? 12);
-    const paidAmount = Number(loan.metadata?.paid_amount ?? 0);
+  const isPaid = (status: string) => ['paid', 'completed', 'successful'].includes(status?.toLowerCase());
+  const isLocked = (status: string) => ['initial', 'processing'].includes(status?.toLowerCase());
+  const isSelectable = (status: string) => !isPaid(status) && !isLocked(status);
 
-    const monthlyRate = annualRate / 100 / 12;
-    let payment = 0;
-    if (monthlyRate === 0) payment = P / n;
-    else payment = P * (monthlyRate) / (1 - Math.pow(1 + monthlyRate, -n));
-    payment = Math.round(payment);
+  const allInstallments = useMemo(() => {
+    return [...installments].sort((a, b) => a.installment_number - b.installment_number);
+  }, [installments]);
 
-    const paidInstallments = payment > 0 ? Math.floor(paidAmount / payment) : 0;
-    const approvedDate = loan.approved_at ? new Date(loan.approved_at) : (loan.applied_at ? new Date(loan.applied_at) : new Date());
+  const unpaidCount = useMemo(() => {
+    return installments.filter(inst => isSelectable(inst.status)).length;
+  }, [installments]);
 
-    let remaining = P;
-    for (let i = 1; i <= n; i++) {
-      const due = new Date(approvedDate);
-      due.setMonth(due.getMonth() + i);
-
-      const interestRaw = remaining * monthlyRate;
-      const interest = Math.round(interestRaw);
-      let principal = Math.round(payment - interest);
-      if (i === n) principal = remaining;
-      const total = principal + interest;
-      const balanceAfter = Math.max(0, remaining - principal);
-      const status: 'paid' | 'pending' = i <= paidInstallments ? 'paid' : 'pending';
-
-      installments.push({
-        number: i,
-        dueDate: `${due.getDate().toString().padStart(2, '0')}/${(due.getMonth() + 1).toString().padStart(2, '0')}/${due.getFullYear()}`,
-        amount: total,
-        principal,
-        interest,
-        status,
-      });
-
-      remaining = balanceAfter;
+  useEffect(() => {
+    if (installments.length > 0) {
+      const firstSelectable = installments.find(inst => isSelectable(inst.status));
+      setSelectedInstallments(firstSelectable ? [firstSelectable.installment_number] : []);
     }
-    return installments;
-  };
-
-  const currentInstallments = useMemo(() => {
-    if (!paymentLoan) return [];
-    return generateInstallments(paymentLoan);
-  }, [paymentLoan]);
-
-  const pendingInstallments = useMemo(() => {
-    return currentInstallments.filter(inst => inst.status === 'pending');
-  }, [currentInstallments]);
+  }, [installments]);
 
   const filteredLoans = useMemo(() => {
     if (statusFilter === 'all') return loans;
@@ -183,10 +163,10 @@ const MyLoans: React.FC = () => {
   }, [loans]);
 
   const totalToPay = useMemo(() => {
-    return pendingInstallments
-      .filter(inst => selectedInstallments.includes(inst.number))
+    return installments
+      .filter(inst => isSelectable(inst.status) && selectedInstallments.includes(inst.installment_number))
       .reduce((sum, inst) => sum + inst.amount, 0);
-  }, [selectedInstallments, pendingInstallments]);
+  }, [selectedInstallments, installments]);
 
   const handleViewLoan = (loan: any) => {
     setSelectedLoan(loan);
@@ -197,28 +177,24 @@ const MyLoans: React.FC = () => {
     const rawLoan = loan.raw ?? loan;
     const fullLoan = { ...loan, raw: rawLoan };
     setPaymentLoan(fullLoan);
-    const installments = generateInstallments(fullLoan);
-    const firstPending = installments.find(inst => inst.status === 'pending');
-    if (firstPending) {
-      setSelectedInstallments([firstPending.number]);
-    } else {
-      setSelectedInstallments([]);
-    }
     setPaymentDialogOpen(true);
+    await fetchInstallments(fullLoan.id);
   };
 
   const handleInstallmentToggle = (installmentNumber: number) => {
-    const firstPendingNumber = pendingInstallments[0]?.number;
-    if (installmentNumber === firstPendingNumber) return;
+    const inst = installments.find(i => i.installment_number === installmentNumber);
+    if (!inst || !isSelectable(inst.status)) return;
+    const firstUnpaidNumber = installments.find(i => !isPaid(i.status))?.installment_number;
+    if (!firstUnpaidNumber || installmentNumber === firstUnpaidNumber) return;
 
     setSelectedInstallments(prev => {
       if (prev.includes(installmentNumber)) {
         return prev.filter(num => num < installmentNumber);
       } else {
         const previousNumber = installmentNumber - 1;
-        if (prev.includes(previousNumber) || previousNumber < firstPendingNumber!) {
+        if (prev.includes(previousNumber) || previousNumber < firstUnpaidNumber) {
           const newSelected = [...prev];
-          for (let i = firstPendingNumber!; i <= installmentNumber; i++) {
+          for (let i = firstUnpaidNumber; i <= installmentNumber; i++) {
             if (!newSelected.includes(i)) {
               newSelected.push(i);
             }
@@ -356,6 +332,11 @@ const MyLoans: React.FC = () => {
                               <span className="hidden sm:inline">Pagar</span>
                             </Button>
                           )}
+                          {loan.status === 'approved' && (
+                            <Button size="sm" variant="default" onClick={() => navigate('/loan-process', { state: { resumeLoanId: loan.id, resumeStep: 5 } })}>
+                              <span className="hidden sm:inline">Continuar</span>
+                            </Button>
+                          )}
                           <Button size="sm" variant="outline" onClick={() => handleViewLoan(loan)}>
                             <Eye className="h-3 w-3 sm:mr-1" />
                             <span className="hidden sm:inline">Ver</span>
@@ -395,7 +376,7 @@ const MyLoans: React.FC = () => {
 
       {/* Payment Checkout Dialog */}
       <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
-        <DialogContent className="max-w-[95vw] sm:max-w-2xl p-0 overflow-hidden flex flex-col max-h-[90vh] rounded-2xl border-0 shadow-2xl">
+        <DialogContent className="max-w-[95vw] sm:max-w-5xl p-0 overflow-hidden flex flex-col max-h-[90vh] rounded-2xl border-0 shadow-2xl">
           {/* Header - Minimal & Clean */}
           <div className="px-6 pt-6 pb-5 flex-shrink-0 bg-background">
             <div className="flex items-start justify-between mb-1">
@@ -436,123 +417,93 @@ const MyLoans: React.FC = () => {
               </div>
             </div>
 
-            {/* Payment Status Row */}
-            <div className="flex items-center justify-between py-3 px-4 bg-card border border-border rounded-xl mb-5">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center">
-                  <svg className="w-4 h-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-foreground">Estado de Pago</p>
-                  <p className="text-xs text-muted-foreground truncate max-w-[200px] sm:max-w-none">
-                    {paymentRequestStatusInfo.paymentRequestId
-                      ? paymentRequestStatusInfo.paymentRequestId
-                      : 'Sin solicitud activa'}
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                {getPaymentRequestStatusBadge(paymentRequestStatusInfo.status)}
-                {paymentRequestStatusInfo.paymentRequestId && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 w-8 p-0"
-                    onClick={refreshPaymentRequestStatus}
-                    disabled={isRefreshingPaymentRequest}
-                  >
-                    {isRefreshingPaymentRequest ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <RefreshCw className="h-4 w-4" />
-                    )}
-                  </Button>
-                )}
-              </div>
-            </div>
 
-            {/* Installments Section - Clean Table */}
+
+            {/* Installments Section */}
             <div className="mb-2">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <Calendar className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm font-semibold text-foreground">Cuotas Pendientes</span>
+                  <span className="text-sm font-semibold text-foreground">Plan de Pagos</span>
                 </div>
-                <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded-full">
-                  {pendingInstallments.length} restantes
-                </span>
+                {unpaidCount > 0 && (
+                  <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded-full">
+                    {unpaidCount} pendiente{unpaidCount !== 1 ? 's' : ''}
+                  </span>
+                )}
               </div>
 
               <div className="rounded-xl border border-border/80 bg-card overflow-hidden">
                 {/* Table Header */}
                 <div className="grid grid-cols-12 gap-3 px-4 py-2.5 bg-muted/50 border-b border-border/60 text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
                   <div className="col-span-1"></div>
-                  <div className="col-span-2">Cuota</div>
-                  <div className="col-span-4">Vencimiento</div>
-                  <div className="col-span-3 text-right">Monto</div>
+                  <div className="col-span-1">Cuota</div>
+                  <div className="col-span-3">Vencimiento</div>
+                  <div className="col-span-2 text-right">Monto</div>
                   <div className="col-span-2 text-right">Estado</div>
+                  <div className="col-span-3">Observación</div>
                 </div>
 
                 {/* Table Body */}
                 <div className="max-h-[240px] overflow-y-auto divide-y divide-border/40">
-                  {pendingInstallments.length === 0 ? (
+                  {installmentsLoading ? (
+                    <div className="flex items-center justify-center py-10">
+                      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : allInstallments.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-10 text-center">
-                      <div className="w-12 h-12 rounded-full bg-green-50 flex items-center justify-center mb-3">
-                        <Check className="h-6 w-6 text-green-500" />
-                      </div>
-                      <p className="text-sm font-medium text-foreground">¡Sin cuotas pendientes!</p>
-                      <p className="text-xs text-muted-foreground mt-1">Este préstamo está al corriente</p>
+                      <p className="text-sm text-muted-foreground">No hay cuotas disponibles</p>
                     </div>
                   ) : (
-                    pendingInstallments.map((installment, index) => {
-                      const isFirst = index === 0;
-                      const isSelected = selectedInstallments.includes(installment.number);
-                      const previousSelected = index === 0 || selectedInstallments.includes(pendingInstallments[index - 1]?.number);
-                      const isDisabled = !isFirst && !previousSelected;
+                    allInstallments.map((installment, index) => {
+                      const status = installment.status?.toLowerCase();
+                      const isUnpaid = !isPaid(status);
+                      const isItemLocked = isLocked(status);
+                      const firstSelectableIndex = allInstallments.findIndex(i => isSelectable(i.status));
+                      const isFirstSelectable = index === firstSelectableIndex;
+                      const isSelected = selectedInstallments.includes(installment.installment_number);
+                      const previousSelected = !isFirstSelectable && (index === 0 || selectedInstallments.includes(allInstallments[index - 1]?.installment_number));
+                      const canSelect = isSelectable(status) && (isFirstSelectable || previousSelected);
 
                       return (
                         <div
-                          key={installment.number}
+                          key={installment.installment_number}
                           className={`
                             grid grid-cols-12 gap-3 px-4 py-3 items-center text-sm transition-colors
                             ${isSelected
                               ? 'bg-primary/5'
-                              : 'hover:bg-muted/30'
+                              : canSelect ? 'hover:bg-muted/30 cursor-pointer' : ''
                             }
-                            ${isDisabled ? 'opacity-40' : 'cursor-pointer'}
+                            ${!isUnpaid && !isItemLocked ? 'opacity-60' : ''}
                           `}
-                          onClick={() => !isDisabled && handleInstallmentToggle(installment.number)}
+                          onClick={() => canSelect && handleInstallmentToggle(installment.installment_number)}
                         >
                           <div className="col-span-1" onClick={(e) => e.stopPropagation()}>
-                            <Checkbox
-                              checked={isSelected}
-                              disabled={isFirst || isDisabled}
-                              onCheckedChange={() => handleInstallmentToggle(installment.number)}
-                            />
+                            {isUnpaid && !isItemLocked ? (
+                              <Checkbox
+                                checked={isSelected}
+                                disabled={!canSelect}
+                                onCheckedChange={() => handleInstallmentToggle(installment.installment_number)}
+                              />
+                            ) : null}
                           </div>
-                          <div className="col-span-2 flex items-center gap-2">
-                            <span className="font-semibold text-foreground">#{installment.number}</span>
-                            {isFirst && (
+                          <div className="col-span-1 flex items-center gap-1">
+                            <span className="font-semibold text-foreground">#{installment.installment_number}</span>
+                            {isFirstSelectable && (
                               <span className="text-[10px] font-medium text-primary bg-primary/10 px-1.5 py-0.5 rounded">SIG</span>
                             )}
                           </div>
-                          <div className="col-span-4 text-muted-foreground text-sm">
-                            {installment.dueDate}
+                          <div className="col-span-3 text-muted-foreground text-sm">
+                            {installment.due_date ? new Date(installment.due_date).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' }).replace(/^\w/, c => c.toUpperCase()) : '-'}
                           </div>
-                          <div className="col-span-3 text-right">
+                          <div className="col-span-2 text-right">
                             <span className="font-semibold text-foreground tabular-nums">${installment.amount.toLocaleString()}</span>
                           </div>
                           <div className="col-span-2 text-right" onClick={(e) => e.stopPropagation()}>
-                            {isFirst ? (
-                              <span className="text-[10px] font-medium text-primary bg-primary/10 px-2 py-1 rounded-full">Requerida</span>
-                            ) : isSelected ? (
-                              <span className="text-[10px] font-medium text-foreground bg-muted px-2 py-1 rounded-full">Selected</span>
-                            ) : (
-                              <span className="text-[10px] text-muted-foreground">—</span>
-                            )}
+                            {getPaymentRequestStatusBadge(installment.status)}
+                          </div>
+                          <div className="col-span-3 text-xs text-muted-foreground truncate" title={getFailedReasonMessage(installment.failed_reason) || ''}>
+                            {getFailedReasonMessage(installment.failed_reason) || '-'}
                           </div>
                         </div>
                       );
@@ -561,9 +512,9 @@ const MyLoans: React.FC = () => {
                 </div>
               </div>
 
-              {pendingInstallments.length > 0 && (
+              {unpaidCount > 0 && (
                 <p className="text-[11px] text-muted-foreground mt-2.5 px-1">
-                  La primera cuota es obligatoria. Selecciona cuotas consecutivas.
+                  La primera cuota pendiente es obligatoria. Selecciona cuotas consecutivas.
                 </p>
               )}
             </div>
@@ -591,58 +542,7 @@ const MyLoans: React.FC = () => {
                     const loanId = paymentLoan?.id;
                     if (!loanId) throw new Error('Loan not found');
 
-                    const loanRow = paymentLoan?.raw ?? {};
-                    const metadata = loanRow?.metadata ?? {};
-
-                    let paymentMethodId = String(metadata?.payment_method_id ?? '').trim();
-
-                    if (!paymentMethodId) {
-                      const { data: userData } = await supabase.auth.getUser();
-                      const userId = userData?.user?.id ?? null;
-                      if (!userId) throw new Error('No se encontro usuario autenticado.');
-
-                      const { data: paymentMethodRow, error: paymentMethodErr } = await supabase
-                        .from('payment_methods')
-                        .select('id')
-                        .eq('user_id', userId)
-                        .eq('is_validated', true)
-                        .order('created_at', { ascending: false })
-                        .limit(1)
-                        .maybeSingle();
-
-                      if (paymentMethodErr) throw paymentMethodErr;
-
-                      paymentMethodId = String(paymentMethodRow?.id ?? '').trim();
-                    }
-
-                    if (!paymentMethodId) {
-                      throw new Error('No hay un metodo de pago validado para procesar esta cuota.');
-                    }
-
-                    const firstInstallmentNumber = selectedInstallments[0];
-                    const lastInstallmentNumber = selectedInstallments[selectedInstallments.length - 1];
-                    const lastInstallment = pendingInstallments.find((inst) => inst.number === lastInstallmentNumber);
-                    const dueDateParts = lastInstallment?.dueDate?.split('/') ?? [];
-                    const normalizedDueDate = dueDateParts.length === 3
-                      ? `${dueDateParts[2]}-${dueDateParts[1]}-${dueDateParts[0]}`
-                      : new Date().toISOString().slice(0, 10);
-
-                    const reference = `loan-${paymentLoan?.loan_number || paymentLoan?.id}-installment-${firstInstallmentNumber}`;
-                    const payload = {
-                      amount: totalToPay,
-                      currency: 'mxn',
-                      reference,
-                      paymentMethodId,
-                      loanInformation: {
-                        reference,
-                        disbursementDate: String(paymentLoan?.approved ?? new Date().toISOString().slice(0, 10)),
-                        installmentNumber: firstInstallmentNumber,
-                        installmentAmount: totalToPay,
-                        installmentDueDate: normalizedDueDate,
-                        totalAmount: Number(paymentLoan?.amount ?? 0),
-                        totalInstallments: Number(paymentLoan?.installments ?? 0),
-                      },
-                    };
+                    const payload = { installmentNumbers: selectedInstallments };
 
                     const createResp = await increscendoApiFetch(`/belvo/loans/${loanId}/payment-request`, {
                       method: 'POST',
@@ -651,35 +551,23 @@ const MyLoans: React.FC = () => {
                     const createData = await createResp.json().catch(() => null);
 
                     if (!createResp.ok) {
-                      throw createData || new Error('No se pudo crear la solicitud de pago.');
+                      const errorMsg = createData?.error || 'No se pudo crear la solicitud de pago.';
+                      alert(errorMsg);
+                      throw new Error(errorMsg);
                     }
 
-                    const createdPaymentRequestId = String(createData?.payment_request_id ?? '').trim();
-                    if (!createdPaymentRequestId) {
-                      throw new Error('El backend no devolvio payment_request_id.');
+                    const folio = createData?.payment_requests?.[0]?.payment_request_id || createData?.payment_request_id || '';
+
+                    if (createData.partial) {
+                      const succeeded = createData.payment_requests?.length || 0;
+                      alert(`Se crearon ${succeeded} de ${selectedInstallments.length} solicitudes de pago. ${createData.message || ''}`);
                     }
 
-                    await increscendoApiFetch(`/belvo/loans/${loanId}/payment-request/${createdPaymentRequestId}`).catch(() => null);
-
+                    await fetchInstallments(loanId);
                     await loadLoans();
-                    setPaymentLoan((prev: any) => {
-                      if (!prev) return prev;
-                      return {
-                        ...prev,
-                        raw: {
-                          ...(prev.raw || {}),
-                          metadata: {
-                            ...(prev.raw?.metadata || {}),
-                            payment_request_status: String(createData?.payment_request_status ?? 'initial').toLowerCase(),
-                            last_payment_request_id: createdPaymentRequestId,
-                            payment_request_status_updated_at: new Date().toISOString(),
-                          },
-                        },
-                      };
-                    });
 
                     setIsProcessing(false);
-                    navigate(`/payment-success?amount=${totalToPay}&folio=${createdPaymentRequestId}`);
+                    navigate(`/payment-success?amount=${totalToPay}&folio=${folio}`);
                   } catch (e: any) {
                     console.error('Payment processing error', e);
                     setIsProcessing(false);

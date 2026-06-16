@@ -43,6 +43,7 @@ const TipsSeguridad = React.lazy(() => import('@/pages/TipsSeguridad'));
 const BolsaTrabajo = React.lazy(() => import('@/pages/BolsaTrabajo'));
 const CentroAyuda = React.lazy(() => import('@/pages/CentroAyuda'));
 const Contacto = React.lazy(() => import('@/pages/Contacto'));
+const CancelacionTerminos = React.lazy(() => import('@/pages/CancelacionTerminos'));
 const ProntipagosSSO = React.lazy(() => import('@/pages/ProntipagosSSO'));
 const UsuarioNuevoMarketing = React.lazy(() => import('@/pages/UsuarioNuevoMarketing'));
 const ForgotPassword = React.lazy(() => import('@/pages/ForgotPassword'));
@@ -86,6 +87,7 @@ export const router = createBrowserRouter([
   { path: 'bolsa-trabajo', element: wrapSuspense(<BolsaTrabajo />) },
   { path: 'centro-ayuda', element: wrapSuspense(<CentroAyuda />) },
   { path: 'contacto', element: wrapSuspense(<Contacto />) },
+  { path: 'terminos-cancelacion', element: wrapSuspense(<CancelacionTerminos />) },
   {
     element: <PrivateLayout />,
     children: [

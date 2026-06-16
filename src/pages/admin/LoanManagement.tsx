@@ -24,6 +24,7 @@ import { LoanTableFilters } from "@/components/admin/loans/LoanTableFilters";
 import { INECURPModal } from "@/components/admin/loans/modals/INECURPModal";
 import { ModifyLoanModal } from "@/components/admin/loans/modals/ModifyLoanModal";
 import { ResendContractModal, AttachContractModal } from "@/components/admin/loans/modals/ContractModals";
+import { ConsentRenewModal } from "@/components/admin/loans/modals/ConsentRenewModal";
 import { ModifyDisbursementModal, ConfirmDisbursementModal } from "@/components/admin/loans/modals/DisbursementModals";
 import { SendReminderModal, SellPortfolioModal, UpdateInstallmentsModal } from "@/components/admin/loans/modals/OverdueModals";
 import { jsPDF } from "jspdf";
@@ -77,7 +78,7 @@ const defaultPendingColumns: ColumnConfig[] = [
   { key: 'membership', label: 'Membresía', visible: true },
   { key: 'ine', label: 'INE', visible: true },
   { key: 'curp', label: 'CURP', visible: true },
-  { key: 'consent', label: 'Consentimiento', visible: false },
+  { key: 'consent', label: 'Consentimiento', visible: true },
   { key: 'requestDate', label: 'F. Solicitud', visible: true },
   { key: 'actions', label: 'Acciones', visible: true },
 ];
@@ -663,6 +664,7 @@ const LoanManagement = () => {
 
   const [resendModal, setResendModal] = useState<{ open: boolean; loan: any | null }>({ open: false, loan: null });
   const [attachModal, setAttachModal] = useState<{ open: boolean; loan: any | null }>({ open: false, loan: null });
+  const [consentRenewModal, setConsentRenewModal] = useState<{ open: boolean; loan: any }>({ open: false, loan: null });
 
   const [modifyDisbursementModal, setModifyDisbursementModal] = useState<{ open: boolean; loan: any | null }>({ open: false, loan: null });
   const [confirmDisbursementModal, setConfirmDisbursementModal] = useState<{ open: boolean; loan: any | null }>({ open: false, loan: null });
@@ -1342,6 +1344,11 @@ const LoanManagement = () => {
                                 <Button size="sm" variant="ghost" onClick={() => setModifyModal({ open: true, loan })} title="Modificar">
                                   <Edit className="h-4 w-4" />
                                 </Button>
+                                {(loan.status_consent || loan.raw?.status_consent || '').toString().toLowerCase() === 'rejected' && (
+                                  <Button size="sm" variant="ghost" className="text-warning hover:text-warning" onClick={() => setConsentRenewModal({ open: true, loan })} title="Reenviar documentos (consentimiento rechazado)">
+                                    <RefreshCw className="h-4 w-4" />
+                                  </Button>
+                                )}
                                 <Button size="sm" variant="ghost" className="text-success hover:text-success" onClick={() => setApproveDialog({ open: true, loan })} title="Aprobar">
                                   <CheckCircle className="h-4 w-4" />
                                 </Button>
@@ -1811,6 +1818,10 @@ const LoanManagement = () => {
                                     <RefreshCw className="h-4 w-4 mr-2" />
                                     Actualizar cuotas
                                   </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => setScheduleModal({ open: true, loan })}>
+                                    <Calendar className="h-4 w-4 mr-2" />
+                                    Cronograma de pagos
+                                  </DropdownMenuItem>
                                 </DropdownMenuContent>
                               </DropdownMenu>
                             </TableCell>
@@ -2222,6 +2233,15 @@ const LoanManagement = () => {
         onOpenChange={(open) => setUpdateInstallmentsModal(prev => ({ ...prev, open }))}
         loan={updateInstallmentsModal.loan}
         onConfirm={() => toast({ title: "Cuotas actualizadas", description: "Las cuotas han sido actualizadas correctamente." })}
+      />
+      <ConsentRenewModal
+        open={consentRenewModal.open}
+        onOpenChange={(open) => setConsentRenewModal(prev => ({ ...prev, open }))}
+        loan={consentRenewModal.loan}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ['loans', 'admin'] });
+          queryClient.invalidateQueries({ queryKey: ['admin-loans'] });
+        }}
       />
       <PaymentScheduleModal
         open={scheduleModal.open}

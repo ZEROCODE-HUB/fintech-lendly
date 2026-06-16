@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, Download, ArrowLeft } from "lucide-react";
+import { Clock, ArrowLeft } from "lucide-react";
 
 const PaymentSuccess = () => {
   const navigate = useNavigate();
@@ -24,35 +24,9 @@ const PaymentSuccess = () => {
   });
 
   useEffect(() => {
-    // Trigger entrance animation
     const timer = setTimeout(() => setShowContent(true), 100);
     return () => clearTimeout(timer);
   }, []);
-
-  const handleDownloadReceipt = () => {
-    // Simulate download - in production would generate PDF
-    const receiptData = `
-      COMPROBANTE DE PAGO
-      ═══════════════════════════════
-      Folio: ${folio}
-      Monto: $${parseInt(amount).toLocaleString()} MXN
-      Concepto: Pago de Cuotas - Increscendo Fintech
-      Fecha: ${formattedDate}
-      Hora: ${formattedTime}
-      ═══════════════════════════════
-      Gracias por tu pago.
-    `;
-    
-    const blob = new Blob([receiptData], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `comprobante-${folio}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  };
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
@@ -63,20 +37,20 @@ const PaymentSuccess = () => {
             : "opacity-0 translate-y-8 scale-95"
         }`}
       >
-        {/* Success Icon */}
+        {/* Icon */}
         <div className="flex justify-center mb-6">
           <div 
-            className={`rounded-full bg-success/10 p-4 transition-all duration-500 delay-200 ${
+            className={`rounded-full bg-warning/10 p-4 transition-all duration-500 delay-200 ${
               showContent ? "scale-100" : "scale-0"
             }`}
           >
             <div 
-              className={`rounded-full bg-success/20 p-4 transition-all duration-500 delay-300 ${
+              className={`rounded-full bg-warning/20 p-4 transition-all duration-500 delay-300 ${
                 showContent ? "scale-100" : "scale-0"
               }`}
             >
-              <CheckCircle2 
-                className={`h-16 w-16 text-success transition-all duration-500 delay-400 ${
+              <Clock 
+                className={`h-16 w-16 text-warning transition-all duration-500 delay-400 ${
                   showContent ? "scale-100 opacity-100" : "scale-0 opacity-0"
                 }`}
               />
@@ -86,15 +60,15 @@ const PaymentSuccess = () => {
 
         {/* Title */}
         <h1 className="text-2xl sm:text-3xl font-bold text-center text-foreground mb-2">
-          ¡Pago Realizado con Éxito!
+          Pago en Proceso
         </h1>
         <p className="text-center text-muted-foreground mb-8">
-          Tu transacción ha sido procesada correctamente.
+          El pago está siendo procesado por Belvo. Te notificaremos cuando se confirme.
         </p>
 
-        {/* Transaction Summary Card */}
-        <Card className="shadow-medium border-success/20 overflow-hidden">
-          <div className="h-1 bg-gradient-to-r from-success to-success/60" />
+        {/* Summary Card */}
+        <Card className="shadow-medium border-warning/20 overflow-hidden">
+          <div className="h-1 bg-gradient-to-r from-warning to-warning/60" />
           <CardContent className="p-6 space-y-4">
             <div className="flex justify-between items-center py-3 border-b border-border">
               <span className="text-sm text-muted-foreground">Folio</span>
@@ -102,7 +76,7 @@ const PaymentSuccess = () => {
             </div>
             <div className="flex justify-between items-center py-3 border-b border-border">
               <span className="text-sm text-muted-foreground">Monto</span>
-              <span className="text-xl font-bold text-success">
+              <span className="text-xl font-bold text-warning">
                 ${parseInt(amount).toLocaleString()} MXN
               </span>
             </div>
@@ -129,14 +103,6 @@ const PaymentSuccess = () => {
           >
             <ArrowLeft className="h-5 w-5 mr-2" />
             Volver a Mis Préstamos
-          </Button>
-          <Button
-            variant="ghost"
-            onClick={handleDownloadReceipt}
-            className="w-full text-primary hover:text-primary/80 hover:bg-primary/5"
-          >
-            <Download className="h-4 w-4 mr-2" />
-            Descargar Comprobante
           </Button>
         </div>
       </div>

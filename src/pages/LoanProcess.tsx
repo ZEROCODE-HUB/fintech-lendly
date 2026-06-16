@@ -137,11 +137,15 @@ const LoanProcess = () => {
 
   // If navigation included resumeLoanId, fetch loan and prefill for resume
   useEffect(() => {
+    const s: any = location.state || {};
+    const resumeLoanId: string | undefined = s.resumeLoanId ?? (localStorage.getItem('resume_loan_id') || undefined);
+    const resumeStep: number = s.resumeStep ?? 4;
+
+    // Set step immediately to avoid flash of step 1
+    if (resumeLoanId) setCurrentStep(resumeStep);
+
     const resume = async () => {
       try {
-        const s: any = location.state || {};
-        const resumeLoanId: string | undefined = s.resumeLoanId ?? (localStorage.getItem('resume_loan_id') || undefined);
-        const resumeStep: number = s.resumeStep ?? 4;
         if (!resumeLoanId) return;
 
         const { data: loanRow, error } = await supabase.from('loans').select('*').eq('id', resumeLoanId).maybeSingle();
