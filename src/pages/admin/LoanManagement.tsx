@@ -112,7 +112,7 @@ const defaultDisbursementColumns: ColumnConfig[] = [
   { key: 'membership', label: 'Membresía', visible: false },
   { key: 'ine', label: 'INE', visible: false },
   { key: 'curp', label: 'CURP', visible: false },
-  { key: 'consent', label: 'Consentimiento', visible: false },
+  { key: 'consent', label: 'Consentimiento', visible: true },
   { key: 'preApproval', label: 'Pre-Aprob.', visible: false },
   { key: 'requestDate', label: 'F. Solicitud', visible: false },
 ];
@@ -796,19 +796,6 @@ const LoanManagement = () => {
     updateMessage();
 
     try {
-      if (loanId) {
-        setApprovingState(prev => ({ ...prev, message: 'Verificando consentimiento bancario...' }));
-        const consentsResp = await increscendoApiFetch('/belvo/consents', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ loan_id: loanId }),
-        });
-        const consentsData = await consentsResp.json().catch(() => null);
-        if (!consentsResp.ok) {
-          throw consentsData || new Error('Belvo consents error');
-        }
-      }
-
       setApprovingState(prev => ({ ...prev, message: 'Actualizando estado del préstamo...' }));
       const { error } = await supabase
         .from('loans')
@@ -1118,19 +1105,10 @@ const LoanManagement = () => {
     const key = status.toLowerCase();
 
     switch (key) {
-      case 'pending_consent':
-      case 'pending-consent':
-      case 'pendingconsent':
-        return (
-          <Badge className="bg-warning/20 text-warning border-warning whitespace-nowrap">
-            Pendiente
-          </Badge>
-        );
-
       case 'awaiting_information':
         return (
           <Badge className="bg-warning/20 text-warning border-warning whitespace-nowrap">
-            Esperando información
+            Esperando archivos
           </Badge>
         );
 
@@ -1141,28 +1119,24 @@ const LoanManagement = () => {
           </Badge>
         );
 
-      case 'consent_files_uploaded':
-      case 'consent-files-uploaded':
-      case 'files_uploaded':
+      case 'processing':
         return (
           <Badge className="bg-info/20 text-info border-info whitespace-nowrap">
-            Documentos enviados
+            KYC en progreso
           </Badge>
         );
 
       case 'incomplete_information':
         return (
           <Badge className="bg-destructive/20 text-destructive border-destructive whitespace-nowrap">
-            Información incompleta
+            Archivos faltan o son inválidos
           </Badge>
         );
 
       case 'confirmed':
-      case 'verified':
-      case 'verified_consent':
         return (
           <Badge className="bg-success/20 text-success border-success whitespace-nowrap">
-            Confirmado
+            Aprobado
           </Badge>
         );
 
@@ -1182,8 +1156,8 @@ const LoanManagement = () => {
 
       default:
         return (
-          <Badge variant="outline" className="whitespace-nowrap">
-            {status || '—'}
+          <Badge className="bg-warning/20 text-warning border-warning whitespace-nowrap">
+            Pendiente
           </Badge>
         );
     }
@@ -1344,11 +1318,9 @@ const LoanManagement = () => {
                                 <Button size="sm" variant="ghost" onClick={() => setModifyModal({ open: true, loan })} title="Modificar">
                                   <Edit className="h-4 w-4" />
                                 </Button>
-                                {(loan.status_consent || loan.raw?.status_consent || '').toString().toLowerCase() === 'rejected' && (
-                                  <Button size="sm" variant="ghost" className="text-warning hover:text-warning" onClick={() => setConsentRenewModal({ open: true, loan })} title="Reenviar documentos (consentimiento rechazado)">
-                                    <RefreshCw className="h-4 w-4" />
-                                  </Button>
-                                )}
+                                <Button size="sm" variant="ghost" className="text-warning hover:text-warning" onClick={() => setConsentRenewModal({ open: true, loan })} title="Reenviar documentos de consentimiento">
+                                  <RefreshCw className="h-4 w-4" />
+                                </Button>
                                 <Button size="sm" variant="ghost" className="text-success hover:text-success" onClick={() => setApproveDialog({ open: true, loan })} title="Aprobar">
                                   <CheckCircle className="h-4 w-4" />
                                 </Button>
@@ -1481,6 +1453,11 @@ const LoanManagement = () => {
                                 <Button size="sm" variant="outline" onClick={() => setAttachModal({ open: true, loan })} title="Adjuntar Contratos">
                                   <FileText className="h-4 w-4" />
                                 </Button>
+                                {(loan.status_consent || loan.raw?.status_consent || '').toString().toLowerCase() !== 'confirmed' && (
+                                  <Button size="sm" variant="ghost" className="text-warning hover:text-warning" onClick={() => setConsentRenewModal({ open: true, loan })} title="Reenviar documentos de consentimiento">
+                                    <RefreshCw className="h-4 w-4" />
+                                  </Button>
+                                )}
                               </div>
                             </TableCell>
                           )}
@@ -1587,6 +1564,9 @@ const LoanManagement = () => {
                               <div className="flex gap-1">
                                 <Button size="sm" variant="ghost" onClick={() => setDetailsModal({ open: true, loan, sourceTab: 'disbursement' })} title="Ver Detalles">
                                   <Eye className="h-4 w-4" />
+                                </Button>
+                                <Button size="sm" variant="ghost" className="text-warning hover:text-warning" onClick={() => setConsentRenewModal({ open: true, loan })} title="Reenviar documentos de consentimiento">
+                                  <RefreshCw className="h-4 w-4" />
                                 </Button>
                                 <Button size="sm" variant="default" onClick={() => setConfirmDisbursementModal({ open: true, loan: { ...loan, bankName: getBankName(loan.bank) } })} title="Confirmar Desembolso">
                                   <DollarSign className="h-4 w-4" />

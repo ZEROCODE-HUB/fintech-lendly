@@ -209,41 +209,20 @@ const MembershipCheckout = () => {
         });
         const json = await resp.json().catch(() => null);
 
-        if (!resp.ok) {
-          const titleMap: Record<number, string> = {
-            400: 'Datos inválidos',
-            402: 'Pago no exitoso',
-            422: 'Error de pago',
-            502: 'Error de procesador',
-            504: 'Tiempo de espera',
-          };
-          let errorMsg = '';
-          // Try to extract the Spanish user-friendly message from body (stringified Conekta error)
-          if (json?.body && typeof json.body === 'string') {
-            try {
-              const parsedBody = JSON.parse(json.body);
-              const detailMsg = parsedBody?.details?.[0]?.message;
-              if (detailMsg) errorMsg = detailMsg;
-            } catch {}
-          }
-          if (!errorMsg) {
-            errorMsg = json?.error || json?.message || json?.details || 'Error al comunicar con el servicio';
-          }
-          if (resp.status === 502) errorMsg = 'El procesador de pagos rechazó la solicitud. Intenta de nuevo.';
-          else if (resp.status === 504) errorMsg = 'El servidor no respondió a tiempo. Intenta de nuevo.';
-          if (isMissingCardError(errorMsg)) { setCardErrorOpen(true); return; }
-          toast({ title: titleMap[resp.status] || 'Error', description: errorMsg, variant: 'destructive' });
+        if (!json) {
+          toast({ title: 'Error', description: 'Respuesta inválida del servidor', variant: 'destructive' });
           return;
         }
 
-        if (!json || json.ok !== true) {
-          const msg = json?.error || json?.message || JSON.stringify(json) || 'Respuesta inválida del servidor';
-          if (isMissingCardError(msg)) { setCardErrorOpen(true); return; }
-          toast({ title: 'Error', description: msg, variant: 'destructive' });
+        if (!json.ok) {
+          if (json.code === 'no_payment_method') { setCardErrorOpen(true); return; }
+          toast({ title: 'Error', description: json.error || 'Error desconocido', variant: 'destructive' });
           return;
         }
 
-        setPreviewData(json);
+        const resultData = json.data || json;
+
+        setPreviewData(resultData);
         setPreviewOpen(true);
         toast({ title: '¡Membresía activada!', description: 'Tu membresía se ha activado correctamente.' });
         // Send membership confirmation email
