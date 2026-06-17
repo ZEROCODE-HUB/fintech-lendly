@@ -205,22 +205,30 @@ const PaymentMethods = () => {
         }
 
         setIsTokenizingCard(true);
-        const token = await new Promise<ConektaTokenResponse>((resolve, reject) => {
-          window.Conekta!.Token.create(
-            { card: { number: cardNumber, name: formData.cardholder.trim(), exp_year: expYear, exp_month: expMonth, cvc: cvv } },
-            (tokenResponse) => resolve(tokenResponse),
-            (errorResponse) => reject(new Error(errorResponse.message_to_purchaser || errorResponse.message || "Tokenización fallida"))
-          );
-        });
+        for (let attempt = 1; attempt <= 2; attempt += 1) {
+          try {
+            const token = await new Promise<ConektaTokenResponse>((resolve, reject) => {
+              window.Conekta!.Token.create(
+                { card: { number: cardNumber, name: formData.cardholder.trim(), exp_year: expYear, exp_month: expMonth, cvc: cvv } },
+                (tokenResponse) => resolve(tokenResponse),
+                (errorResponse) => reject(new Error(errorResponse.message_to_purchaser || errorResponse.message || "Tokenización fallida"))
+              );
+            });
 
-        const resp = await increscendoApiFetch('/add-card', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ supabase_id: user.id, token_id: token.id }) });
-        const json = await resp.json().catch(() => null);
-        if (!resp.ok || !json || json.ok !== true) throw new Error(json?.message || 'Error al registrar la tarjeta');
-        toast({ title: 'Tarjeta agregada', description: 'La tarjeta fue agregada correctamente.' });
-        setAddDialogOpen(false);
-        await loadPaymentMethods();
-        if (fromCheckout && returnTo) {
-          setTimeout(() => navigate(returnTo, { state: checkoutState }), 500);
+            const resp = await increscendoApiFetch('/add-card', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ supabase_id: user.id, token_id: token.id }) });
+            const json = await resp.json().catch(() => null);
+            if (!resp.ok || !json || json.ok !== true) throw new Error(json?.message || 'Error al registrar la tarjeta');
+
+            toast({ title: 'Tarjeta agregada', description: 'La tarjeta fue agregada correctamente.' });
+            setAddDialogOpen(false);
+            await loadPaymentMethods();
+            if (fromCheckout && returnTo) {
+              setTimeout(() => navigate(returnTo, { state: checkoutState }), 500);
+            }
+            return;
+          } catch (attemptError) {
+            if (attempt === 2) throw attemptError;
+          }
         }
       } else {
         if (!formData.bankName || !formData.clabe || !formData.accountHolder) {
