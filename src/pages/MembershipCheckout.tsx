@@ -216,6 +216,7 @@ const MembershipCheckout = () => {
 
         if (!json.ok) {
           if (json.code === 'no_payment_method') { setCardErrorOpen(true); return; }
+          if (json.code === 'no_conekta_ref') { setNoConektaModalOpen(true); return; }
           toast({ title: 'Error', description: json.error || 'Error desconocido', variant: 'destructive' });
           return;
         }
