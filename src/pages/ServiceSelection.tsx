@@ -34,7 +34,8 @@ const ServiceSelection = () => {
         return;
       }
 
-      const data = await resp.json();
+      const json = await resp.json();
+      const data = json?.data ?? json;
       const finalUrl = data?.finalUrl;
 
       if (!finalUrl) {

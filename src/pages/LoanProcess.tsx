@@ -35,7 +35,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '@/lib/supabaseConfig';
 import { supabase } from "@/lib/supabase";
-import { increscendoApiFetch } from "@/lib/increscendoApi";
+import { increscendoApiFetch, getSupabaseAccessToken } from "@/lib/increscendoApi";
 import { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext } from "@/components/ui/carousel";
 
 const STEPS = [
@@ -543,80 +543,6 @@ const LoanProcess = () => {
     return 'Ocurrió un error. Por favor, intenta de nuevo.';
   };
 
-  // Upload file to Supabase Storage and return public URL
-  const uploadFileToStorage = async (file: File, folder: string, fileName: string): Promise<string | null> => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user?.id) throw new Error('User not authenticated');
-
-      const filePath = `${folder}/${userId}/${fileName}`;
-      const { error: uploadError, data } = await supabase.storage
-        .from('documents')
-        .upload(filePath, file, { upsert: true });
-
-      if (uploadError) throw uploadError;
-
-      // Get public URL
-      const { data: publicUrl } = supabase.storage
-        .from('documents')
-        .getPublicUrl(filePath);
-
-      return publicUrl?.publicUrl || null;
-    } catch (err) {
-      console.error(`Error uploading ${fileName}:`, err);
-      return null;
-    }
-  };
-
-  // Save user documents and metadata to users table (called after loan is created)
-  const uploadDocumentsAfterLoanCreation = async (): Promise<boolean> => {
-    try {
-      if (!userId) return false;
-
-      // Upload documents
-      const ineFileTimestamp = Date.now();
-      const ineFrontUrl = ineFrontFile ? await uploadFileToStorage(ineFrontFile, 'ine-documents', `ine_front_${ineFileTimestamp}.jpg`) : null;
-      const ineBackUrl = ineBackFile ? await uploadFileToStorage(ineBackFile, 'ine-documents', `ine_back_${ineFileTimestamp}.jpg`) : null;
-      const selfieWithIneUrl = selfieWithIneFile ? await uploadFileToStorage(selfieWithIneFile, 'ine-documents', `selfie_ine_${ineFileTimestamp}.jpg`) : null;
-      const curpUrl = curpFile ? await uploadFileToStorage(curpFile, 'curp-documents', `curp_${ineFileTimestamp}.jpg`) : null;
-
-      // Build metadata object with references only when the user enabled the section
-      const updatedMetadata = includeSolidario
-        ? { references: references.slice(0, 1) }
-        : {};
-
-      // Update users table with document URLs, RFC, and metadata
-      const { error: updateError } = await supabase
-        .from('users')
-        .update({
-          rfc: personalData.rfc || undefined,
-          ine_front_url: ineFrontUrl || undefined,
-          ine_back_url: ineBackUrl || undefined,
-          curp_url: curpUrl || undefined,
-          selfie_url: selfieWithIneUrl || undefined,
-          metadata: updatedMetadata,
-        })
-        .eq('id', userId);
-
-      if (updateError) throw updateError;
-
-      // Update local state with uploaded URLs
-      setPersonalData(prev => ({
-        ...prev,
-        ineFrontUrl: ineFrontUrl || prev.ineFrontUrl,
-        ineBackUrl: ineBackUrl || prev.ineBackUrl,
-        selfieWithIneUrl: selfieWithIneUrl || prev.selfieWithIneUrl,
-        curpUrl: curpUrl || prev.curpUrl,
-      }));
-
-      return true;
-    } catch (err) {
-      console.error('Error uploading documents:', err);
-      toast({ title: 'Advertencia', description: 'Los documentos no pudieron subirse, pero tu solicitud fue registrada.' });
-      return false;
-    }
-  };
-
   const createLoanRecord = async () => {
     try {
       if (!userId) {
@@ -624,40 +550,57 @@ const LoanProcess = () => {
         return;
       }
 
-      // Build payload with required fields only (without document URLs)
-      const payload: any = {
-        user_id: userId,
-        amount: Number(loanAmount) || 0,
-        installments: Number(loanInstallments) || 12,
-        monthly_payment: Number(monthlyPayment) || 0,
-        interest_rate: interestRateDecimal,
-        total_to_pay: Number(totalToPay) || 0,
-        personalData: {
-          firstName: personalData.firstName,
-          lastName: personalData.lastName,
-          rfc: personalData.rfc,
-          curp: personalData.curp,
-          ineKey: personalData.ineKey,
-        },
-        depositData: {
-          bank: depositData.bank,
-          clabe: depositData.clabe,
-        },
-        disbursementData: {
+      const formData = new FormData();
+
+      // Campos de texto
+      formData.append('user_id', userId);
+      formData.append('amount', String(Number(loanAmount) || 0));
+      formData.append('installments', String(Number(loanInstallments) || 12));
+      if (monthlyPayment) formData.append('monthly_payment', String(Number(monthlyPayment)));
+      if (totalToPay) formData.append('total_to_pay', String(Number(totalToPay)));
+
+      // Objetos como JSON strings
+      formData.append('personalData', JSON.stringify({
+        firstName: personalData.firstName,
+        lastName: personalData.lastName,
+        address: personalData.address,
+        birthDate: personalData.birthDate,
+        phone: personalData.phone,
+        rfc: personalData.rfc,
+        curp: personalData.curp,
+        ineKey: personalData.ineKey,
+      }));
+
+      formData.append('depositData', JSON.stringify({
+        bank: depositData.bank,
+        clabe: depositData.clabe,
+        holder_name: `${personalData.firstName} ${personalData.lastName}`.trim(),
+      }));
+
+      if (disbursementData.bank || disbursementData.clabe) {
+        formData.append('disbursementData', JSON.stringify({
           bank: disbursementData.bank,
           clabe: disbursementData.clabe,
-        },
-      };
-
-      // Include paymentMethodId only if a saved payment method was selected
-      if (depositSource === 'saved' && depositData.paymentMethodId) {
-        payload.paymentMethodId = depositData.paymentMethodId;
+        }));
       }
 
-      const response = await increscendoApiFetch('/belvo/loan-request', {
+      if (depositSource === 'saved' && depositData.paymentMethodId) {
+        formData.append('paymentMethodId', depositData.paymentMethodId);
+      }
+
+      // Archivos (cada uno opcional)
+      if (ineFrontFile) formData.append('ineFront', ineFrontFile);
+      if (ineBackFile) formData.append('ineBack', ineBackFile);
+      if (selfieWithIneFile) formData.append('selfieWithIne', selfieWithIneFile);
+      if (curpFile) formData.append('curp', curpFile);
+
+      // Fetch con auth token y timeout extendido para archivos
+      const token = await getSupabaseAccessToken();
+      const response = await fetch('https://increscendo-api.vercel.app/belvo/loan-request', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formData,
+        signal: AbortSignal.timeout(60000),
       });
 
       const result = await response.json();
@@ -668,16 +611,9 @@ const LoanProcess = () => {
         return null;
       }
 
-      // Loan created successfully - now upload documents asynchronously
       setCurrentLoan(result.loan);
-      toast({ title: 'Solicitud creada', description: 'Tu solicitud quedó registrada y está en estado pendiente.' });
+      toast({ title: 'Solicitud creada', description: 'Tu solicitud quedó registrada.' });
 
-      // Upload documents in the background (don't wait)
-      uploadDocumentsAfterLoanCreation().catch(err => {
-        console.error('Error uploading documents in background:', err);
-      });
-
-      // Clear resume marker if present
       try { localStorage.removeItem('resume_loan_id'); } catch { }
 
       return result.loan;
@@ -801,8 +737,8 @@ const LoanProcess = () => {
         const response = await increscendoApiFetch(INSTITUTIONS_ENDPOINT);
         if (!response.ok) throw new Error(`institutions status ${response.status}`);
 
-        const data = await response.json();
-        const mapped = Array.isArray(data) ? data : [];
+        const body = await response.json();
+        const mapped = Array.isArray(body) ? body : (body?.data ?? []);
         const activeInstitutions = mapped.filter((item: Institution) => item?.status === 'active' && item?.name);
         setInstitutions(activeInstitutions);
       } catch (err) {
@@ -910,44 +846,12 @@ const LoanProcess = () => {
         pollIntervalRef.current = null;
       }
 
-      // Update user profile with latest personal data
-      try {
-        const { error: updateError } = await supabase
-          .from('users')
-          .update({
-            first_name: personalData.firstName,
-            last_name: personalData.lastName,
-            address: personalData.address,
-            birth_date: personalData.birthDate || null,
-            phone: personalData.phone,
-            ine_key: personalData.ineKey,
-            curp: personalData.curp,
-          })
-          .eq('id', userId);
-        if (updateError) console.error('Error updating profile:', updateError);
-      } catch (err) {
-        console.error('Error updating user profile:', err);
-      }
-
       let loan = currentLoan;
       if (!loan) {
         setIsSubmitting(true);
         loan = await createLoanRecord();
         setIsSubmitting(false);
         if (!loan) return; // creation failed
-
-        // Update RFC in users table only after loan creation succeeds
-        if (personalData.rfc && userId) {
-          try {
-            const { error: rfcError } = await supabase
-              .from('users')
-              .update({ rfc: personalData.rfc })
-              .eq('id', userId);
-            if (rfcError) console.error('Error updating RFC:', rfcError);
-          } catch (err) {
-            console.error('Error updating RFC:', err);
-          }
-        }
       }
 
       setIsAnalyzing(true);
