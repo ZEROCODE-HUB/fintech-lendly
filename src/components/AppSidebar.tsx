@@ -204,7 +204,7 @@ export function AppSidebar() {
     <Sidebar className={isCollapsed ? "w-16" : "w-64"} collapsible="icon">
       <SidebarContent className="flex flex-col h-full">
         {/* User Profile - Top Section */}
-        <div className="px-4 py-5 border-b border-sidebar-border/50">
+        <div className="pl-4 py-5 border-b border-sidebar-border/50">
           {!isCollapsed && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -216,7 +216,7 @@ export function AppSidebar() {
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex flex-col items-start min-w-0 flex-1">
-                    <span className="text-base font-semibold text-sidebar-foreground truncate  transition-colors">
+                    <span className="text-base font-semibold text-sidebar-foreground truncate max-w-full transition-colors">
                       {getUserDisplayName()}
                     </span>
                     <span className="text-xs text-sidebar-foreground/60 capitalize">

@@ -140,7 +140,7 @@ const MembershipCheckout = () => {
 
   const isMissingCardError = (value: unknown) => {
     const text = typeof value === 'string' ? value : JSON.stringify(value ?? '');
-    return /no\s*sources?|no\s*cards?|sin\s*tarjeta|missing\s*(card|source|payment|method)|add\s*(a\s*)?(card|payment|method|source)|not\s*found.*(card|tarjeta)|no\s*(payment\s*)?method|sin\s*(medio|metodo|método)|ref_conekta|create\s*customer/i.test(text);
+    return /no\s*sources?|no\s*cards?|sin\s*tarjeta|missing\s*(card|source|payment|method)|add\s*(a\s*)?(card|payment|method|source)|not\s*found.*(card|tarjeta)|no\s*(payment\s*)?method|sin\s*(medio|metodo|método)|ref.*conekta|create\s*customer|cliente\s*primero|crea\s*un\s*cliente/i.test(text);
   };
 
   const originalPrice = Number(membership?.cost ?? membership?.price ?? 0) || 0;
@@ -216,7 +216,7 @@ const MembershipCheckout = () => {
 
         if (!json.ok) {
           if (json.code === 'no_payment_method') { setCardErrorOpen(true); return; }
-          if (json.code === 'no_conekta_ref') { setNoConektaModalOpen(true); return; }
+          if (json.code === 'no_conekta_ref' || isMissingCardError(json.error || '')) { setNoConektaModalOpen(true); return; }
           toast({ title: 'Error', description: json.error || 'Error desconocido', variant: 'destructive' });
           return;
         }
