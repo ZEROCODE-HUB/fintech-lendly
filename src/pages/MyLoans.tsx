@@ -13,25 +13,19 @@ import { useAuth, useLoans } from '@/hooks';
 import { increscendoApiFetch } from '@/lib/increscendoApi';
 
 interface Installment {
-  installment_number: number;
+  number: number;
   status: string;
   amount: number;
-  due_date: string;
+  due_date?: string;
   payment_request_id: string | null;
-  paid_at: string | null;
-  failed_reason: string | null;
-  failed_reason_message: string | null;
+  updated_at?: string | null;
+  failed_reason?: string | null;
+  failed_reason_message?: string | null;
 }
 
 interface InstallmentsResponse {
   ok: boolean;
-  loan_id: string;
-  loan_number: string;
-  total_installments: number;
-  monthly_payment: number;
-  total_paid: number;
-  summary: { paid: number; pending: number; failed: number };
-  installments: Installment[];
+  data: Installment[];
 }
 
 const getPaymentRequestStatusBadge = (status?: string) => {
@@ -114,9 +108,9 @@ const MyLoans: React.FC = () => {
     setInstallments([]);
     try {
       const resp = await increscendoApiFetch(`/belvo/loans/${loanId}/installments`);
-      const data: InstallmentsResponse = await resp.json();
-      if (data.ok && data.installments) {
-        setInstallments(data.installments);
+      const result: InstallmentsResponse = await resp.json();
+      if (result.ok && result.data) {
+        setInstallments(result.data);
       }
     } catch (e) {
       console.error('Error fetching installments', e);
@@ -131,7 +125,7 @@ const MyLoans: React.FC = () => {
   const isSelectable = (status: string) => !isPaid(status) && !isLocked(status);
 
   const allInstallments = useMemo(() => {
-    return [...installments].sort((a, b) => a.installment_number - b.installment_number);
+    return [...installments].sort((a, b) => a.number - b.number);
   }, [installments]);
 
   const unpaidCount = useMemo(() => {
@@ -141,7 +135,7 @@ const MyLoans: React.FC = () => {
   useEffect(() => {
     if (installments.length > 0) {
       const firstSelectable = installments.find(inst => isSelectable(inst.status));
-      setSelectedInstallments(firstSelectable ? [firstSelectable.installment_number] : []);
+      setSelectedInstallments(firstSelectable ? [firstSelectable.number] : []);
     }
   }, [installments]);
 
@@ -164,7 +158,7 @@ const MyLoans: React.FC = () => {
 
   const totalToPay = useMemo(() => {
     return installments
-      .filter(inst => isSelectable(inst.status) && selectedInstallments.includes(inst.installment_number))
+      .filter(inst => isSelectable(inst.status) && selectedInstallments.includes(inst.number))
       .reduce((sum, inst) => sum + inst.amount, 0);
   }, [selectedInstallments, installments]);
 
@@ -182,9 +176,9 @@ const MyLoans: React.FC = () => {
   };
 
   const handleInstallmentToggle = (installmentNumber: number) => {
-    const inst = installments.find(i => i.installment_number === installmentNumber);
+    const inst = installments.find(i => i.number === installmentNumber);
     if (!inst || !isSelectable(inst.status)) return;
-    const firstUnpaidNumber = installments.find(i => !isPaid(i.status))?.installment_number;
+    const firstUnpaidNumber = installments.find(i => !isPaid(i.status))?.number;
     if (!firstUnpaidNumber || installmentNumber === firstUnpaidNumber) return;
 
     setSelectedInstallments(prev => {
@@ -461,13 +455,13 @@ const MyLoans: React.FC = () => {
                       const isItemLocked = isLocked(status);
                       const firstSelectableIndex = allInstallments.findIndex(i => isSelectable(i.status));
                       const isFirstSelectable = index === firstSelectableIndex;
-                      const isSelected = selectedInstallments.includes(installment.installment_number);
-                      const previousSelected = !isFirstSelectable && (index === 0 || selectedInstallments.includes(allInstallments[index - 1]?.installment_number));
+                      const isSelected = selectedInstallments.includes(installment.number);
+                      const previousSelected = !isFirstSelectable && (index === 0 || selectedInstallments.includes(allInstallments[index - 1]?.number));
                       const canSelect = isSelectable(status) && (isFirstSelectable || previousSelected);
 
                       return (
                         <div
-                          key={installment.installment_number}
+                          key={installment.number}
                           className={`
                             grid grid-cols-12 gap-3 px-4 py-3 items-center text-sm transition-colors
                             ${isSelected
@@ -476,19 +470,19 @@ const MyLoans: React.FC = () => {
                             }
                             ${!isUnpaid && !isItemLocked ? 'opacity-60' : ''}
                           `}
-                          onClick={() => canSelect && handleInstallmentToggle(installment.installment_number)}
+                          onClick={() => canSelect && handleInstallmentToggle(installment.number)}
                         >
                           <div className="col-span-1" onClick={(e) => e.stopPropagation()}>
                             {isUnpaid && !isItemLocked ? (
                               <Checkbox
                                 checked={isSelected}
                                 disabled={!canSelect}
-                                onCheckedChange={() => handleInstallmentToggle(installment.installment_number)}
+                                onCheckedChange={() => handleInstallmentToggle(installment.number)}
                               />
                             ) : null}
                           </div>
                           <div className="col-span-1 flex items-center gap-1">
-                            <span className="font-semibold text-foreground">#{installment.installment_number}</span>
+                            <span className="font-semibold text-foreground">#{installment.number}</span>
                             {isFirstSelectable && (
                               <span className="text-[10px] font-medium text-primary bg-primary/10 px-1.5 py-0.5 rounded">SIG</span>
                             )}

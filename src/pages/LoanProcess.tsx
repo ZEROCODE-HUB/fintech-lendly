@@ -596,7 +596,7 @@ const LoanProcess = () => {
 
       // Fetch con auth token y timeout extendido para archivos
       const token = await getSupabaseAccessToken();
-      const response = await fetch('https://increscendo-api.vercel.app/belvo/loan-request', {
+      const response = await fetch('http://localhost:3200/belvo/loan-request', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` },
         body: formData,

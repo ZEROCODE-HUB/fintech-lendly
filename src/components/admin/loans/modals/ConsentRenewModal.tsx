@@ -33,6 +33,17 @@ const uploadFileToStorage = async (file: File, folder: string, fileName: string)
   }
 };
 
+const urlToFile = async (url: string, filename: string): Promise<File> => {
+  const res = await fetch(url);
+  const blob = await res.blob();
+  const ext = filename.split('.').pop() || 'jpg';
+  const mimeTypes: Record<string, string> = {
+    jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png',
+    pdf: 'application/pdf',
+  };
+  return new File([blob], filename, { type: mimeTypes[ext] || blob.type || 'application/octet-stream' });
+};
+
 export const ConsentRenewModal = ({ open, onOpenChange, loan, onSuccess }: ConsentRenewModalProps) => {
   const [documents, setDocuments] = useState<{ ineFrontUrl?: string; ineBackUrl?: string; curpUrl?: string; selfieUrl?: string; contractUrl?: string }>({});
   const [newFiles, setNewFiles] = useState<{ ineFront?: File; ineBack?: File; curp?: File; selfie?: File; contract?: File }>({});
@@ -133,18 +144,44 @@ export const ConsentRenewModal = ({ open, onOpenChange, loan, onSuccess }: Conse
         if (updateError) throw updateError;
       }
 
+      const formData = new FormData();
+      formData.append('loan_id', loan.uuid);
+
+      const appendFile = async (type: 'ineFront' | 'ineBack' | 'selfie' | 'contract', fieldName: string, filename: string) => {
+        const file = newFiles[type];
+        if (file) {
+          formData.append(fieldName, file, file.name);
+        } else {
+          const existingUrl = ({
+            ineFront: documents.ineFrontUrl,
+            ineBack: documents.ineBackUrl,
+            selfie: documents.selfieUrl,
+            contract: documents.contractUrl
+          } as const)[type];
+          if (existingUrl) {
+            const downloaded = await urlToFile(existingUrl, filename);
+            formData.append(fieldName, downloaded, filename);
+          }
+        }
+      };
+
+      await appendFile('ineFront', 'ine_front', 'ine_front.jpg');
+      await appendFile('ineBack', 'ine_back', 'ine_back.jpg');
+      await appendFile('selfie', 'selfie', 'selfie.jpg');
+      await appendFile('contract', 'contract', 'contract.pdf');
+
       const res = await increscendoApiFetch('/belvo/consents/renew', {
         method: 'POST',
-        body: JSON.stringify({ loan_id: loan.uuid }),
+        body: formData,
       });
       if (!res.ok) {
         const err = await res.json().catch(() => null);
         throw new Error(err?.error || `Error ${res.status}`);
       }
-      const data = await res.json();
+      const result = await res.json();
       toast({
         title: "Consentimiento renovado",
-        description: `Nuevo consent ID: ${data.consentId?.slice(0, 8)}...`,
+        description: `Nuevo consent ID: ${result.data?.id?.slice(0, 8)}...`,
       });
       onSuccess?.();
       onOpenChange(false);
