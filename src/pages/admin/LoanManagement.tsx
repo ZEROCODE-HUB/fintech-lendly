@@ -1107,14 +1107,14 @@ const LoanManagement = () => {
     switch (key) {
       case 'awaiting_information':
         return (
-          <Badge className="bg-warning/20 text-warning border-warning whitespace-nowrap">
+          <Badge className="bg-warning/20 text-warning border-warning whitespace-nowrap" title="Waiting for file uploads">
             Esperando archivos
           </Badge>
         );
 
       case 'submitted':
         return (
-          <Badge className="bg-info/20 text-info border-info whitespace-nowrap">
+          <Badge className="bg-info/20 text-info border-info whitespace-nowrap" title="All files uploaded, under review">
             En revisión
           </Badge>
         );
@@ -1128,21 +1128,21 @@ const LoanManagement = () => {
 
       case 'incomplete_information':
         return (
-          <Badge className="bg-destructive/20 text-destructive border-destructive whitespace-nowrap">
-            Archivos faltan o son inválidos
+          <Badge className="bg-destructive/20 text-destructive border-destructive whitespace-nowrap" title="Missing required files">
+            Archivos faltantes
           </Badge>
         );
 
       case 'confirmed':
         return (
-          <Badge className="bg-success/20 text-success border-success whitespace-nowrap">
+          <Badge className="bg-success/20 text-success border-success whitespace-nowrap" title="Approved - you can now create payment requests">
             Aprobado
           </Badge>
         );
 
       case 'rejected':
         return (
-          <Badge className="bg-destructive/20 text-destructive border-destructive whitespace-nowrap">
+          <Badge className="bg-destructive/20 text-destructive border-destructive whitespace-nowrap" title="Denied - check rejection reason and resubmit">
             Rechazado
           </Badge>
         );
