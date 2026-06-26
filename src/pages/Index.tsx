@@ -1,249 +1,380 @@
+import { useRef, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-import { ArrowRight, Shield, Zap, TrendingUp, Users, Clock, Wallet, Smartphone, Facebook, Instagram, CreditCard } from "lucide-react";
-import heroImage from "@/assets/hero-landing.webp";
+import {
+  ArrowRight, Shield, Zap, TrendingUp, Wallet, Smartphone, CreditCard, CheckCircle2,
+} from "lucide-react";
+import heroImage from "@/assets/vitaly-gariev-omGSZqBXkqY-unsplash.jpeg";
 import { supabase } from "@/lib/supabase";
+import { AnimatedNumber } from "@/components/AnimatedNumber";
+import { Chatbot } from "@/components/Chatbot";
 
 const Index = () => {
   const navigate = useNavigate();
+  const [statsInView, setStatsInView] = useState(false);
+  const statsRef = useRef<HTMLDivElement>(null);
+  const [featuresInView, setFeaturesInView] = useState(false);
+  const featuresRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = statsRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) { setStatsInView(true); obs.disconnect(); } },
+      { threshold: 0.4 }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const el = featuresRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) { setFeaturesInView(true); obs.disconnect(); } },
+      { threshold: 0.1 }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
 
   const handleAccess = async () => {
     try {
       const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-      if (sessionError) {
-        console.warn('[Index] getSession error', sessionError);
-      }
-
+      if (sessionError) console.warn('[Index] getSession error', sessionError);
       const session = sessionData?.session ?? null;
       const user = session?.user ?? null;
-
       if (user) {
         try {
           const { data: profileRow, error: profileErr } = await supabase
-            .from('users')
-            .select('role, first_name, last_name, avatar_url')
-            .eq('id', user.id)
-            .limit(1)
-            .maybeSingle();
-
-          if (profileErr) {
-            console.warn('[Index] users lookup error', profileErr);
-          }
-
+            .from('users').select('role').eq('id', user.id).limit(1).maybeSingle();
+          if (profileErr) console.warn('[Index] users lookup error', profileErr);
           const role = (profileRow as any)?.role ?? 'client';
-
-          if (role === 'admin') {
-            navigate('/admin/dashboard');
-          } else {
-            navigate('/service-selection');
-          }
+          navigate(role === 'admin' ? '/admin/dashboard' : '/service-selection');
           return;
-        } catch (profileCatch) {
-          console.warn('[Index] exception during users lookup', profileCatch);
-        }
+        } catch (e) { console.warn('[Index] profile lookup failed', e); }
       }
-    } catch (err) {
-      console.warn('[Index] handleAccess getSession failed', err);
-    }
-
+    } catch (err) { console.warn('[Index] getSession failed', err); }
     const userStr = localStorage.getItem('increscendo_user');
     const testRole = localStorage.getItem('testUserRole');
-    if (!userStr && !testRole) {
-      navigate('/auth');
-      return;
-    }
+    if (!userStr && !testRole) { navigate('/auth'); return; }
     const userLocal = userStr ? JSON.parse(userStr) : { role: testRole };
-    if (userLocal.role === 'admin') navigate('/admin/dashboard'); else navigate('/service-selection');
+    navigate(userLocal.role === 'admin' ? '/admin/dashboard' : '/service-selection');
   };
 
   return (
-    <div className="">
-      {/* Hero Section */}
-      <section className=" pb-12 px-4 sm:px-24">
-        <div className="mx-auto  sm:px-6 lg:px-8 grid lg:grid-cols-2 gap-8 lg:gap-12 items-center justify-center flex-col-reverse  sm:flex-row">
-          <div className="space-y-5 sm:space-y-6">
-            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight">
-              Increscendo <span className="text-primary">Fintech</span>
-            </h1>
-            <p className="text-base sm:text-lg text-muted-foreground max-w-lg">
-              Impulsa tu negocio con recargas, pago de servicios y préstamos de manera inteligente.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-3">
-              <Button onClick={handleAccess} className="w-full sm:w-auto">
-                Comenzar Ahora
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-              <Button variant="outline" onClick={() => window.location.href = '#features'} className="w-full sm:w-auto">
-                Conocer Más
-              </Button>
+    <div className="overflow-hidden">
+
+      {/* ══════════════════════ HERO ══════════════════════ */}
+      <section className="relative min-h-[90vh] flex items-center bg-gradient-hero overflow-hidden">
+
+        {/* Dot-grid texture */}
+        <div className="absolute inset-0 pointer-events-none opacity-[0.035]"
+          style={{ backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '30px 30px' }} />
+
+        {/* Ambient blobs */}
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute -top-60 -right-40 w-[900px] h-[900px] rounded-full bg-success/15 blur-3xl" />
+          <div className="absolute -bottom-60 -left-40 w-[700px] h-[700px] rounded-full bg-white/[0.04] blur-3xl" />
+        </div>
+
+        <div className="relative w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-16 py-20">
+          <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
+
+            {/* Copy */}
+            <div className="space-y-8">
+              <div style={{ opacity: 0, animation: 'fade-in-up 0.6s ease-out 0ms both' }}>
+                <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-success/20 border border-success/50 text-success text-xs font-semibold tracking-wide">
+                  <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
+                  Plataforma 100% Segura y Regulada
+                </span>
+              </div>
+
+              <div style={{ opacity: 0, animation: 'fade-in-up 0.6s ease-out 130ms both' }}>
+                <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight text-white leading-[1.05]">
+                  <span className="text-gradient">Increscendo</span><br />
+                  <span className="text-success">Fintech</span>
+                </h1>
+              </div>
+
+              <div style={{ opacity: 0, animation: 'fade-in-up 0.6s ease-out 250ms both' }}>
+                <p className="text-base sm:text-lg lg:text-xl text-white/95 max-w-lg leading-relaxed">
+                  Impulsa tu negocio con recargas, pago de servicios y préstamos de manera inteligente.
+                </p>
+              </div>
+
+              <div style={{ opacity: 0, animation: 'fade-in-up 0.6s ease-out 370ms both' }}>
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <Button onClick={handleAccess} size="lg"
+                    className="bg-success hover:bg-success/90 text-white shadow-glow-success font-semibold w-full sm:w-auto">
+                    Comenzar Ahora
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                  <Button variant="outline" size="lg" onClick={() => window.location.href = '#features'}
+                    className="border-white/50 text-white bg-white/[0.09] hover:bg-white/[0.18] hover:border-white/70 hover:text-white backdrop-blur-sm w-full sm:w-auto">
+                    Conocer Más
+                  </Button>
+                </div>
+              </div>
             </div>
-            <div className="grid grid-cols-4 gap-4 pt-4">
-              <div className="text-center">
-                <p className="text-xl sm:text-2xl font-bold text-primary">+400</p>
-                <p className="text-xs text-muted-foreground">Productos</p>
+
+            {/* Image with floating badges */}
+            <div className="relative hidden lg:block"
+              style={{ opacity: 0, animation: 'fade-in-up 0.7s ease-out 200ms both' }}>
+              <div className="absolute -inset-8 bg-gradient-to-br from-primary/20 via-transparent to-primary/30 rounded-3xl blur-2xl" />
+              <div className="relative rounded-2xl overflow-hidden border border-white/15 shadow-strong">
+                <img src={heroImage} alt="Equipo Increscendo"
+                  className="object-cover w-full h-[480px]" loading="eager" width={800} height={480} />
+                <div className="absolute inset-0 bg-gradient-to-t from-primary/55 via-primary/10 to-transparent" />
               </div>
-              <div className="text-center border-l border-border/50 pl-4">
-                <p className="text-xl sm:text-2xl font-bold text-primary">$5M</p>
-                <p className="text-xs text-muted-foreground">Financiamiento</p>
+
+              {/* Floating badge — bottom left */}
+              <div className="absolute -bottom-5 -left-8 bg-card rounded-xl px-4 py-3 shadow-strong border border-border flex items-center gap-3 animate-float">
+                <div className="h-10 w-10 bg-success/15 rounded-full flex items-center justify-center flex-shrink-0">
+                  <Shield className="h-5 w-5 text-success" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-foreground">100% Seguro</p>
+                  <p className="text-[10px] text-muted-foreground">Regulado y certificado</p>
+                </div>
               </div>
-              <div className="text-center border-l border-border/50 pl-4">
-                <p className="text-xl sm:text-2xl font-bold text-primary">100%</p>
-                <p className="text-xs text-muted-foreground">Seguro</p>
-              </div>
-              <div className="text-center border-l border-border/50 pl-4">
-                <p className="text-xl sm:text-2xl font-bold text-primary">24/7</p>
-                <p className="text-xs text-muted-foreground">Atención</p>
+
+              {/* Floating badge — top right */}
+              <div className="absolute -top-5 -right-6 bg-card rounded-xl px-4 py-3 shadow-strong border border-border animate-float"
+                style={{ animationDelay: '1.5s' }}>
+                <p className="text-xs font-bold text-foreground">+400 Productos</p>
+                <p className="text-[10px] text-success font-semibold mt-0.5">Disponibles ahora</p>
               </div>
             </div>
           </div>
-          <div className="relative hidden lg:block">
-            <img src={heroImage} alt="Equipo Increscendo" className="rounded-xl shadow-soft object-cover w-full h-[400px]" loading="lazy" width={800} height={400} />
+
+          {/* Stats strip with animated counters */}
+          <div ref={statsRef}
+            className="mt-16 grid grid-cols-2 sm:grid-cols-4 rounded-2xl overflow-hidden border border-white/10 divide-y sm:divide-y-0 sm:divide-x divide-white/[0.08]"
+            style={{ opacity: 0, animation: 'fade-in-up 0.6s ease-out 490ms both' }}>
+
+            <div className="bg-white/[0.05] backdrop-blur-sm px-6 py-6 text-center">
+              <p className="text-2xl sm:text-3xl font-bold text-success">
+                {!statsInView ? '+400' : <AnimatedNumber value={400} duration={1600} formatter={n => `+${n}`} />}
+              </p>
+              <p className="text-[10px] sm:text-xs text-white/70 mt-1.5 uppercase tracking-widest font-medium">Productos</p>
+            </div>
+
+            <div className="bg-white/[0.05] backdrop-blur-sm px-6 py-6 text-center">
+              <p className="text-2xl sm:text-3xl font-bold text-success">
+                {!statsInView ? '$5M' : <AnimatedNumber value={5} duration={1600} delay={200} formatter={n => `$${n}M`} />}
+              </p>
+              <p className="text-[10px] sm:text-xs text-white/70 mt-1.5 uppercase tracking-widest font-medium">Financiamiento</p>
+            </div>
+
+            <div className="bg-white/[0.05] backdrop-blur-sm px-6 py-6 text-center">
+              <p className="text-2xl sm:text-3xl font-bold text-success">
+                {!statsInView ? '100%' : <AnimatedNumber value={100} duration={1600} delay={400} formatter={n => `${n}%`} />}
+              </p>
+              <p className="text-[10px] sm:text-xs text-white/70 mt-1.5 uppercase tracking-widest font-medium">Seguro</p>
+            </div>
+
+            <div className="bg-white/[0.05] backdrop-blur-sm px-6 py-6 text-center">
+              <p className="text-2xl sm:text-3xl font-bold text-success">24/7</p>
+              <p className="text-[10px] sm:text-xs text-white/70 mt-1.5 uppercase tracking-widest font-medium">Atención</p>
+            </div>
           </div>
         </div>
+
       </section>
 
-      {/* Features Section */}
-      <section id="features" className="py-12 sm:py-16 md:py-20 px-4 sm:px-6 bg-accent/30">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-8 sm:mb-12">
-            <h2 className="text-xl sm:text-2xl font-bold mb-3">¿Por Qué Increscendo?</h2>
-            <p className="text-sm sm:text-base text-muted-foreground max-w-2xl mx-auto">
+      {/* ══════════════════════ FEATURES ══════════════════════ */}
+      <section id="features" className="relative py-24 sm:py-28 md:py-32 px-4 sm:px-6 bg-background">
+        {/* Navy tint */}
+        <div className="absolute inset-0 bg-primary/[0.02] pointer-events-none" />
+
+        <div className="relative max-w-7xl mx-auto">
+          <div className="text-center mb-16 space-y-3">
+            <p className="text-xs font-semibold uppercase tracking-widest text-success">Nuestras Soluciones</p>
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight">¿Por Qué Increscendo?</h2>
+            <p className="text-sm sm:text-base text-muted-foreground max-w-2xl mx-auto leading-relaxed">
               Soluciones integrales que simplifican la vida de nuestros clientes
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-            <div className="bg-card p-5 sm:p-6 rounded-lg shadow-soft hover:shadow-medium transition-all">
-              <div className="h-10 w-10 bg-success/20 rounded-lg flex items-center justify-center mb-4">
-                <Shield className="h-5 w-5 text-success" />
+          <div ref={featuresRef} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6">
+
+            {/* 01 */}
+            <div style={{ opacity: 0, animation: featuresInView ? 'fade-in-up 0.5s ease-out 0ms both' : 'none' }} className="group relative bg-card border border-border/70 rounded-2xl p-7 hover:border-success/30 hover:shadow-strong transition-all duration-300 hover:-translate-y-2 overflow-hidden">
+              <span className="absolute -top-2 right-5 text-[7rem] font-black text-foreground/[0.03] select-none leading-none pointer-events-none">01</span>
+              <div className="absolute left-0 top-8 bottom-8 w-[3px] rounded-full bg-success opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              <div className="h-14 w-14 bg-success/10 border border-success/20 rounded-2xl flex items-center justify-center mb-6 shadow-soft group-hover:bg-success/20 transition-colors duration-300">
+                <Shield className="h-7 w-7 text-success" />
               </div>
-              <h3 className="text-base sm:text-lg font-semibold mb-2">Seguridad de Nivel Bancario</h3>
-              <p className="text-xs sm:text-sm text-muted-foreground">
+              <h3 className="text-base sm:text-lg font-bold mb-3 text-foreground">Seguridad de Nivel Bancario</h3>
+              <p className="text-sm text-muted-foreground leading-relaxed">
                 Protección de datos con encriptación de punta a punta y cumplimiento total de normativas financieras
               </p>
             </div>
 
-            <div className="bg-card p-5 sm:p-6 rounded-lg shadow-soft hover:shadow-medium transition-all">
-              <div className="h-10 w-10 bg-primary/20 rounded-lg flex items-center justify-center mb-4">
-                <Zap className="h-5 w-5 text-primary" />
+            {/* 02 */}
+            <div style={{ opacity: 0, animation: featuresInView ? 'fade-in-up 0.5s ease-out 80ms both' : 'none' }} className="group relative bg-card border border-border/70 rounded-2xl p-7 hover:border-primary/30 hover:shadow-strong transition-all duration-300 hover:-translate-y-2 overflow-hidden">
+              <span className="absolute -top-2 right-5 text-[7rem] font-black text-foreground/[0.03] select-none leading-none pointer-events-none">02</span>
+              <div className="absolute left-0 top-8 bottom-8 w-[3px] rounded-full bg-primary opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              <div className="h-14 w-14 bg-primary/10 border border-primary/20 rounded-2xl flex items-center justify-center mb-6 shadow-soft group-hover:bg-primary/20 transition-colors duration-300">
+                <Zap className="h-7 w-7 text-primary" />
               </div>
-              <h3 className="text-base sm:text-lg font-semibold mb-2">Pago de servicios, fácil y rápido</h3>
-              <p className="text-xs sm:text-sm text-muted-foreground">
+              <h3 className="text-base sm:text-lg font-bold mb-3 text-foreground">Pago de servicios, fácil y rápido</h3>
+              <p className="text-sm text-muted-foreground leading-relaxed">
                 Paga todos tus servicios de luz, agua, gas, teléfono y más en un mismo lugar.
               </p>
             </div>
 
-            <div className="bg-card p-5 sm:p-6 rounded-lg shadow-soft hover:shadow-medium transition-all">
-              <div className="h-10 w-10 bg-danger/20 rounded-lg flex items-center justify-center mb-4">
-                <Smartphone className="h-5 w-5 text-danger" />
+            {/* 03 — navy en vez de rojo */}
+            <div style={{ opacity: 0, animation: featuresInView ? 'fade-in-up 0.5s ease-out 160ms both' : 'none' }} className="group relative bg-card border border-border/70 rounded-2xl p-7 hover:border-primary/30 hover:shadow-strong transition-all duration-300 hover:-translate-y-2 overflow-hidden">
+              <span className="absolute -top-2 right-5 text-[7rem] font-black text-foreground/[0.03] select-none leading-none pointer-events-none">03</span>
+              <div className="absolute left-0 top-8 bottom-8 w-[3px] rounded-full bg-primary opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              <div className="h-14 w-14 bg-primary/10 border border-primary/20 rounded-2xl flex items-center justify-center mb-6 shadow-soft group-hover:bg-primary/20 transition-colors duration-300">
+                <Smartphone className="h-7 w-7 text-primary" />
               </div>
-              <h3 className="text-base sm:text-lg font-semibold mb-2">Recarga de tiempo aire en segundos</h3>
-              <p className="text-xs sm:text-sm text-muted-foreground">
+              <h3 className="text-base sm:text-lg font-bold mb-3 text-foreground">Recarga de tiempo aire en segundos</h3>
+              <p className="text-sm text-muted-foreground leading-relaxed">
                 Realiza todas las recargas de las compañías de telefonía móvil en México de manera segura.
               </p>
             </div>
 
-            <div className="bg-card p-5 sm:p-6 rounded-lg shadow-soft hover:shadow-medium transition-all">
-              <div className="h-10 w-10 bg-accent rounded-lg flex items-center justify-center mb-4">
-                <TrendingUp className="h-5 w-5 text-primary" />
+            {/* 04 */}
+            <div style={{ opacity: 0, animation: featuresInView ? 'fade-in-up 0.5s ease-out 240ms both' : 'none' }} className="group relative bg-card border border-border/70 rounded-2xl p-7 hover:border-success/30 hover:shadow-strong transition-all duration-300 hover:-translate-y-2 overflow-hidden">
+              <span className="absolute -top-2 right-5 text-[7rem] font-black text-foreground/[0.03] select-none leading-none pointer-events-none">04</span>
+              <div className="absolute left-0 top-8 bottom-8 w-[3px] rounded-full bg-success opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              <div className="h-14 w-14 bg-success/10 border border-success/20 rounded-2xl flex items-center justify-center mb-6 shadow-soft group-hover:bg-success/20 transition-colors duration-300">
+                <TrendingUp className="h-7 w-7 text-success" />
               </div>
-              <h3 className="text-base sm:text-lg font-semibold mb-2">Préstamos Inteligentes</h3>
-              <p className="text-xs sm:text-sm text-muted-foreground">
+              <h3 className="text-base sm:text-lg font-bold mb-3 text-foreground">Préstamos Inteligentes</h3>
+              <p className="text-sm text-muted-foreground leading-relaxed">
                 Te apoyamos para adquirir un préstamo a través de nuestra plataforma automatizada con IA.
               </p>
             </div>
 
-            <div className="bg-card p-5 sm:p-6 rounded-lg shadow-soft hover:shadow-medium transition-all">
-              <div className="h-10 w-10 bg-success/20 rounded-lg flex items-center justify-center mb-4">
-                <CreditCard className="h-5 w-5 text-success" />
+            {/* 05 */}
+            <div style={{ opacity: 0, animation: featuresInView ? 'fade-in-up 0.5s ease-out 320ms both' : 'none' }} className="group relative bg-card border border-border/70 rounded-2xl p-7 hover:border-success/30 hover:shadow-strong transition-all duration-300 hover:-translate-y-2 overflow-hidden">
+              <span className="absolute -top-2 right-5 text-[7rem] font-black text-foreground/[0.03] select-none leading-none pointer-events-none">05</span>
+              <div className="absolute left-0 top-8 bottom-8 w-[3px] rounded-full bg-success opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              <div className="h-14 w-14 bg-success/10 border border-success/20 rounded-2xl flex items-center justify-center mb-6 shadow-soft group-hover:bg-success/20 transition-colors duration-300">
+                <CreditCard className="h-7 w-7 text-success" />
               </div>
-              <h3 className="text-base sm:text-lg font-semibold mb-2">Tarjeta Internacional</h3>
-              <p className="text-xs sm:text-sm text-muted-foreground">
+              <h3 className="text-base sm:text-lg font-bold mb-3 text-foreground">Tarjeta Internacional</h3>
+              <p className="text-sm text-muted-foreground leading-relaxed">
                 Tu tarjeta es aceptada en TPV, compra en Línea, comercios físicos, electrónicos y retiros de efectivo en ATM Internacional
               </p>
             </div>
 
-            <div className="bg-card p-5 sm:p-6 rounded-lg shadow-soft hover:shadow-medium transition-all">
-              <div className="h-10 w-10 bg-primary/20 rounded-lg flex items-center justify-center mb-4">
-                <Wallet className="h-5 w-5 text-primary" />
+            {/* 06 */}
+            <div style={{ opacity: 0, animation: featuresInView ? 'fade-in-up 0.5s ease-out 400ms both' : 'none' }} className="group relative bg-card border border-border/70 rounded-2xl p-7 hover:border-primary/30 hover:shadow-strong transition-all duration-300 hover:-translate-y-2 overflow-hidden">
+              <span className="absolute -top-2 right-5 text-[7rem] font-black text-foreground/[0.03] select-none leading-none pointer-events-none">06</span>
+              <div className="absolute left-0 top-8 bottom-8 w-[3px] rounded-full bg-primary opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              <div className="h-14 w-14 bg-primary/10 border border-primary/20 rounded-2xl flex items-center justify-center mb-6 shadow-soft group-hover:bg-primary/20 transition-colors duration-300">
+                <Wallet className="h-7 w-7 text-primary" />
               </div>
-              <h3 className="text-base sm:text-lg font-semibold mb-2">Monederos de regalo digitales</h3>
-              <p className="text-xs sm:text-sm text-muted-foreground">
+              <h3 className="text-base sm:text-lg font-bold mb-3 text-foreground">Monederos de regalo digitales</h3>
+              <p className="text-sm text-muted-foreground leading-relaxed">
                 Solicita códigos generados en nuestro sistema y recíbelos por SMS para usar en compras online.
               </p>
             </div>
+
           </div>
         </div>
       </section>
 
-      {/* About Section */}
-      <section id="about" className="py-12 sm:py-16 md:py-20 px-4 sm:px-6 bg-background">
-        <div className="max-w-6xl mx-auto">
-          <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
-            <div className="space-y-4">
-              <h2 className="text-xl sm:text-2xl font-bold">Tecnología de Vanguardia</h2>
-              <p className="text-sm sm:text-base text-muted-foreground">
+      {/* ══════════════════════ ABOUT / TECH ══════════════════════ */}
+      <section id="about" className="relative py-24 sm:py-28 md:py-32 px-4 sm:px-6 bg-background">
+        <div className="relative max-w-6xl mx-auto">
+          <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+
+            {/* Left */}
+            <div className="relative space-y-6">
+              {/* Decorative background "IA" */}
+              <div className="absolute -top-6 -left-2 text-[10rem] font-black text-primary/[0.045] select-none leading-none pointer-events-none tracking-tighter">
+                IA
+              </div>
+              <p className="relative text-xs font-semibold uppercase tracking-widest text-success">Tecnología</p>
+              <h2 className="relative text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight leading-tight">
+                Tecnología de Vanguardia
+              </h2>
+              <p className="relative text-sm sm:text-base text-muted-foreground leading-relaxed">
                 En Increscendo Fintech combinamos tecnología de punta e inteligencia artificial, con las mejores prácticas para ofrecer soluciones financieras que verdaderamente transformen tu negocio.
               </p>
-              <Button onClick={handleAccess}>
-                Comienza Tu Prueba Gratuita
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
+              <div className="relative">
+                <Button onClick={handleAccess} size="lg" className="shadow-medium">
+                  Comienza Tu Prueba Gratuita
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </div>
             </div>
-            <div className="bg-gradient-hero rounded-lg p-6 sm:p-8 text-white">
-              <h3 className="text-base sm:text-lg font-semibold mb-4">Servicios Integrados</h3>
-              <ul className="space-y-3 text-sm">
-                <li className="flex items-start gap-3">
-                  <div className="w-1.5 h-1.5 bg-accent rounded-full mt-1.5 flex-shrink-0" />
-                  <span>Gestión completa de préstamos y cronogramas de pago</span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <div className="w-1.5 h-1.5 bg-accent rounded-full mt-1.5 flex-shrink-0" />
-                  <span>Pagos de servicios y recargas automatizadas</span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <div className="w-1.5 h-1.5 bg-accent rounded-full mt-1.5 flex-shrink-0" />
-                  <span>Monederos digitales con seguridad bancaria</span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <div className="w-1.5 h-1.5 bg-accent rounded-full mt-1.5 flex-shrink-0" />
-                  <span>Soporte personalizado 24/7 con chatbot inteligente</span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <div className="w-1.5 h-1.5 bg-accent rounded-full mt-1.5 flex-shrink-0" />
-                  <span>Validación de identidad con tecnología OCR</span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <div className="w-1.5 h-1.5 bg-accent rounded-full mt-1.5 flex-shrink-0" />
-                  <span>Link de pagos al instante</span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <div className="w-1.5 h-1.5 bg-accent rounded-full mt-1.5 flex-shrink-0" />
-                  <span>Domicialización</span>
-                </li>
-              </ul>
+
+            {/* Right — services card */}
+            <div className="relative">
+              <div className="absolute -inset-4 bg-gradient-premium rounded-3xl opacity-20 blur-2xl" />
+              <div className="relative bg-gradient-hero rounded-2xl p-8 sm:p-10 shadow-strong border border-white/10 overflow-hidden">
+                <div className="absolute inset-0 pointer-events-none opacity-[0.04]"
+                  style={{ backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
+                <h3 className="relative text-lg sm:text-xl font-bold mb-6 text-white">Servicios Integrados</h3>
+                <ul className="relative space-y-3.5">
+                  {[
+                    "Gestión completa de préstamos y cronogramas de pago",
+                    "Pagos de servicios y recargas automatizadas",
+                    "Monederos digitales con seguridad bancaria",
+                    "Soporte personalizado 24/7 con chatbot inteligente",
+                    "Validación de identidad con tecnología OCR",
+                    "Link de pagos al instante",
+                    "Domicialización",
+                  ].map((item, i) => (
+                    <li key={i} className="flex items-start gap-3">
+                      <div className="h-5 w-5 rounded-full bg-success/25 border border-success/50 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <CheckCircle2 className="h-3 w-3 text-success" />
+                      </div>
+                      <span className="text-sm text-white/90 leading-relaxed">{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             </div>
+          </div>
+        </div>
+
+        {/* Wave divider → CTA */}
+        <div className="absolute bottom-0 left-0 right-0" style={{ lineHeight: 0 }}>
+          <svg viewBox="0 0 1440 70" preserveAspectRatio="none" style={{ width: '100%', height: '70px', display: 'block' }}>
+            <path d="M0,70 Q720,0 1440,70 L1440,0 L0,0 Z" style={{ fill: 'hsl(216,45%,20%)' }} />
+          </svg>
+        </div>
+      </section>
+
+      {/* ══════════════════════ CTA ══════════════════════ */}
+      <section className="relative py-24 sm:py-28 md:py-32 px-4 sm:px-6"
+        style={{ boxShadow: '0 1px 0 0 hsl(216,45%,20%)' }}>
+        <div className="absolute inset-0 bg-primary" />
+        <div className="relative max-w-4xl mx-auto text-center space-y-6">
+          <p className="text-xs font-semibold uppercase tracking-widest text-success">Empieza hoy</p>
+          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white leading-tight px-2">
+            ¿Listo Para Transformar Tu Negocio?
+          </h2>
+          <p className="text-sm sm:text-base text-white/90 max-w-2xl mx-auto leading-relaxed">
+            Únete a miles de clientes que ya confían en Increscendo Fintech para gestionar sus operaciones financieras con tecnología de clase mundial
+          </p>
+          <div className="pt-2">
+            <Button size="lg"
+              onClick={() => {
+                const userStr = localStorage.getItem('increscendo_user');
+                const testRole = localStorage.getItem('testUserRole');
+                if (!userStr && !testRole) { navigate('/auth'); return; }
+                const user = userStr ? JSON.parse(userStr) : { role: testRole };
+                navigate(user.role === 'admin' ? '/admin/dashboard' : '/dashboard');
+              }}
+              className="bg-success hover:bg-success/90 text-white shadow-glow-success font-semibold px-10 w-full sm:w-auto">
+              Crear Cuenta Gratis
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
           </div>
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section className="py-12 sm:py-16 md:py-20 px-4 sm:px-6 bg-primary text-white">
-        <div className="max-w-4xl mx-auto text-center space-y-4">
-          <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-white px-2">¿Listo Para Transformar Tu Negocio?</h2>
-          <p className="text-sm sm:text-base text-white/90 max-w-2xl mx-auto">
-            Únete a miles de clientes que ya confían en Increscendo Fintech para gestionar sus operaciones financieras con tecnología de clase mundial
-          </p>
-          <Button
-            variant="success"
-            onClick={() => { const userStr = localStorage.getItem('increscendo_user'); const testRole = localStorage.getItem('testUserRole'); if (!userStr && !testRole) { navigate('/auth'); return; } const user = userStr ? JSON.parse(userStr) : { role: testRole }; if (user.role === 'admin') navigate('/admin/dashboard'); else navigate('/dashboard'); }}
-            className="mt-4 w-full sm:w-auto"
-          >
-            Crear Cuenta Gratis
-            <ArrowRight className="ml-2 h-4 w-4" />
-          </Button>
-        </div>
-      </section>
+      <Chatbot />
     </div>
   );
 };

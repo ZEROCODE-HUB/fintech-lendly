@@ -148,7 +148,7 @@ Actúa como Asistente Virtual Oficial de Increscendo Fintech MX, S.A.P.I. DE C.V
     return (
       <Button
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-glow z-50"
+        className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-glow z-50 border border-white/20"
         size="icon"
       >
         <MessageCircle className="h-6 w-6" />
@@ -157,7 +157,7 @@ Actúa como Asistente Virtual Oficial de Increscendo Fintech MX, S.A.P.I. DE C.V
   }
 
   return (
-    <Card className="fixed bottom-6 right-6 w-[380px] h-[520px] shadow-2xl z-50 flex flex-col rounded-2xl overflow-hidden border-0">
+    <Card className="fixed bottom-6 right-6 w-[380px] h-[520px] shadow-2xl z-50 flex flex-col rounded-2xl overflow-hidden border border-white/20">
       <CardHeader className="flex flex-row items-center justify-between px-5 py-4 bg-gradient-to-r from-primary to-primary/90 text-white shadow-lg">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
