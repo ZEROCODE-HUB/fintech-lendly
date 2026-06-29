@@ -234,9 +234,9 @@ Actúa como Asistente Virtual Oficial de Increscendo Fintech MX, S.A.P.I. DE C.V
           <Input
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && handleSend()}
+            onKeyDown={(e) => e.key === 'Enter' && handleSend()}
             placeholder="Escribe tu mensaje..."
-            className="flex-1 bg-muted/50 border-0 focus-visible:ring-1 text-sm h-9"
+            className="flex-1 bg-muted/50 border-0 focus-visible:ring-1 text-[16px] h-9"
           />
           <Button onClick={handleSend} size="sm" className="h-9 w-9 p-0" disabled={!inputValue.trim()}>
             <Send className="h-4 w-4" />
