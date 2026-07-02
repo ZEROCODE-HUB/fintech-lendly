@@ -1,12 +1,10 @@
-import { useState, useMemo } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { MessageCircle, X, Send, Bot, User } from "lucide-react";
 
-// WARNING: Embedding API keys in frontend code is insecure and exposes your key publicly.
-// Only do this for local testing and never commit real keys to version control.
-const INSECURE_OPENAI_KEY = "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"
+const CHAT_API_URL = 'https://increscendo-api.vercel.app/api/chat';
 
 interface Message {
   id: string;
@@ -14,16 +12,6 @@ interface Message {
   sender: 'user' | 'bot';
   timestamp: Date;
 }
-
-const parseMessageWithBold = (text: string) => {
-  const parts = text.split(/(\*\*[^*]+\*\*)/g);
-  return parts.map((part, i) => {
-    if (part.startsWith('**') && part.endsWith('**')) {
-      return <strong key={i} className="font-semibold">{part.slice(2, -2)}</strong>;
-    }
-    return part;
-  });
-};
 
 const TypingIndicator = () => (
   <div className="flex items-center gap-1.5 px-3 py-2 bg-muted/80 rounded-lg w-fit">
@@ -38,13 +26,18 @@ export const Chatbot = () => {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
-      text: '¡Hola! Soy tu **asistente virtual** de Increscendo Fintech. ¿En qué puedo ayudarte hoy?',
+      text: '<p>¡Hola! 👋 Soy tu <strong>asistente virtual</strong> de Increscendo Fintech. ¿En qué puedo ayudarte hoy?</p>',
       sender: 'bot',
       timestamp: new Date()
     }
   ]);
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'instant' });
+  }, [messages]);
 
   const handleSend = async () => {
     if (!inputValue.trim()) return;
@@ -63,85 +56,34 @@ export const Chatbot = () => {
     setIsTyping(true);
 
     try {
-      const envClientKey = (import.meta as any)?.env?.VITE_OPENAI_KEY;
-      const clientKey = INSECURE_OPENAI_KEY || envClientKey;
-      if (!clientKey) {
-        setIsTyping(false);
-        const botResponse = getBotResponse(messageText);
-        setMessages(prev => [...prev, { id: (Date.now() + 1).toString(), text: botResponse, sender: 'bot', timestamp: new Date() }]);
-        return;
-      }
-
-      const SYSTEM_PROMPT = `
-Actúa como Asistente Virtual Oficial de Increscendo Fintech MX, S.A.P.I. DE C.V.; tono profesional, amable, claro y seguro; transmite confianza, transparencia y tecnología avanzada. Usa **negritas** para enfatizar información importante como nombres de servicios, montos, fechas o pasos clave. Ejemplo: "Para solicitar un **préstamo**, ve a...". Información oficial: Montes Urales 755, Lomas de Chapultepec, Miguel Hidalgo, CDMX, CP 11000, México; único dominio autorizado: https://increscendofintech.com; jurisdicción México y tribunales CDMX. Tu objetivo es asistir usuarios en WALLET sobre préstamos, membresías, pagos, recargas, monederos digitales, OCR, links de pago y navegación de plataforma. Beneficios: seguridad bancaria con cifrado, pagos de luz/agua/gas/teléfono/TV/impuestos/telepeaje, recargas móviles México, préstamos automatizados con IA, soporte 24/7 y gift cards digitales enviados por SMS. Tecnología: IA, OCR, validación biométrica, cronogramas, wallets seguros y links de pago instantáneo. Prioridad absoluta: seguridad y prevención de fraude. Regla crítica: jamás solicitar, aprobar o sugerir pagos anticipados, depósitos previos, comisiones o garantías antes del otorgamiento de crédito; ningún promotor puede cobrar previamente. Alertar sobre phishing, pharming, vishing, smishing, robo de identidad, pirámides y créditos falsos. Nunca pedir contraseñas, NIP, CVV, OTP, tokens ni datos completos de tarjeta. Datos protegidos bajo normativa mexicana. Portal dual: Servicios/Recargas y Préstamos. Para préstamos: membresía anual activa obligatoria, validación CLABE 18 dígitos, OCR con INE/CURP/selfie, revisión, contrato y desembolso. Si aparece "Procesando pago" o "Procesando desembolso", indicar que es normal temporalmente. Nunca garantizar aprobación, montos ni tiempos exactos. Escalar incidencias a contacto@increscendofintech.com o WhatsApp +52 55 9020 7001. Si hay conflicto entre rapidez y seguridad, prioriza seguridad.
-`;
-
-      const r = await fetch('https://api.openai.com/v1/chat/completions', {
+      const response = await fetch(CHAT_API_URL, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${clientKey}`
-        },
-        body: JSON.stringify({
-          model: (import.meta.env.VITE_OPENAI_MODEL || 'gpt-4o-mini'),
-          messages: [
-            {
-              role: 'system',
-              content: SYSTEM_PROMPT
-            },
-            {
-              role: 'user',
-              content: messageText
-            }
-          ],
-          max_tokens: 500,
-          temperature: 0.2
-        })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: messageText })
       });
-      if (!r.ok) {
-        setIsTyping(false);
-        const botResponse = getBotResponse(messageText);
-        setMessages(prev => [...prev, { id: (Date.now() + 1).toString(), text: botResponse, sender: 'bot', timestamp: new Date() }]);
-        return;
+
+      if (!response.ok) {
+        throw new Error('Chat API error');
       }
 
-      const data = await r.json().catch((e) => {
-        return null;
-      });
-      const reply = data?.choices?.[0]?.message?.content ?? getBotResponse(messageText);
+      const { html } = await response.json();
+
+      setMessages(prev => [...prev, {
+        id: (Date.now() + 1).toString(),
+        text: html,
+        sender: 'bot',
+        timestamp: new Date()
+      }]);
+    } catch (error) {
+      setMessages(prev => [...prev, {
+        id: (Date.now() + 1).toString(),
+        text: '<p>¡Ups! 😔 Parece que tuve un problemita. Por favor intenta de nuevo en un momento. Si el problema persiste, puedes contactarnos por <a href="https://wa.me/525590207001" target="_blank" rel="noopener">WhatsApp</a> o <a href="https://increscendofintech.com/contacto" target="_blank" rel="noopener">formulario de contacto</a>. ¡Gracias por tu paciencia!</p>',
+        sender: 'bot',
+        timestamp: new Date()
+      }]);
+    } finally {
       setIsTyping(false);
-      setMessages(prev => [...prev, { id: (Date.now() + 2).toString(), text: reply, sender: 'bot', timestamp: new Date() }]);
-    } catch (err) {
-      setIsTyping(false);
-      const botResponse = getBotResponse(messageText);
-      setMessages(prev => [...prev, { id: (Date.now() + 3).toString(), text: botResponse, sender: 'bot', timestamp: new Date() }]);
     }
-  };
-
-  const getBotResponse = (input: string): string => {
-    const lowerInput = input.toLowerCase();
-
-    if (lowerInput.includes('préstamo') || lowerInput.includes('solicitar')) {
-      return 'Para solicitar un **préstamo**, ve a la sección **"Solicitar Préstamo"** en el menú. Necesitarás tener una **membresía activa**. ¿Te gustaría que te explique el proceso?';
-    }
-
-    if (lowerInput.includes('pago') || lowerInput.includes('pagar')) {
-      return 'Puedes realizar pagos desde tu **dashboard**. Aceptamos **tarjetas de crédito/débito** y **transferencias bancarias**. ¿Necesitas ayuda con algún pago en específico?';
-    }
-
-    if (lowerInput.includes('membresía') || lowerInput.includes('membresia')) {
-      return 'Ofrecemos diferentes **planes de membresía** que te dan acceso a **préstamos** y **servicios exclusivos**. ¿Te gustaría conocer nuestros planes disponibles?';
-    }
-
-    if (lowerInput.includes('historial')) {
-      return 'Puedes ver tu **historial completo** de préstamos y transacciones en la sección **"Historial"** del menú lateral.';
-    }
-
-    if (lowerInput.includes('soporte') || lowerInput.includes('ayuda')) {
-      return 'Estoy aquí para ayudarte. También puedes contactar a nuestro equipo de **soporte humano** en la sección **"Soporte"** o enviando un correo a **soporte@increscendo.com**';
-    }
-
-    return 'Gracias por tu mensaje. ¿Podrías ser más específico? Puedo ayudarte con **préstamos**, **pagos**, **membresías**, **historial** o cualquier otra consulta sobre nuestros servicios.';
   };
 
   if (!isOpen) {
@@ -197,9 +139,12 @@ Actúa como Asistente Virtual Oficial de Increscendo Fintech MX, S.A.P.I. DE C.V
                       ? 'bg-primary text-white rounded-br-md'
                       : 'bg-card border border-border/50 text-foreground rounded-bl-md shadow-sm'
                   }`}
-                >
-                  <p className="text-sm leading-relaxed">{parseMessageWithBold(message.text)}</p>
-                  <p className={`text-[10px] mt-1.5 ${
+                  >
+                    <div
+                      className="text-sm leading-relaxed [&_a]:text-primary [&_a]:underline [&_a]:font-medium"
+                      dangerouslySetInnerHTML={{ __html: message.text }}
+                    />
+                    <p className={`text-[10px] mt-1.5 ${
                     message.sender === 'user' ? 'text-white/60' : 'text-muted-foreground'
                   }`}>
                     {message.timestamp.toLocaleTimeString('es-MX', {
@@ -228,6 +173,7 @@ Actúa como Asistente Virtual Oficial de Increscendo Fintech MX, S.A.P.I. DE C.V
               </div>
             </div>
           )}
+          <div ref={messagesEndRef} />
         </div>
 
         <div className="flex gap-2 pt-2 border-t bg-background rounded-xl px-3 py-2">
