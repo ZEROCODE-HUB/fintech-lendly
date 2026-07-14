@@ -383,7 +383,7 @@ const PaymentMethods = () => {
         <Button onClick={openAddDialog} className="gap-2 ml-auto"><Plus className="h-4 w-4" />Agregar Método de Pago</Button>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {isLoading ? (<><PaymentMethodSkeleton /><PaymentMethodSkeleton /></>) : paymentMethods.length === 0 ? (
           <Card className="shadow-soft lg:col-span-3">
             <CardContent className="py-12 text-center">
@@ -395,17 +395,22 @@ const PaymentMethods = () => {
           </Card>
         ) : (
           paymentMethods.map((method) => (
-            <Card key={method.id} className={`shadow-soft flex flex-col ${method.is_default ? 'border-primary' : ''}`}>
+            <Card key={method.id} className={`shadow-soft flex flex-col ${method.is_default ? 'border-2 border-primary' : ''}`}>
+              {method.is_default && (
+                <div className="bg-primary text-primary-foreground text-xs font-semibold px-3 py-1.5 flex items-center gap-1.5">
+                  <Star className="h-3 w-3 fill-primary-foreground" />
+                  PREDETERMINADO
+                </div>
+              )}
               <CardHeader className="p-4 pb-2">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-lg bg-accent flex items-center justify-center">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="h-10 w-10 rounded-lg bg-accent flex items-center justify-center flex-shrink-0">
                       {method.type === "card" ? getCardBrandIcon() : <Building2 className="h-5 w-5" />}
                     </div>
-                    <div>
-                      <CardTitle className="text-sm flex items-center gap-2">
-                        <span className="truncate">{method.type === "card" ? method.card_type : method.bank_name}</span>
-                        {method.is_default && <Star className="h-3 w-3 text-primary fill-primary" />}
+                    <div className="min-w-0">
+                      <CardTitle className="text-sm truncate">
+                        {method.type === "card" ? method.card_type : method.bank_name}
                       </CardTitle>
                       <CardDescription className="text-xs">
                         {method.type === "card" ? `•••• ${method.last_four}` : `CLABE •••• ${method.last_digits}`}
@@ -418,7 +423,7 @@ const PaymentMethods = () => {
                 <div className="space-y-2 text-sm flex-1">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Titular:</span>
-                    <span className="font-medium">{method.holder_name}</span>
+                    <span className="font-medium truncate ml-2">{method.holder_name}</span>
                   </div>
                   {method.type === "card" && (
                     <div className="flex justify-between">
@@ -434,19 +439,19 @@ const PaymentMethods = () => {
                       </Badge>
                     </div>
                   )}
-                  {method.is_default && method.type === "card" && (
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Predeterminado:</span>
-                      <Badge className="bg-primary/20 text-primary border-primary">Sí</Badge>
-                    </div>
-                  )}
                 </div>
-                <div className="flex items-center justify-end gap-2 pt-3 border-t mt-auto">
+                <div className="grid grid-cols-3 gap-2 pt-3 border-t mt-auto">
                   {method.type === "card" && !method.is_default && (
-                    <Button variant="outline" size="sm" onClick={() => handleSetDefault(method)}><Star className="h-3 w-3 mr-1" />Predeterminado</Button>
+                    <Button variant="outline" size="sm" className="text-xs h-8" onClick={() => handleSetDefault(method)}>
+                      <Star className="h-3 w-3 mr-1" />Pred.
+                    </Button>
                   )}
-                  <Button variant="outline" size="sm" onClick={() => { setSelectedMethod(method); setMethodType(method.type as 'card' | 'bank'); if (method.type === 'card') setFormData({ ...formData, expiry: method.expiry || "", cardholder: method.holder_name || "" }); else setFormData({ ...formData, accountHolder: method.holder_name || "" }); setEditDialogOpen(true); }}><Edit className="h-3 w-3 mr-1" />Editar</Button>
-                  <Button variant="outline" size="sm" onClick={() => handleDelete(method)} disabled={method.is_default}><Trash2 className="h-3 w-3" /></Button>
+                  <Button variant="outline" size="sm" className="text-xs h-8" onClick={() => { setSelectedMethod(method); setMethodType(method.type as 'card' | 'bank'); if (method.type === 'card') setFormData({ ...formData, expiry: method.expiry || "", cardholder: method.holder_name || "" }); else setFormData({ ...formData, accountHolder: method.holder_name || "" }); setEditDialogOpen(true); }}>
+                    <Edit className="h-3 w-3 mr-1" />Editar
+                  </Button>
+                  <Button variant="outline" size="sm" className="text-xs h-8" onClick={() => handleDelete(method)} disabled={method.is_default}>
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
                 </div>
               </CardContent>
             </Card>
