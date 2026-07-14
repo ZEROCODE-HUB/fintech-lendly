@@ -1891,6 +1891,7 @@ const LoanProcess = () => {
           <div className="space-y-2">
             <Label>CURP</Label>
             <Input
+              type="text"
               placeholder="18 dígitos numéricos"
               maxLength={18}
               value={personalData.curp}
