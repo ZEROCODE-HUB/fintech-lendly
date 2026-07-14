@@ -1892,10 +1892,13 @@ const LoanProcess = () => {
             <Label>CURP</Label>
             <Input
               type="text"
-              placeholder="18 dígitos numéricos"
+              placeholder="18 caracteres alfanuméricos"
               maxLength={18}
               value={personalData.curp}
-              onChange={(e) => handlePersonalDataChange("curp", e.target.value.replace(/[^A-Z0-9Ñ]/g, '').toUpperCase())}
+              onChange={(e) => {
+                const value = e.target.value.replace(/[^a-zA-Z0-9ñÑ]/g, '').toUpperCase();
+                handlePersonalDataChange("curp", value);
+              }}
             />
             {validationErrors.curp && <p className="text-xs text-destructive">{validationErrors.curp}</p>}
           </div>
