@@ -93,7 +93,7 @@ const isOfMinimumAge = (value: string, minAge = 18) => {
   }
   return age >= minAge;
 };
-const isValidCurp = (value: string) => value ? /^[A-Z0-9]{18}$/.test(value.trim().toUpperCase()) : false;
+const isValidCurp = (value: string) => value ? /^[A-Z0-9Ñ]{18}$/.test(value.trim().toUpperCase()) : false;
 const isValidIne = (value: string) => value ? /^[A-Z0-9]{6,20}$/.test(value.trim().toUpperCase()) : false;
 const isValidClabe = (value: string) => value ? /^\d{18}$/.test(value.trim()) : false;
 const isValidRfc = (value: string) => value ? /^[A-Za-z0-9]+$/.test(value.trim()) : false;
@@ -496,6 +496,11 @@ const LoanProcess = () => {
 
   // Map API error messages to Spanish user-friendly messages
   const getErrorMessage = (errorData: any): string => {
+    // If the API returns { ok: false, error: "..." } - extract the error directly
+    if (typeof errorData?.error === 'string' && errorData.error.length > 0) {
+      return errorData.error;
+    }
+
     // Extract the error message, prioritizing details.message
     const detailedMessage = errorData?.details?.message || errorData?.message || '';
     const errorMessage = (detailedMessage || errorData?.error || '').toLowerCase().trim();
@@ -515,7 +520,6 @@ const LoanProcess = () => {
       'missing required fields': 'Faltan campos requeridos. Revisa la información ingresada.',
       'unauthorized': 'No estás autorizado para realizar esta acción.',
       'bad request': 'Los datos enviados no son válidos. Revisa la información.',
-      'error': 'Ocurrió un error. Por favor, intenta de nuevo.',
       'network': 'Error de conexión. Verifica tu internet.',
       'timeout': 'La solicitud tardó demasiado. Intenta de nuevo.',
       'not found': 'No se encontró el recurso. Intenta de nuevo.',
@@ -1532,17 +1536,17 @@ const LoanProcess = () => {
             </div>
             <div className="space-y-2">
               <Label>Cuenta CLABE</Label>
-              <Input
-                type="number"
-                placeholder="18 dígitos"
-                maxLength={18}
-                value={depositData.clabe}
-                onChange={(e) => {
-                  const value = e.target.value.slice(0, 18);
-                  handleDepositDataChange("clabe", value);
-                }}
-                disabled={depositSource === 'saved' && !!depositData.paymentMethodId}
-              />
+                <Input
+                  type="text"
+                  placeholder="18 dígitos"
+                  maxLength={18}
+                  value={depositData.clabe}
+                  onChange={(e) => {
+                    const value = e.target.value.slice(0, 18);
+                    handleDepositDataChange("clabe", value);
+                  }}
+                  disabled={depositSource === 'saved' && !!depositData.paymentMethodId}
+                />
               {
                 depositSource === 'saved' && depositData.paymentMethodId && (
                   <Badge variant={selectedSavedMethod?.validation_status === 'validada' ? 'secondary' : 'outline'} className="text-[10px] uppercase tracking-wide">
@@ -1661,16 +1665,16 @@ const LoanProcess = () => {
                 </div>
                 <div className="space-y-2">
                   <Label>Cuenta CLABE</Label>
-                  <Input
-                    type="number"
-                    placeholder="18 dígitos"
-                    maxLength={18}
-                    value={disbursementData.clabe}
-                    onChange={(e) => {
-                      const value = e.target.value.slice(0, 18);
-                      handleDisbursementDataChange("clabe", value);
-                    }}
-                  />
+                <Input
+                  type="text"
+                  placeholder="18 dígitos"
+                  maxLength={18}
+                  value={disbursementData.clabe}
+                  onChange={(e) => {
+                    const value = e.target.value.slice(0, 18);
+                    handleDisbursementDataChange("clabe", value);
+                  }}
+                />
                   <p className="text-xs text-muted-foreground">Ingresa los 18 dígitos de tu CLABE</p>
                   {validationErrors.disbursementClabe && <p className="text-xs text-destructive">{validationErrors.disbursementClabe}</p>}
                 </div>
@@ -1890,7 +1894,7 @@ const LoanProcess = () => {
               placeholder="18 dígitos numéricos"
               maxLength={18}
               value={personalData.curp}
-              onChange={(e) => handlePersonalDataChange("curp", e.target.value.replace(/[^A-Z0-9]/g, '').toUpperCase())}
+              onChange={(e) => handlePersonalDataChange("curp", e.target.value.replace(/[^A-Z0-9Ñ]/g, '').toUpperCase())}
             />
             {validationErrors.curp && <p className="text-xs text-destructive">{validationErrors.curp}</p>}
           </div>
