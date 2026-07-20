@@ -20,6 +20,7 @@ import {
   SidebarGroupContent,
   SidebarGroupLabel,
   SidebarMenu,
+  SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
   useSidebar,
@@ -61,6 +62,27 @@ export function AppSidebar() {
   const [userRole, setUserRole] = useState<string>('client');
   const [refreshKey, setRefreshKey] = useState(0);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    const fetchUnread = async () => {
+      const { count } = await supabase
+        .from('notifications')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .eq('read', false);
+      setUnreadCount(count ?? 0);
+    };
+    fetchUnread();
+    const channel = supabase
+      .channel('unread-notifs')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` }, () => {
+        fetchUnread();
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [user?.id]);
 
   // Cargar datos del localStorage primero, luego de la DB y sincronizar
   useEffect(() => {
@@ -328,6 +350,7 @@ export function AppSidebar() {
                       <Bell className="h-5 w-5 flex-shrink-0" />
                       {!isCollapsed && <span className="text-sm md:text-xs">Notificaciones</span>}
                     </NavLink>
+                    {unreadCount > 0 && <SidebarMenuBadge className="bg-destructive text-destructive-foreground text-[10px] font-bold">{unreadCount}</SidebarMenuBadge>}
                   </SidebarMenuItem>
                 </SidebarMenu>
               </SidebarGroupContent>
@@ -363,6 +386,7 @@ export function AppSidebar() {
                       <Bell className="h-5 w-5 flex-shrink-0" />
                       {!isCollapsed && <span className="text-sm md:text-xs">Notificaciones</span>}
                     </NavLink>
+                    {unreadCount > 0 && <SidebarMenuBadge className="bg-destructive text-destructive-foreground text-[10px] font-bold">{unreadCount}</SidebarMenuBadge>}
                   </SidebarMenuItem>
                 </SidebarMenu>
               </SidebarGroupContent>

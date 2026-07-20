@@ -661,6 +661,7 @@ const LoanManagement = () => {
   const [approveDialog, setApproveDialog] = useState<{ open: boolean; loan: any | null }>({ open: false, loan: null });
   const [rejectDialog, setRejectDialog] = useState<{ open: boolean; loan: any | null }>({ open: false, loan: null });
   const [approvingState, setApprovingState] = useState<{ open: boolean; message: string }>({ open: false, message: '' });
+  const [rejectingState, setRejectingState] = useState<{ open: boolean; message: string }>({ open: false, message: '' });
 
   const [resendModal, setResendModal] = useState<{ open: boolean; loan: any | null }>({ open: false, loan: null });
   const [attachModal, setAttachModal] = useState<{ open: boolean; loan: any | null }>({ open: false, loan: null });
@@ -938,9 +939,25 @@ const LoanManagement = () => {
     }
   };
 
+  const REJECT_MESSAGES = [
+    'Rechazando solicitud...',
+    'Actualizando estado del préstamo...',
+    'Notificando al cliente...',
+    'Finalizando proceso...',
+  ];
+
   const handleRejectLoan = async () => {
     const loan = rejectDialog.loan;
     if (!loan) return;
+    setRejectDialog({ open: false, loan: null });
+    setRejectingState({ open: true, message: REJECT_MESSAGES[0] });
+
+    let msgIdx = 0;
+    const msgInterval = setInterval(() => {
+      msgIdx = (msgIdx + 1) % REJECT_MESSAGES.length;
+      setRejectingState(prev => ({ ...prev, message: REJECT_MESSAGES[msgIdx] }));
+    }, 2000);
+
     try {
       const { error } = await supabase
         .from('loans')
@@ -948,8 +965,7 @@ const LoanManagement = () => {
         .eq('id', loan.uuid ?? loan.raw?.id);
 
       if (error) throw error;
-      toast({ title: 'Rechazado', description: `La solicitud ${loan.id} ha sido rechazada.`, variant: 'destructive' });
-      setRejectDialog({ open: false, loan: null });
+
       await reloadCurrentTab();
 
       // Send rejection email to client
@@ -969,9 +985,31 @@ const LoanManagement = () => {
           console.warn('[admin] failed to send rejection email', e);
         }
       }
+
+      // Create in-app notification for the user
+      if (loan.user_id) {
+        try {
+          await supabase.from('notifications').insert({
+            user_id: loan.user_id,
+            type: 'loan_rejected',
+            title: 'Solicitud rechazada',
+            message: `Tu solicitud de préstamo Folio ${loan.id} no fue aprobada. Revisa tu correo para más detalles.`,
+            url: '/my-loans',
+            channels: ['email'],
+          });
+        } catch (e) {
+          console.warn('[admin] failed to insert rejection notification', e);
+        }
+      }
+
+      setRejectingState({ open: false, message: '' });
+      toast({ title: 'Rechazado', description: `La solicitud ${loan.id} ha sido rechazada.`, variant: 'destructive' });
     } catch (err) {
       console.error('Error rechazando solicitud', err);
+      setRejectingState({ open: false, message: '' });
       toast({ title: 'Error', description: 'No se pudo rechazar la solicitud.' });
+    } finally {
+      clearInterval(msgInterval);
     }
   };
 
@@ -2235,6 +2273,16 @@ const LoanManagement = () => {
             <div className="animate-spin h-12 w-12 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4" />
             <h3 className="text-lg font-bold text-gray-900 mb-2">Aprobando Solicitud</h3>
             <p className="text-sm text-muted-foreground">{approvingState.message}</p>
+          </div>
+        </div>
+      )}
+
+      {rejectingState.open && (
+        <div className="fixed inset-0 z-[100] bg-black/60 flex items-center justify-center">
+          <div className="bg-white rounded-xl p-8 max-w-sm w-full mx-4 text-center shadow-2xl">
+            <div className="animate-spin h-12 w-12 border-4 border-danger border-t-transparent rounded-full mx-auto mb-4" />
+            <h3 className="text-lg font-bold text-gray-900 mb-2">Rechazando Solicitud</h3>
+            <p className="text-sm text-muted-foreground">{rejectingState.message}</p>
           </div>
         </div>
       )}
