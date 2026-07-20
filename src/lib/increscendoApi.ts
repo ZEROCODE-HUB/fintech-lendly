@@ -3,7 +3,7 @@ import { supabase } from './supabase';
 const INCRESCENDO_API_BASE_URL = 'https://increscendo-api.vercel.app';
 // const INCRESCENDO_API_BASE_URL = 'http://localhost:3200';
 
-const DEFAULT_TIMEOUT = 60000;
+const DEFAULT_TIMEOUT = 90000;
 
 function isTokenExpiringSoon(token: string): boolean {
   try {
