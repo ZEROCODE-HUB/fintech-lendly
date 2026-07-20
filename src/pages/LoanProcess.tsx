@@ -60,7 +60,7 @@ type Institution = {
 const DEFAULT_INSTITUTION_ID = "mx_santander";
 
 const normalizeText = (value: string) => value.trim();
-const isValidPhone = (value: string) => /^\+?[0-9\s()-]{10,}$/.test(value.trim());
+const isValidPhone = (value: string) => /^[0-9]{10}$/.test(value.replace(/\D/g, '').trim());
 const isValidDate = (value: string) => {
   if (!value) return false;
   // Accept YYYY-MM-DD or common ISO-like formats. Parse as local date (avoid timezone shifts).
@@ -96,7 +96,7 @@ const isOfMinimumAge = (value: string, minAge = 18) => {
 const isValidCurp = (value: string) => value ? /^[A-Z0-9Ñ]{18}$/.test(value.trim().toUpperCase()) : false;
 const isValidIne = (value: string) => value ? /^[A-Z0-9]{6,20}$/.test(value.trim().toUpperCase()) : false;
 const isValidClabe = (value: string) => value ? /^\d{18}$/.test(value.trim()) : false;
-const isValidRfc = (value: string) => value ? /^[A-Za-z0-9]+$/.test(value.trim()) : false;
+const isValidRfc = (value: string) => /^[A-Z0-9]{12,13}$/.test(value.trim().toUpperCase());
 const hasDocumentSource = (file: File | null, url: string) => Boolean(file || normalizeText(url));
 
 const LoanProcess = () => {
@@ -459,6 +459,32 @@ const LoanProcess = () => {
     if (currentStep === 1) return validateStepOne();
     if (currentStep === 3) return validateStepThree();
     return {};
+  };
+
+  const FIELD_LABELS: Record<string, string> = {
+    loanAmount: 'Monto',
+    loanInstallments: 'Plazo',
+    firstName: 'Nombre',
+    lastName: 'Apellidos',
+    address: 'Dirección',
+    birthDate: 'Fecha de nacimiento',
+    phone: 'Teléfono',
+    rfc: 'RFC',
+    ineKey: 'Clave INE',
+    curp: 'CURP',
+    paymentMethodId: 'Método de pago',
+    bank: 'Banco',
+    clabe: 'CLABE',
+    disbursementBank: 'Banco de desembolso',
+    disbursementClabe: 'CLABE de desembolso',
+    reference_name: 'Nombre del obligado',
+    reference_relationship: 'Relación del obligado',
+    reference_phone: 'Teléfono del obligado',
+    references: 'Obligado solidario',
+    ineFront: 'INE frontal',
+    ineBack: 'INE reverso',
+    selfieWithIne: 'Selfie con INE',
+    curpFile: 'Documento CURP',
   };
 
   useEffect(() => {
@@ -828,9 +854,12 @@ const LoanProcess = () => {
     setValidationErrors(nextErrors);
 
     if (Object.keys(nextErrors).length > 0) {
+      const fieldNames = Object.keys(nextErrors)
+        .map(key => FIELD_LABELS[key] || key)
+        .join(', ');
       toast({
         title: 'Revisa los campos',
-        description: 'Hay datos inválidos o incompletos en este paso.',
+        description: `Corrige: ${fieldNames}.`,
       });
       return;
     }
@@ -1109,7 +1138,7 @@ const LoanProcess = () => {
 
   // Stepper Component
   const Stepper = () => (
-    <div className="w-full py-4 px-2 sm:px-4 overflow-hidden">
+    <div className="w-full py-5 px-2 sm:px-4 overflow-hidden border-b border-border/50">
       <div className="flex items-center justify-between">
         {STEPS.map((step, index) => (
           <div key={step.id} className="flex items-center flex-1">
@@ -1147,7 +1176,7 @@ const LoanProcess = () => {
   // Step 1: Confirm Loan (Updated with editable fields)
   const StepConfirm = () => (
     <Card className="shadow-soft">
-      <CardHeader className="p-4 sm:p-6">
+      <CardHeader className="p-4 sm:p-6 md:p-7">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="space-y-1">
             <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
@@ -1169,7 +1198,7 @@ const LoanProcess = () => {
           </Button>
         </div>
       </CardHeader>
-      <CardContent className="p-4 sm:p-6 space-y-4">
+      <CardContent className="p-4 sm:p-6 md:p-7 space-y-4">
         {/* Editable Fields */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
@@ -1235,7 +1264,7 @@ const LoanProcess = () => {
   // Step 2: Membership
   const StepMembership = () => (
     <Card className="shadow-medium">
-      <CardHeader>
+      <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-xl">
           <CreditCard className="h-5 w-5 text-primary" />
           Adquiere tu Membresía
@@ -1373,42 +1402,47 @@ const LoanProcess = () => {
 
   // Step 3: KYC Validation (Updated with Deposit section)
   const StepValidation = () => (
-    <div className="space-y-6 ">
-      {/* Personal Information */}
+    <div className="space-y-4">      {/* Personal Information */}
       <Card className="shadow-medium">
-        <CardHeader>
+        <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-lg">
             <User className="h-5 w-5 text-primary" />
             Información Personal
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pb-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Nombre</Label>
               <Input
                 placeholder="Tu nombre"
+                maxLength={50}
                 value={personalData.firstName}
                 onChange={(e) => handlePersonalDataChange("firstName", e.target.value)}
               />
+              <p className="text-[11px] text-muted-foreground">Máx. 50 caracteres</p>
               {validationErrors.firstName && <p className="text-xs text-destructive">{validationErrors.firstName}</p>}
             </div>
             <div className="space-y-2">
               <Label>Apellidos</Label>
               <Input
                 placeholder="Tus apellidos"
+                maxLength={50}
                 value={personalData.lastName}
                 onChange={(e) => handlePersonalDataChange("lastName", e.target.value)}
               />
+              <p className="text-[11px] text-muted-foreground">Máx. 50 caracteres</p>
               {validationErrors.lastName && <p className="text-xs text-destructive">{validationErrors.lastName}</p>}
             </div>
             <div className="space-y-2 md:col-span-2">
               <Label>Dirección</Label>
               <Input
                 placeholder="Dirección completa"
+                maxLength={100}
                 value={personalData.address}
                 onChange={(e) => handlePersonalDataChange("address", e.target.value)}
               />
+              <p className="text-[11px] text-muted-foreground">Máx. 100 caracteres</p>
               {validationErrors.address && <p className="text-xs text-destructive">{validationErrors.address}</p>}
             </div>
             <div className="space-y-2">
@@ -1423,20 +1457,26 @@ const LoanProcess = () => {
             <div className="space-y-2">
               <Label>Teléfono</Label>
               <Input
-                placeholder="+52 55 1234 5678"
+                placeholder="55 1234 5678"
+                maxLength={10}
                 value={personalData.phone}
-                onChange={(e) => handlePersonalDataChange("phone", e.target.value)}
+                onChange={(e) => {
+                  const digits = e.target.value.replace(/\D/g, '').slice(0, 10);
+                  handlePersonalDataChange("phone", digits);
+                }}
               />
+              <p className="text-[11px] text-muted-foreground">10 dígitos sin espacios</p>
               {validationErrors.phone && <p className="text-xs text-destructive">{validationErrors.phone}</p>}
             </div>
             <div className="space-y-2">
               <Label>RFC</Label>
               <Input
-                placeholder="ABCD123456XYZ1"
+                placeholder="ABCD123456XYZ"
                 maxLength={13}
                 value={personalData.rfc}
                 onChange={(e) => handlePersonalDataChange("rfc", e.target.value.toUpperCase())}
               />
+              <p className="text-[11px] text-muted-foreground">12 o 13 caracteres alfanuméricos</p>
               {validationErrors.rfc && <p className="text-xs text-destructive">{validationErrors.rfc}</p>}
             </div>
           </div>
@@ -1445,7 +1485,7 @@ const LoanProcess = () => {
 
       {/* Bank Account Section */}
       <Card className="shadow-medium">
-        <CardHeader>
+        <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-lg">
             <Building2 className="h-5 w-5 text-primary" />
             Cuenta Bancaria
@@ -1454,7 +1494,7 @@ const LoanProcess = () => {
             Ingresa los datos de tu cuenta principal para domiciliar tus pagos. Por seguridad, realizaremos una validación automática de titularidad con tu banco.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-4 pb-4">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
 
 
@@ -1542,7 +1582,7 @@ const LoanProcess = () => {
                   maxLength={18}
                   value={depositData.clabe}
                   onChange={(e) => {
-                    const value = e.target.value.slice(0, 18);
+                    const value = e.target.value.replace(/\D/g, '').slice(0, 18);
                     handleDepositDataChange("clabe", value);
                   }}
                   disabled={depositSource === 'saved' && !!depositData.paymentMethodId}
@@ -1671,7 +1711,7 @@ const LoanProcess = () => {
                   maxLength={18}
                   value={disbursementData.clabe}
                   onChange={(e) => {
-                    const value = e.target.value.slice(0, 18);
+                    const value = e.target.value.replace(/\D/g, '').slice(0, 18);
                     handleDisbursementDataChange("clabe", value);
                   }}
                 />
@@ -1686,7 +1726,7 @@ const LoanProcess = () => {
 
       {/* References Section */}
       <Card className="shadow-medium">
-        <CardHeader>
+        <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-lg">
             <User className="h-5 w-5 text-primary" />
             Obligado solidario
@@ -1695,7 +1735,7 @@ const LoanProcess = () => {
             Activa esta opción si quieres agregar un obligado solidario o referencia de confianza.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-4 pb-4">
           <div className="flex items-center space-x-2">
             <Checkbox
               id="include-solidario"
@@ -1717,27 +1757,36 @@ const LoanProcess = () => {
                   <Label>Nombre completo</Label>
                   <Input
                     placeholder="Ej: Ana Perez"
+                    maxLength={50}
                     value={references[0]?.name || ""}
                     onChange={(e) => updateReference(0, "name", e.target.value)}
                   />
+                  <p className="text-[11px] text-muted-foreground">Máx. 50 caracteres</p>
                   {validationErrors.reference_name && <p className="text-xs text-destructive">{validationErrors.reference_name}</p>}
                 </div>
                 <div className="space-y-2">
                   <Label>Relacion</Label>
                   <Input
                     placeholder="Ej: Hermana, Amigo"
+                    maxLength={30}
                     value={references[0]?.relationship || ""}
                     onChange={(e) => updateReference(0, "relationship", e.target.value)}
                   />
+                  <p className="text-[11px] text-muted-foreground">Máx. 30 caracteres</p>
                   {validationErrors.reference_relationship && <p className="text-xs text-destructive">{validationErrors.reference_relationship}</p>}
                 </div>
                 <div className="space-y-2">
                   <Label>Telefono</Label>
                   <Input
-                    placeholder="Ej: +52 55 1234 5678"
+                    placeholder="55 1234 5678"
+                    maxLength={10}
                     value={references[0]?.phone || ""}
-                    onChange={(e) => updateReference(0, "phone", e.target.value)}
+                    onChange={(e) => {
+                      const digits = e.target.value.replace(/\D/g, '').slice(0, 10);
+                      updateReference(0, "phone", digits);
+                    }}
                   />
+                  <p className="text-[11px] text-muted-foreground">10 dígitos sin espacios</p>
                   {validationErrors.reference_phone && <p className="text-xs text-destructive">{validationErrors.reference_phone}</p>}
                 </div>
               </div>
@@ -1749,21 +1798,22 @@ const LoanProcess = () => {
 
       {/* INE Identification */}
       <Card className="shadow-medium">
-        <CardHeader>
+        <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-lg">
             <CreditCard className="h-5 w-5 text-primary" />
             Identificación INE
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-4 pb-4">
           <div className="space-y-2">
             <Label>Clave de Elector / Número INE</Label>
             <Input
-              placeholder="18 dígitos"
-              maxLength={18}
+              placeholder="18 caracteres"
+              maxLength={20}
               value={personalData.ineKey}
-              onChange={(e) => handlePersonalDataChange("ineKey", e.target.value.replace(/[^0-9]/g, '').toUpperCase())}
+              onChange={(e) => handlePersonalDataChange("ineKey", e.target.value.replace(/[^0-9a-zA-Z]/g, '').toUpperCase())}
             />
+            <p className="text-[11px] text-muted-foreground">6 a 20 caracteres alfanuméricos</p>
             {validationErrors.ineKey && <p className="text-xs text-destructive">{validationErrors.ineKey}</p>}
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -1881,13 +1931,13 @@ const LoanProcess = () => {
 
       {/* CURP */}
       <Card className="shadow-medium">
-        <CardHeader>
+        <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-lg">
             <FileText className="h-5 w-5 text-primary" />
             CURP
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-4 pb-4">
           <div className="space-y-2">
             <Label>CURP</Label>
             <Input
@@ -1896,10 +1946,11 @@ const LoanProcess = () => {
               maxLength={18}
               value={personalData.curp}
               onChange={(e) => {
-                const value = e.target.value.replace(/[^a-zA-Z0-9ñÑ]/g, '').toUpperCase();
+                const value = e.target.value.replace(/[^a-zA-Z0-9ñÑ]/g, '').toUpperCase().slice(0, 18);
                 handlePersonalDataChange("curp", value);
               }}
             />
+            <p className="text-[11px] text-muted-foreground">18 caracteres alfanuméricos</p>
             {validationErrors.curp && <p className="text-xs text-destructive">{validationErrors.curp}</p>}
           </div>
           <div className="border-2 border-dashed border-border rounded-xl p-6 flex flex-col items-center justify-center gap-3 bg-muted/30 hover:bg-muted/50 transition-colors">
@@ -1956,7 +2007,7 @@ const LoanProcess = () => {
   // Step 4: Review and Approval
   const StepApproval = () => (
     <Card className="shadow-medium">
-      <CardHeader>
+      <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-xl">
           <FileCheck className="h-5 w-5 text-primary" />
           Revisión y Aprobación
@@ -2003,7 +2054,7 @@ const LoanProcess = () => {
               <p className="text-xl font-semibold">Resumen de tu solicitud</p>
               <p className="text-sm text-muted-foreground">Haz clic en "Iniciar" para confirmar y continuar con la revision.</p>
             </div>
-            <div className="w-full max-w-2xl mx-auto">
+            <div className="w-full max-w-3xl mx-auto">
               <div className="text-xs uppercase tracking-wider text-muted-foreground text-left mb-3">Datos personales</div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-left">
                 <div className="rounded-lg bg-muted/40 p-3">
@@ -2059,7 +2110,7 @@ const LoanProcess = () => {
   // Step 5: Contract Signature
   const StepContract = () => (
     <Card className="shadow-medium">
-      <CardHeader>
+      <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-xl">
           <FileSignature className="h-5 w-5 text-primary" />
           Firma de Contrato
@@ -2159,7 +2210,7 @@ const LoanProcess = () => {
   };
 
   return (
-    <div className="p-4 sm:p-6 md:p-8 max-w-4xl mx-auto">
+    <div className="px-4 sm:px-6 md:px-8 py-6 sm:py-8 max-w-5xl mx-auto">
       {isSubmitting && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
           <div className="bg-card rounded-xl p-8 max-w-sm mx-4 text-center shadow-2xl">
@@ -2198,7 +2249,7 @@ const LoanProcess = () => {
 
       {/* Navigation Buttons */}
       {!isSubmitted && (
-        <div className="flex justify-between mt-6 gap-4">
+        <div className="flex justify-between mt-6 gap-4 items-center">
           {currentStep > 1 && currentStep < 6 && (
             <Button variant="outline" onClick={handleBack} className="gap-2">
               <ArrowLeft className="h-4 w-4" />

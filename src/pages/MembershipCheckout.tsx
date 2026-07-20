@@ -48,7 +48,7 @@ const MembershipCheckout = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
-  const { userId } = useAuth();
+  const { userId, session, isLoading: authLoading } = useAuth();
 
   const state = (location.state || {}) as LocationState;
   const membershipId = state?.membershipId;
@@ -193,6 +193,14 @@ const MembershipCheckout = () => {
       toast({ title: "Datos incompletos", description: "Completa los datos de facturación", variant: "destructive" });
       return;
     }
+    if (authLoading) {
+      toast({ title: "Espera", description: "Cargando tu sesión, intenta en un momento.", variant: "destructive" });
+      return;
+    }
+    if (!userId || !session?.access_token) {
+      toast({ title: "Sesión no encontrada", description: "Inicia sesión de nuevo para continuar.", variant: "destructive" });
+      return;
+    }
 
     (async () => {
       try {
@@ -206,6 +214,7 @@ const MembershipCheckout = () => {
             membership_plan_id: membership.id,
             ...(appliedCoupon ? { coupon_code: appliedCoupon.code } : {}),
           }),
+          timeout: 90000,
         });
         const json = await resp.json().catch(() => null);
 
@@ -436,7 +445,7 @@ const MembershipCheckout = () => {
                 </Label>
               </div>
 
-              <Button className="w-full" size="lg" onClick={handleProceedToPayment} disabled={!termsAccepted || !cancelTermsAccepted || acquiring}>
+              <Button className="w-full" size="lg" onClick={handleProceedToPayment} disabled={!termsAccepted || !cancelTermsAccepted || acquiring || authLoading || !session?.access_token}>
                 {acquiring ? 'Procesando...' : 'Confirmar compra'}
               </Button>
 
