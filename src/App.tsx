@@ -4,6 +4,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { Toaster } from '@/components/ui/toaster';
 import { Toaster as SonnerToaster } from '@/components/ui/sonner';
 import { AuthProvider } from '@/contexts/AuthContext';
+import { ChunkLoadErrorBoundary } from '@/components/ChunkLoadErrorBoundary';
 import router from './app/router';
 
 const queryClient = new QueryClient({
@@ -20,7 +21,9 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <TooltipProvider>
-          <RouterProvider router={router} />
+          <ChunkLoadErrorBoundary>
+            <RouterProvider router={router} />
+          </ChunkLoadErrorBoundary>
           <Toaster />
           <SonnerToaster />
         </TooltipProvider>
