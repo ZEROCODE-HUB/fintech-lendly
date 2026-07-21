@@ -1,6 +1,4 @@
-import { increscendoApiFetch } from './increscendoApi';
-
-const EMAIL_API_KEY = import.meta.env.VITE_EMAIL_API_KEY || '';
+import { supabase } from './supabase';
 
 export interface SendEmailParams {
   to: string | string[];
@@ -11,17 +9,11 @@ export interface SendEmailParams {
 
 export const sendEmail = async (params: SendEmailParams): Promise<void> => {
   try {
-    const resp = await increscendoApiFetch('https://increscendo-api.vercel.app/api/email/send', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': EMAIL_API_KEY,
-      },
-      body: JSON.stringify(params),
+    const { error } = await supabase.functions.invoke('send-email', {
+      body: params,
     });
-    if (!resp.ok) {
-      const data = await resp.json().catch(() => null);
-      console.warn('[email] send failed', resp.status, data);
+    if (error) {
+      console.warn('[email] send failed', error.message);
     }
   } catch (err) {
     console.warn('[email] send error', err);

@@ -124,19 +124,16 @@ export const ModifyLoanModal = ({ open, onOpenChange, loan, onSend, onSave }: Mo
       const monthlyPaymentValue = schedule[0]?.payment || 0;
       const totalToPay = monthlyPaymentValue * installments;
 
-      const { error } = await supabase
-        .from('loans')
-        .update({
-          amount,
-          installments,
-          interest_rate: rateDecimal,
-          monthly_payment: Math.round(monthlyPaymentValue * 100) / 100,
-          total_to_pay: Math.round(totalToPay * 100) / 100,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', loanId);
-
-      if (error) throw error;
+      const { data: rpcResult, error: rpcError } = await supabase.rpc('admin_modify_loan_terms', {
+        p_loan_id: loanId,
+        p_amount: amount,
+        p_installments: installments,
+        p_interest_rate: rateDecimal,
+        p_monthly_payment: Math.round(monthlyPaymentValue * 100) / 100,
+        p_total_to_pay: Math.round(totalToPay * 100) / 100,
+      });
+      if (rpcError) throw rpcError;
+      if (rpcResult?.error) throw new Error(rpcResult.error);
       
       const updatedRaw = {
         ...loan.raw,

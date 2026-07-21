@@ -962,8 +962,9 @@ const LoanProcess = () => {
         const loanId = currentLoan?.id ?? (() => { try { return localStorage.getItem('resume_loan_id') || null; } catch { return null; } })();
         if (loanId) {
           try {
-            const { error } = await supabase.from('loans').update({ status: 'signed', signed_at: new Date().toISOString() }).eq('id', loanId);
-            if (error) throw error;
+            const { data: rpcResult, error: rpcError } = await supabase.rpc('user_sign_loan', { p_loan_id: loanId });
+            if (rpcError) throw rpcError;
+            if (rpcResult?.error) throw new Error(rpcResult.error);
             // update local state if currentLoan matches
             if (currentLoan && currentLoan.id === loanId) {
               setCurrentLoan(prev => prev ? ({ ...prev, status: 'signed', signed_at: new Date().toISOString() }) : prev);

@@ -27,7 +27,7 @@ import { ResendContractModal, AttachContractModal } from "@/components/admin/loa
 import { ConsentRenewModal } from "@/components/admin/loans/modals/ConsentRenewModal";
 import { ModifyDisbursementModal, ConfirmDisbursementModal } from "@/components/admin/loans/modals/DisbursementModals";
 import { SendReminderModal, SellPortfolioModal, UpdateInstallmentsModal } from "@/components/admin/loans/modals/OverdueModals";
-import * as XLSX from "xlsx";
+
 
 const BANK_LIST = [
   { id: "mx_afirme", name: "Banca Afirme" },
@@ -457,6 +457,15 @@ const LoanManagement = () => {
   const { userId } = useAuth();
   const queryClient = useQueryClient();
   const isProcessingRef = useRef(false);
+  const approveIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const rejectIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (approveIntervalRef.current) clearInterval(approveIntervalRef.current);
+      if (rejectIntervalRef.current) clearInterval(rejectIntervalRef.current);
+    };
+  }, []);
 
   const [activeTab, setActiveTab] = useState<string>('pending');
   const pageSize = 5;
@@ -852,7 +861,8 @@ const LoanManagement = () => {
       messageIndex = Math.min(messageIndex + 1, APPROVE_MESSAGES.length - 1);
     };
 
-    const messageInterval = setInterval(updateMessage, 2000);
+    approveIntervalRef.current = setInterval(updateMessage, 2000);
+    const messageInterval = approveIntervalRef.current;
     updateMessage();
 
     try {
@@ -1016,10 +1026,11 @@ const LoanManagement = () => {
     setRejectingState({ open: true, message: REJECT_MESSAGES[0] });
 
     let msgIdx = 0;
-    const msgInterval = setInterval(() => {
+    rejectIntervalRef.current = setInterval(() => {
       msgIdx = (msgIdx + 1) % REJECT_MESSAGES.length;
       setRejectingState(prev => ({ ...prev, message: REJECT_MESSAGES[msgIdx] }));
     }, 2000);
+    const msgInterval = rejectIntervalRef.current;
 
     try {
       const { data: rpcResult, error: rpcError } = await supabase.rpc('admin_update_loan_status', {
