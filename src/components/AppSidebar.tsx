@@ -45,7 +45,7 @@ const adminItems = [
 ];
 
 export function AppSidebar() {
-  const { state } = useSidebar();
+  const { state, setOpenMobile } = useSidebar();
   const { user, signOut, userRole: authUserRole } = useAuth();
   const isCollapsed = state === "collapsed";
   const navigate = useNavigate();
@@ -316,14 +316,14 @@ export function AppSidebar() {
                       <SidebarMenuItem key={item.title}>
                         {(item as any).isOnboarding ? (
                           <button
-                            onClick={(e) => handleMenuClick(item, e)}
+                            onClick={(e) => { handleMenuClick(item, e); }}
                             className={`flex items-center gap-3 w-full px-3 py-3 md:py-2 rounded-md hover:bg-sidebar-accent/50`}
                           >
                             <item.icon className="h-5 w-5 flex-shrink-0" />
                             {!isCollapsed && <span className="text-sm md:text-xs">{item.title}</span>}
                           </button>
                         ) : (
-                          <NavLink to={item.url} end className={({ isActive }) => {
+                          <NavLink to={item.url} end onClick={() => setOpenMobile(false)} className={({ isActive }) => {
 
                             return `flex items-center gap-3 w-full px-3 py-3 md:py-2 rounded-md ${getNavClass({ isActive })}`;
                           }}>
@@ -343,7 +343,7 @@ export function AppSidebar() {
               <SidebarGroupContent>
                 <SidebarMenu>
                   <SidebarMenuItem>
-                    <NavLink to="/notifications" end className={({ isActive }) => `flex items-center gap-3 w-full px-3 py-3 md:py-2 rounded-md ${getNavClass({ isActive })}`}>
+                    <NavLink to="/notifications" end onClick={() => setOpenMobile(false)} className={({ isActive }) => `flex items-center gap-3 w-full px-3 py-3 md:py-2 rounded-md ${getNavClass({ isActive })}`}>
                       <Bell className="h-5 w-5 flex-shrink-0" />
                       {!isCollapsed && <span className="text-sm md:text-xs">Notificaciones</span>}
                       {unreadCount > 0 && location.pathname !== '/notifications' && <span className="ml-auto inline-flex items-center justify-center h-5 min-w-5 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold px-1">{unreadCount}</span>}
@@ -364,7 +364,7 @@ export function AppSidebar() {
                 <SidebarMenu>
                   {adminItems.map((item) => (
                     <SidebarMenuItem key={item.title}>
-                      <NavLink to={item.url} end className={({ isActive }) => `flex items-center gap-3 w-full px-3 py-3 md:py-2 rounded-md ${getNavClass({ isActive })}`}>
+                      <NavLink to={item.url} end onClick={() => setOpenMobile(false)} className={({ isActive }) => `flex items-center gap-3 w-full px-3 py-3 md:py-2 rounded-md ${getNavClass({ isActive })}`}>
                         <item.icon className="h-5 w-5 flex-shrink-0" />
                         {!isCollapsed && <span className="text-sm md:text-xs">{item.title}</span>}
                       </NavLink>
@@ -379,7 +379,7 @@ export function AppSidebar() {
               <SidebarGroupContent>
                 <SidebarMenu>
                   <SidebarMenuItem>
-                    <NavLink to="/notifications" end className={({ isActive }) => `flex items-center gap-3 w-full px-3 py-3 md:py-2 rounded-md ${getNavClass({ isActive })}`}>
+                    <NavLink to="/notifications" end onClick={() => setOpenMobile(false)} className={({ isActive }) => `flex items-center gap-3 w-full px-3 py-3 md:py-2 rounded-md ${getNavClass({ isActive })}`}>
                       <Bell className="h-5 w-5 flex-shrink-0" />
                       {!isCollapsed && <span className="text-sm md:text-xs">Notificaciones</span>}
                       {unreadCount > 0 && location.pathname !== '/notifications' && <span className="ml-auto inline-flex items-center justify-center h-5 min-w-5 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold px-1">{unreadCount}</span>}

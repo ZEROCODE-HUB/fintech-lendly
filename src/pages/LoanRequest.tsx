@@ -172,7 +172,7 @@ const LoanRequest = () => {
 
   return (
     <>
-      <div className="p-4 sm:p-6 max-w-4xl mx-auto space-y-4 sm:space-y-6">
+      <div className="p-3 sm:p-6 max-w-4xl mx-auto space-y-4 sm:space-y-6">
         {userMembership && (
           <Card className="border-success bg-success/5">
             <CardContent className="flex flex-row items-center gap-3 sm:gap-4 p-4">
@@ -191,7 +191,7 @@ const LoanRequest = () => {
 
         {/* Loan Calculator */}
         <Card className="shadow-soft">
-          <CardHeader className="p-5">
+          <CardHeader className="p-3 sm:p-5">
             <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
               <DollarSign className="h-4 w-4 sm:h-5 sm:w-5" />
               Simulador de Préstamo
@@ -200,8 +200,8 @@ const LoanRequest = () => {
               Ingresa el monto deseado y visualiza tus pagos mensuales
             </CardDescription>
           </CardHeader>
-          <CardContent className=" space-y-2">
-            <div className="space-y-2">
+          <CardContent className="p-4 sm:p-6 pt-0 space-y-1.5 sm:space-y-2">
+            <div className="space-y-1.5 sm:space-y-2">
               <Label htmlFor="amount" className="text-sm">Monto del Préstamo</Label>
               <div className="relative">
                 <span className="absolute left-3 top-3 text-sm text-muted-foreground">$</span>
@@ -214,7 +214,7 @@ const LoanRequest = () => {
                   className="pl-7 text-base sm:text-lg font-semibold h-10"
                 />
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-2 mt-1.5 sm:mt-2">
                 {[5000, 10000, 15000, 20000].map((amount) => (
                   <Button
                     key={amount}
@@ -229,7 +229,7 @@ const LoanRequest = () => {
               </div>
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-1.5 sm:space-y-2">
               <Label htmlFor="installments" className="text-sm">Número de Cuotas</Label>
               <Select value={installments} onValueChange={handleInstallmentsChange}>
                 <SelectTrigger id="installments" className="h-10">
@@ -246,14 +246,14 @@ const LoanRequest = () => {
             </div>
 
             {loanAmount && (
-              <div className="bg-gradient-to-br from-primary/5 to-accent/10 rounded-xl p-4 space-y-3">
+              <div className="bg-gradient-to-br from-primary/5 to-accent/10 rounded-xl p-3 sm:p-4 space-y-2 sm:space-y-3">
                 <div className="flex flex-col gap-1">
                   <span className="text-xs sm:text-sm text-muted-foreground">Pago Mensual Estimado</span>
                   <span className="text-2xl sm:text-3xl font-bold text-primary">
                     ${estimatedPayment.toFixed(2)}
                   </span>
                 </div>
-                <div className="grid grid-cols-3 gap-3 pt-3 border-t border-border/50">
+                <div className="grid grid-cols-3 gap-2 sm:gap-3 pt-2 sm:pt-3 border-t border-border/50">
                   <div>
                     <p className="text-[10px] sm:text-xs text-muted-foreground">Plazo</p>
                     <p className="font-semibold text-sm mt-0.5">{installments} meses</p>
@@ -269,7 +269,7 @@ const LoanRequest = () => {
                 </div>
                 <Button
                   variant="outline"
-                  className="w-full mt-2 text-xs sm:text-sm h-10"
+                  className="w-full mt-1 sm:mt-2 text-xs sm:text-sm h-10"
                   onClick={generatePaymentSchedule}
                 >
                   <Calendar className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
@@ -282,7 +282,7 @@ const LoanRequest = () => {
             <div className="bg-muted/50 rounded-lg p-3 sm:p-4 flex items-start gap-2 sm:gap-3">
               <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5 text-primary mt-0.5 flex-shrink-0" />
               <div className="text-xs sm:text-sm">
-                <p className="font-semibold mb-1.5 text-sm">Información Importante</p>
+                <p className="font-semibold mb-1 sm:mb-1.5 text-sm">Información Importante</p>
                 <ul className="space-y-1 text-muted-foreground">
                   <li>• Solicitud revisada en 24-48 horas</li>
                   <li>• Requiere membresía activa</li>
