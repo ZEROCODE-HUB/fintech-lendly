@@ -6,11 +6,13 @@ import {
 } from "lucide-react";
 import heroImage from "@/assets/vitaly-gariev-omGSZqBXkqY-unsplash.jpeg";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/contexts/AuthContext";
 import { AnimatedNumber } from "@/components/AnimatedNumber";
 import { Chatbot } from "@/components/Chatbot";
 
 const Index = () => {
   const navigate = useNavigate();
+  const { user, userRole } = useAuth();
   const [statsInView, setStatsInView] = useState(false);
   const statsRef = useRef<HTMLDivElement>(null);
   const [featuresInView, setFeaturesInView] = useState(false);
@@ -39,27 +41,15 @@ const Index = () => {
   }, []);
 
   const handleAccess = async () => {
-    try {
-      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-      if (sessionError) console.warn('[Index] getSession error', sessionError);
-      const session = sessionData?.session ?? null;
-      const user = session?.user ?? null;
-      if (user) {
-        try {
-          const { data: profileRow, error: profileErr } = await supabase
-            .from('users').select('role').eq('id', user.id).limit(1).maybeSingle();
-          if (profileErr) console.warn('[Index] users lookup error', profileErr);
-          const role = (profileRow as any)?.role ?? 'client';
-          navigate(role === 'admin' ? '/admin/dashboard' : '/service-selection');
-          return;
-        } catch (e) { console.warn('[Index] profile lookup failed', e); }
-      }
-    } catch (err) { console.warn('[Index] getSession failed', err); }
-    const userStr = localStorage.getItem('increscendo_user');
-    const testRole = localStorage.getItem('testUserRole');
-    if (!userStr && !testRole) { navigate('/auth'); return; }
-    const userLocal = userStr ? JSON.parse(userStr) : { role: testRole };
-    navigate(userLocal.role === 'admin' ? '/admin/dashboard' : '/service-selection');
+    if (!user) {
+      navigate('/auth');
+      return;
+    }
+    if (userRole === 'admin') {
+      navigate('/admin/dashboard');
+    } else {
+      navigate('/service-selection');
+    }
   };
 
   return (
@@ -360,11 +350,8 @@ const Index = () => {
           <div className="pt-2">
             <Button size="lg"
               onClick={() => {
-                const userStr = localStorage.getItem('increscendo_user');
-                const testRole = localStorage.getItem('testUserRole');
-                if (!userStr && !testRole) { navigate('/auth'); return; }
-                const user = userStr ? JSON.parse(userStr) : { role: testRole };
-                navigate(user.role === 'admin' ? '/admin/dashboard' : '/dashboard');
+                if (!user) { navigate('/auth'); return; }
+                navigate(userRole === 'admin' ? '/admin/dashboard' : '/dashboard');
               }}
               className="bg-success hover:bg-success/90 text-white shadow-glow-success font-semibold px-10 w-full sm:w-auto">
               Crear Cuenta Gratis

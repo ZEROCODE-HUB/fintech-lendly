@@ -8,6 +8,7 @@ interface AuthContextValue {
   user: User | null;
   session: Session | null;
   isLoading: boolean;
+  isRoleLoading: boolean;
   isAdmin: boolean;
   userRole: UserRole | null;
   userId: string | null;
@@ -28,6 +29,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRoleLoading, setIsRoleLoading] = useState(true);
   const [userRole, setUserRole] = useState<UserRole | null>(null);
   const roleFetchedRef = useRef(false);
   const timeoutRef = useRef<NodeJS.Timeout>();
@@ -45,6 +47,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     } catch {
       setUserRole(null);
+    } finally {
+      setIsRoleLoading(false);
     }
   }, []);
 
@@ -57,6 +61,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (mounted && isLoadingRef.current) {
           isLoadingRef.current = false;
           setIsLoading(false);
+          setIsRoleLoading(false);
         }
       }, 4000);
 
@@ -79,6 +84,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (session?.user?.id && !roleFetchedRef.current) {
           roleFetchedRef.current = true;
           fetchUserRole(session.user.id);
+        } else {
+          setIsRoleLoading(false);
         }
       } catch (error) {
         console.error('Auth init error:', error);
@@ -86,6 +93,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           clearTimeout(timeoutRef.current);
           isLoadingRef.current = false;
           setIsLoading(false);
+          setIsRoleLoading(false);
         }
       }
     };
@@ -108,6 +116,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         } else if (event === 'SIGNED_OUT') {
           roleFetchedRef.current = false;
           setUserRole(null);
+          setIsRoleLoading(false);
         }
       }
     );
@@ -123,7 +132,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await supabase.auth.signOut();
       localStorage.removeItem('increscendo_user');
-      localStorage.removeItem('increscendo_session');
       localStorage.removeItem('testUserRole');
       setUser(null);
       setSession(null);
@@ -138,11 +146,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     user,
     session,
     isLoading,
+    isRoleLoading,
     isAdmin: userRole === 'admin',
     userRole,
     userId: user?.id ?? null,
     signOut,
-  }), [user, session, isLoading, userRole, signOut]);
+  }), [user, session, isLoading, isRoleLoading, userRole, signOut]);
 
   return (
     <AuthContext.Provider value={value}>

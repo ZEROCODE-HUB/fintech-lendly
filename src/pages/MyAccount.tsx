@@ -182,11 +182,6 @@ const MyAccount = () => {
 
     setIsUploadingIne(true);
     try {
-      let userId: string | null = null;
-      try { userId = JSON.parse(localStorage.getItem('increscendo_session') || '{}')?.user?.id ?? null; } catch { }
-      if (!userId) {
-        try { const { data } = await supabase.auth.getUser(); userId = data?.user?.id ?? null; } catch (e) { /* ignore */ }
-      }
       if (!userId) throw new Error('No se pudo identificar al usuario');
 
       const timestamp = Date.now();
@@ -226,29 +221,11 @@ const MyAccount = () => {
   useEffect(() => {
     const loadProfile = async () => {
       try {
-        let sessionStr = null;
-        try { sessionStr = localStorage.getItem('increscendo_session'); } catch { }
-        let userId: string | null = null;
-        if (sessionStr) {
-          try {
-            const sessionObj = JSON.parse(sessionStr);
-            userId = sessionObj?.user?.id ?? null;
-          } catch (e) { console.warn('[MyAccount] failed parsing stored session', e); }
-        }
-
-        if (!userId) {
-          try {
-            const { data } = await supabase.auth.getUser();
-            userId = data?.user?.id ?? null;
-          } catch (e) { console.warn('[MyAccount] supabase.getUser failed', e); }
-        }
-
         if (!userId) {
           console.warn('[MyAccount] no user id available to load profile');
           return;
         }
 
-        console.log('[MyAccount] loading users row for id', userId);
         setIsLoadingProfile(true);
         let { data, error } = await supabase.from('users').select('first_name,last_name,email,phone,phone_country_code,avatar_url,role,metadata,terms_accepted,address,birth_date,curp,ine_key,ine_front_url,ine_back_url,created_at,updated_at').eq('id', userId).limit(1).single();
         if (error) {
@@ -282,13 +259,11 @@ const MyAccount = () => {
               created_at: new Date().toISOString(),
               updated_at: new Date().toISOString(),
             };
-            console.log('[MyAccount] attempting to insert minimal users row', minimal);
             const ins = await supabase.from('users').insert(minimal).select();
             if (ins.error) {
               console.warn('[MyAccount] minimal insert failed', ins.error);
             } else {
               data = (ins.data as any)?.[0] ?? null;
-              console.log('[MyAccount] minimal profile created', data);
               try {
                 const profile = { id: userId, email: authEmail ?? undefined, name: `${minimal.first_name || ''} ${minimal.last_name || ''}`.trim(), firstName: minimal.first_name || '', lastName: minimal.last_name || '', role: data?.role ?? 'client', avatar: data?.avatar_url ?? null };
                 localStorage.setItem('increscendo_user', JSON.stringify(profile));
@@ -316,7 +291,6 @@ const MyAccount = () => {
           setIneFrontPreview(data.ine_front_url || null);
           setIneBackPreview(data.ine_back_url || null);
           try { setUserRole(data.role ?? currentUser?.role ?? null); } catch (e) { /* ignore */ }
-          console.log('[MyAccount] loaded profile from users table', data);
         }
         setIsLoadingProfile(false);
       } catch (e) {
@@ -351,11 +325,6 @@ const MyAccount = () => {
 
   const handleSavePersonalData = async () => {
     try {
-      let userId: string | null = null;
-      try { userId = JSON.parse(localStorage.getItem('increscendo_session') || '{}')?.user?.id ?? null; } catch { }
-      if (!userId) {
-        try { const { data } = await supabase.auth.getUser(); userId = data?.user?.id ?? null; } catch (e) { /* ignore */ }
-      }
       if (!userId) throw new Error('No se pudo identificar al usuario');
 
       const updates = {
@@ -438,12 +407,6 @@ const MyAccount = () => {
 
       setIsUploadingAvatar(true);
 
-      let userId: string | null = null;
-      try { userId = JSON.parse(localStorage.getItem('increscendo_session') || '{}')?.user?.id ?? null; } catch { }
-      if (!userId) {
-        try { const { data } = await supabase.auth.getUser(); userId = data?.user?.id ?? null; } catch (e) { /* ignore */ }
-      }
-
       if (!userId) {
         throw new Error('No se pudo identificar al usuario');
       }
@@ -451,8 +414,6 @@ const MyAccount = () => {
       const fileExt = file.name.split('.').pop();
       const fileName = `${userId}/avatar.${fileExt}`;
       const filePath = `avatars/${fileName}`;
-
-      console.log('[MyAccount] uploading avatar to', filePath);
 
       const { data, error: uploadError } = await supabase.storage
         .from('user-documents')

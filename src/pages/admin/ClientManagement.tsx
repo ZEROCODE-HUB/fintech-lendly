@@ -86,10 +86,6 @@ const ClientManagement = () => {
             .eq('active', true),
         ]);
 
-        console.log('[ClientManagement] usersRes', usersRes);
-        console.log('[ClientManagement] userMembershipsRes', userMembershipsRes);
-        console.log('[ClientManagement] plansRes', plansRes);
-
         if (usersRes.error) throw usersRes.error;
         if (userMembershipsRes.error) throw userMembershipsRes.error;
         if (plansRes.error) throw plansRes.error;
@@ -148,8 +144,6 @@ const ClientManagement = () => {
           };
         });
 
-        console.log('[ClientManagement] mappedMemberships', mappedMemberships);
-
         // Fetch loan counts for each user
         const loansRes = await supabase
           .from('loans')
@@ -198,8 +192,6 @@ const ClientManagement = () => {
             activeLoans: loanCounts.active,
           };
         });
-
-        console.log('[ClientManagement] mappedClients', mappedClients);
 
         setClients(mappedClients);
         setMemberships(mappedMemberships);

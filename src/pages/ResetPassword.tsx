@@ -26,11 +26,6 @@ const ResetPassword: React.FC = () => {
     if (hasRunRef.current) return;
     hasRunRef.current = true;
 
-    const fullUrl = window.location.href;
-    console.log('[ResetPassword] Full URL:', fullUrl);
-    console.log('[ResetPassword] Hash:', window.location.hash);
-    console.log('[ResetPassword] Search:', window.location.search);
-
     let token = '';
     let refreshToken = '';
     let tokenType = '';
@@ -50,8 +45,6 @@ const ResetPassword: React.FC = () => {
       tokenType = searchParams.get('type') || '';
     }
 
-    console.log('[ResetPassword] Extracted token:', token, 'refresh:', refreshToken, 'type:', tokenType);
-
     if (!token) {
       setError("Enlace de recuperación inválido. No se encontró token.");
       setIsReady(true);
@@ -64,8 +57,6 @@ const ResetPassword: React.FC = () => {
           access_token: token,
           refresh_token: refreshToken,
         });
-
-        console.log('[ResetPassword] setSession result - session:', !!data.session, 'error:', sessionError?.message);
 
         if (sessionError && !data.session) {
           console.error('[ResetPassword] setSession error', sessionError);

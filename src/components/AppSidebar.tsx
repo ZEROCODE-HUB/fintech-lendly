@@ -20,7 +20,6 @@ import {
   SidebarGroupContent,
   SidebarGroupLabel,
   SidebarMenu,
-  SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
   useSidebar,
@@ -186,7 +185,6 @@ export function AppSidebar() {
   };
 
   const getNavClass = ({ isActive }: { isActive: boolean }) => {
-    console.log('[Sidebar] getNavClass - isActive:', isActive, 'pathname:', location.pathname);
     return isActive
       ? "bg-[#223f6c] text-white font-semibold"
       : "hover:bg-sidebar-accent/50";
@@ -314,7 +312,6 @@ export function AppSidebar() {
               <SidebarGroupContent>
                 <SidebarMenu>
                   {menuItems.map((item) => {
-                    console.log('[Sidebar Client] Item:', item.title, 'URL:', item.url, 'Current Path:', location.pathname);
                     return (
                       <SidebarMenuItem key={item.title}>
                         {(item as any).isOnboarding ? (
@@ -327,7 +324,7 @@ export function AppSidebar() {
                           </button>
                         ) : (
                           <NavLink to={item.url} end className={({ isActive }) => {
-                            console.log('[Sidebar NavLink]', item.title, 'isActive:', isActive, 'url:', item.url, 'pathname:', location.pathname);
+
                             return `flex items-center gap-3 w-full px-3 py-3 md:py-2 rounded-md ${getNavClass({ isActive })}`;
                           }}>
                             <item.icon className="h-5 w-5 flex-shrink-0" />
@@ -349,8 +346,8 @@ export function AppSidebar() {
                     <NavLink to="/notifications" end className={({ isActive }) => `flex items-center gap-3 w-full px-3 py-3 md:py-2 rounded-md ${getNavClass({ isActive })}`}>
                       <Bell className="h-5 w-5 flex-shrink-0" />
                       {!isCollapsed && <span className="text-sm md:text-xs">Notificaciones</span>}
+                      {unreadCount > 0 && location.pathname !== '/notifications' && <span className="ml-auto inline-flex items-center justify-center h-5 min-w-5 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold px-1">{unreadCount}</span>}
                     </NavLink>
-                    {unreadCount > 0 && <SidebarMenuBadge className="bg-destructive text-destructive-foreground text-[10px] font-bold">{unreadCount}</SidebarMenuBadge>}
                   </SidebarMenuItem>
                 </SidebarMenu>
               </SidebarGroupContent>
@@ -385,8 +382,8 @@ export function AppSidebar() {
                     <NavLink to="/notifications" end className={({ isActive }) => `flex items-center gap-3 w-full px-3 py-3 md:py-2 rounded-md ${getNavClass({ isActive })}`}>
                       <Bell className="h-5 w-5 flex-shrink-0" />
                       {!isCollapsed && <span className="text-sm md:text-xs">Notificaciones</span>}
+                      {unreadCount > 0 && location.pathname !== '/notifications' && <span className="ml-auto inline-flex items-center justify-center h-5 min-w-5 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold px-1">{unreadCount}</span>}
                     </NavLink>
-                    {unreadCount > 0 && <SidebarMenuBadge className="bg-destructive text-destructive-foreground text-[10px] font-bold">{unreadCount}</SidebarMenuBadge>}
                   </SidebarMenuItem>
                 </SidebarMenu>
               </SidebarGroupContent>

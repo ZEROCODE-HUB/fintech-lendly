@@ -3,59 +3,23 @@ import { Button } from "@/components/ui/button";
 import { useNavigate, Link } from "react-router-dom";
 import { Menu, X } from "lucide-react";
 import logoHorizontal from "@/assets/logo-horizontal.webp";
-import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/contexts/AuthContext";
 
 export const PublicHeader = () => {
   const navigate = useNavigate();
+  const { user, userRole } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const handleAccess = async () => {
-    try {
-      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-      if (sessionError) {
-        console.warn('[PublicHeader] getSession error', sessionError);
-      }
-
-      const session = sessionData?.session ?? null;
-      const user = session?.user ?? null;
-
-      if (user) {
-        try {
-          const { data: profileRow, error: profileErr } = await supabase
-            .from('users')
-            .select('role, first_name, last_name, avatar_url')
-            .eq('id', user.id)
-            .limit(1)
-            .maybeSingle();
-
-          if (profileErr) {
-            console.warn('[PublicHeader] users lookup error', profileErr);
-          }
-
-          const role = (profileRow as any)?.role ?? 'client';
-
-          if (role === 'admin') {
-            navigate('/admin/dashboard');
-          } else {
-            navigate('/service-selection');
-          }
-          return;
-        } catch (profileCatch) {
-          console.warn('[PublicHeader] exception during users lookup', profileCatch);
-        }
-      }
-    } catch (err) {
-      console.warn('[PublicHeader] handleAccess getSession failed', err);
-    }
-
-    const userStr = localStorage.getItem('increscendo_user');
-    const testRole = localStorage.getItem('testUserRole');
-    if (!userStr && !testRole) {
+  const handleAccess = () => {
+    if (!user) {
       navigate('/auth');
       return;
     }
-    const userLocal = userStr ? JSON.parse(userStr) : { role: testRole };
-    if (userLocal.role === 'admin') navigate('/admin/dashboard'); else navigate('/service-selection');
+    if (userRole === 'admin') {
+      navigate('/admin/dashboard');
+    } else {
+      navigate('/service-selection');
+    }
   };
 
   return (

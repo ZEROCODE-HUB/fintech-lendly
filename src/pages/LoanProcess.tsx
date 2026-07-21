@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -99,6 +99,32 @@ const isValidClabe = (value: string) => value ? /^\d{18}$/.test(value.trim()) : 
 const isValidRfc = (value: string) => /^[A-Z0-9]{12,13}$/.test(value.trim().toUpperCase());
 const hasDocumentSource = (file: File | null, url: string) => Boolean(file || normalizeText(url));
 
+const FIELD_LABELS: Record<string, string> = {
+  loanAmount: 'Monto',
+  loanInstallments: 'Plazo',
+  firstName: 'Nombre',
+  lastName: 'Apellidos',
+  address: 'Dirección',
+  birthDate: 'Fecha de nacimiento',
+  phone: 'Teléfono',
+  rfc: 'RFC',
+  ineKey: 'Clave INE',
+  curp: 'CURP',
+  paymentMethodId: 'Método de pago',
+  bank: 'Banco',
+  clabe: 'CLABE',
+  disbursementBank: 'Banco de desembolso',
+  disbursementClabe: 'CLABE de desembolso',
+  reference_name: 'Nombre del obligado',
+  reference_relationship: 'Relación del obligado',
+  reference_phone: 'Teléfono del obligado',
+  references: 'Obligado solidario',
+  ineFront: 'INE frontal',
+  ineBack: 'INE reverso',
+  selfieWithIne: 'Selfie con INE',
+  curpFile: 'Documento CURP',
+};
+
 const LoanProcess = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -113,6 +139,7 @@ const LoanProcess = () => {
   const [userMembership, setUserMembership] = useState<any | null>(null);
   const [currentLoan, setCurrentLoan] = useState<any | null>(null);
   const pollIntervalRef = useRef<number | null>(null);
+  const submittedTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [membershipPlans, setMembershipPlans] = useState<any[]>([]);
   const [loadingMemberships, setLoadingMemberships] = useState<boolean>(true);
   const [bankPaymentMethods, setBankPaymentMethods] = useState<any[]>([]);
@@ -124,13 +151,13 @@ const LoanProcess = () => {
 
   // Get loan data from navigation state or use defaults (guard against partial state)
   const navState: any = (location && (location.state as any)) || {};
-  const initialLoanData = {
+  const initialLoanData = useMemo(() => ({
     amount: navState.amount ?? 10000,
     installments: navState.installments ?? 12,
     monthlyPayment: navState.monthlyPayment ?? 952.38,
-    interestRate: navState.interestRate ?? 42, // Percentage (e.g., 42 for 42%)
+    interestRate: navState.interestRate ?? 42,
     totalToPay: navState.totalToPay ?? 11428.56,
-  };
+  }), [navState.amount, navState.installments, navState.monthlyPayment, navState.interestRate, navState.totalToPay]);
 
   // Convert interest rate from percentage to decimal for calculations
   const [interestRateDecimal, setInterestRateDecimal] = useState(initialLoanData.interestRate / 100);
@@ -380,7 +407,7 @@ const LoanProcess = () => {
     }
   };
 
-  const selectedSavedMethod = bankPaymentMethods.find(method => method.id === depositData.paymentMethodId) ?? null;
+  const selectedSavedMethod = useMemo(() => bankPaymentMethods.find(method => method.id === depositData.paymentMethodId) ?? null, [bankPaymentMethods, depositData.paymentMethodId]);
 
   const validateStepOne = () => {
     const nextErrors: Record<string, string> = {};
@@ -459,32 +486,6 @@ const LoanProcess = () => {
     if (currentStep === 1) return validateStepOne();
     if (currentStep === 3) return validateStepThree();
     return {};
-  };
-
-  const FIELD_LABELS: Record<string, string> = {
-    loanAmount: 'Monto',
-    loanInstallments: 'Plazo',
-    firstName: 'Nombre',
-    lastName: 'Apellidos',
-    address: 'Dirección',
-    birthDate: 'Fecha de nacimiento',
-    phone: 'Teléfono',
-    rfc: 'RFC',
-    ineKey: 'Clave INE',
-    curp: 'CURP',
-    paymentMethodId: 'Método de pago',
-    bank: 'Banco',
-    clabe: 'CLABE',
-    disbursementBank: 'Banco de desembolso',
-    disbursementClabe: 'CLABE de desembolso',
-    reference_name: 'Nombre del obligado',
-    reference_relationship: 'Relación del obligado',
-    reference_phone: 'Teléfono del obligado',
-    references: 'Obligado solidario',
-    ineFront: 'INE frontal',
-    ineBack: 'INE reverso',
-    selfieWithIne: 'Selfie con INE',
-    curpFile: 'Documento CURP',
   };
 
   useEffect(() => {
@@ -761,6 +762,7 @@ const LoanProcess = () => {
   }, [loanAmount, loanInstallments, interestRateDecimal]);
 
   useEffect(() => {
+    let mounted = true;
     const loadInstitutions = async () => {
       try {
         setLoadingInstitutions(true);
@@ -770,19 +772,21 @@ const LoanProcess = () => {
         const body = await response.json();
         const mapped = Array.isArray(body) ? body : (body?.data ?? []);
         const activeInstitutions = mapped.filter((item: Institution) => item?.status === 'active' && item?.name);
-        setInstitutions(activeInstitutions);
+        if (mounted) setInstitutions(activeInstitutions);
       } catch (err) {
         console.error('Error loading institutions:', err);
-        setInstitutions([]);
+        if (mounted) setInstitutions([]);
       } finally {
-        setLoadingInstitutions(false);
+        if (mounted) setLoadingInstitutions(false);
       }
     };
 
     loadInstitutions();
+    return () => { mounted = false; };
   }, []);
 
   useEffect(() => {
+    let mounted = true;
     const loadBankPaymentMethods = async () => {
       try {
         setLoadingBankPaymentMethods(true);
@@ -798,15 +802,16 @@ const LoanProcess = () => {
           .order('created_at', { ascending: false });
 
         if (error) throw error;
-        setBankPaymentMethods(data ?? []);
+        if (mounted) setBankPaymentMethods(data ?? []);
       } catch (err) {
         console.error('Error loading bank payment methods:', err);
       } finally {
-        setLoadingBankPaymentMethods(false);
+        if (mounted) setLoadingBankPaymentMethods(false);
       }
     };
 
     loadBankPaymentMethods();
+    return () => { mounted = false; };
   }, []);
 
   useEffect(() => {
@@ -840,16 +845,23 @@ const LoanProcess = () => {
     }
   }, [depositSource, depositData.paymentMethodId]);
 
-  const bankOptions = institutions
+  const bankOptions = useMemo(() => institutions
     .filter((institution) => institution.status === 'active')
-    .map((institution) => ({ id: institution.id, name: institution.name }));
+    .map((institution) => ({ id: institution.id, name: institution.name })),
+    [institutions]
+  );
 
-  const getInstitutionName = (institutionId: string) => {
+  const getInstitutionName = useCallback((institutionId: string) => {
     const institution = institutions.find((item) => item.id === institutionId);
     return institution?.name || institutionId;
-  };
+  }, [institutions]);
+
+  const isSubmittingRef = useRef(false);
 
   const handleNext = async () => {
+    if (isSubmittingRef.current) return;
+    isSubmittingRef.current = true;
+    try {
     const nextErrors = validateCurrentStep();
     setValidationErrors(nextErrors);
 
@@ -916,7 +928,7 @@ const LoanProcess = () => {
       };
 
       // Show loading for 3.5 seconds before showing submitted state
-      setTimeout(() => {
+      submittedTimeoutRef.current = setTimeout(() => {
         if (!isApproved) {
           setIsAnalyzing(false);
           setIsSubmitted(true);
@@ -960,6 +972,9 @@ const LoanProcess = () => {
       }
       setCurrentStep(prev => prev + 1);
     }
+    } finally {
+      isSubmittingRef.current = false;
+    }
   };
 
   const handleBack = () => {
@@ -977,6 +992,7 @@ const LoanProcess = () => {
   };
 
   useEffect(() => {
+    let mounted = true;
     const loadMembershipsAndUser = async () => {
       try {
         setLoadingMemberships(true);
@@ -988,7 +1004,7 @@ const LoanProcess = () => {
           .eq('active', true)
           .order('price', { ascending: true });
 
-        if (plans) {
+        if (plans && mounted) {
           const mapped = (plans as any[]).map((p: any) => {
             const features = p.features ?? {};
             const benefits = Array.isArray(features?.benefits)
@@ -1021,7 +1037,7 @@ const LoanProcess = () => {
         }
 
         // fetch user membership
-        if (!userId) return;
+        if (!userId || !mounted) return;
 
         const { data: umRow } = await supabase
           .from('user_memberships')
@@ -1032,26 +1048,30 @@ const LoanProcess = () => {
           .limit(1)
           .maybeSingle();
 
-        if (umRow) {
+        if (umRow && mounted) {
           setUserMembership(umRow);
           setHasMembership(true);
         }
       } catch (err) {
         // ignore
       } finally {
-        setLoadingMemberships(false);
+        if (mounted) setLoadingMemberships(false);
       }
     };
 
     loadMembershipsAndUser();
   }, []);
 
-  // cleanup polling interval on unmount
+  // cleanup polling interval and timeouts on unmount
   useEffect(() => {
     return () => {
       if (pollIntervalRef.current) {
         clearInterval(pollIntervalRef.current);
         pollIntervalRef.current = null;
+      }
+      if (submittedTimeoutRef.current) {
+        clearTimeout(submittedTimeoutRef.current);
+        submittedTimeoutRef.current = null;
       }
     };
   }, []);
@@ -1089,6 +1109,7 @@ const LoanProcess = () => {
 
   // Load current user's profile and prefill personal data for Step 3
   useEffect(() => {
+    let mounted = true;
     const loadUserProfile = async () => {
       try {
         if (!userId) return;
@@ -1100,7 +1121,7 @@ const LoanProcess = () => {
           .maybeSingle();
 
         if (error) throw error;
-        if (!data) return;
+        if (!data || !mounted) return;
 
         // Set document URLs if they exist in the database
         const ineFrontUrl = data.ine_front_url || '';
@@ -1134,6 +1155,7 @@ const LoanProcess = () => {
     };
 
     loadUserProfile();
+    return () => { mounted = false; };
   }, []);
 
   // Stepper Component

@@ -4,10 +4,12 @@ import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import logoFull from "@/assets/logo-full.png";
 import { increscendoApiFetch } from "@/lib/increscendoApi";
+import { useAuth } from "@/contexts/AuthContext";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const ServiceSelection = () => {
   const navigate = useNavigate();
+  const { user, userRole } = useAuth();
   const [isLoadingServicios, setIsLoadingServicios] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
 
@@ -59,14 +61,11 @@ const ServiceSelection = () => {
     e.preventDefault();
     e.stopPropagation();
 
-    const userStr = localStorage.getItem('increscendo_user');
-    const testRole = localStorage.getItem('testUserRole');
-    if (!userStr && !testRole) {
+    if (!user) {
       navigate('/auth');
       return;
     }
-    const user = userStr ? JSON.parse(userStr) : { role: testRole };
-    if (user.role === 'admin') {
+    if (userRole === 'admin') {
       navigate('/admin/dashboard');
     } else {
       navigate('/dashboard');
