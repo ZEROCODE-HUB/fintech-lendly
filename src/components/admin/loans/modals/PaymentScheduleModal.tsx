@@ -5,7 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Calendar, Loader2 } from 'lucide-react';
 import { increscendoApiFetch } from '@/lib/increscendoApi';
-import * as XLSX from 'xlsx';
+
 
 interface Props {
   open: boolean;
@@ -101,8 +101,9 @@ export const PaymentScheduleModal = ({ open, onOpenChange, loan }: Props) => {
     return [...installments].sort((a, b) => a.installment_number - b.installment_number);
   }, [installments]);
 
-  const handleExport = () => {
+  const handleExport = async () => {
     if (!loan || !sortedInstallments.length) return;
+    const XLSX = await import("xlsx");
     const headers = ['#','Fecha','Monto (MXN)','Estado'];
     const rows = sortedInstallments.map(r => [
       r.installment_number,

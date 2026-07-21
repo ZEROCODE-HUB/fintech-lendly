@@ -12,7 +12,6 @@ const ProntipagosSSO = () => {
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     // Aquí iría la lógica de autenticación SSO con Prontipagos
-    console.log("Login SSO Prontipagos", { username, password });
     
     // Simulación: cerrar ventana y enviar mensaje al parent
     if (window.opener) {

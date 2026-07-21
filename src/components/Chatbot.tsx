@@ -1,10 +1,39 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, memo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { MessageCircle, X, Send, Bot, User } from "lucide-react";
 
 const CHAT_API_URL = 'https://increscendo-api.vercel.app/api/chat';
+
+const ALLOWED_TAGS = ['P','STRONG','B','EM','I','A','BR','UL','OL','LI','H1','H2','H3','H4','H5','H6','SPAN','DIV'];
+
+function sanitizeHtml(dirty: string): string {
+  const doc = new DOMParser().parseFromString(dirty, 'text/html');
+  const walk = (node: Node) => {
+    for (const child of Array.from(node.childNodes)) {
+      if (child.nodeType === Node.ELEMENT_NODE) {
+        const el = child as HTMLElement;
+        const tag = el.tagName.toUpperCase();
+        if (!ALLOWED_TAGS.includes(tag)) {
+          el.replaceWith(...el.childNodes);
+          walk(node);
+          continue;
+        }
+        for (const attr of Array.from(el.attributes)) {
+          if (attr.name.startsWith('on')) el.removeAttribute(attr.name);
+          if (tag === 'A' && attr.name === 'href') {
+            const v = attr.value.toLowerCase().trim();
+            if (v.startsWith('javascript:') || v.startsWith('data:')) el.removeAttribute(attr.name);
+          }
+        }
+        walk(el);
+      }
+    }
+  };
+  walk(doc.body);
+  return doc.body.innerHTML;
+}
 
 interface Message {
   id: string;
@@ -13,20 +42,21 @@ interface Message {
   timestamp: Date;
 }
 
-const TypingIndicator = () => (
+const TypingIndicator = memo(() => (
   <div className="flex items-center gap-1.5 px-3 py-2 bg-muted/80 rounded-lg w-fit">
     <span className="w-2 h-2 bg-muted-foreground/60 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
     <span className="w-2 h-2 bg-muted-foreground/60 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
     <span className="w-2 h-2 bg-muted-foreground/60 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
   </div>
-);
+));
+TypingIndicator.displayName = 'TypingIndicator';
 
 export const Chatbot = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
-      text: '<p>¡Hola! 👋 Soy tu <strong>asistente virtual</strong> de Increscendo Fintech. ¿En qué puedo ayudarte hoy?</p>',
+      text: sanitizeHtml('<p>¡Hola! Soy tu <strong>asistente virtual</strong> de Increscendo Fintech. ¿En qué puedo ayudarte hoy?</p>'),
       sender: 'bot',
       timestamp: new Date()
     }
@@ -70,14 +100,14 @@ export const Chatbot = () => {
 
       setMessages(prev => [...prev, {
         id: (Date.now() + 1).toString(),
-        text: html,
+        text: sanitizeHtml(html),
         sender: 'bot',
         timestamp: new Date()
       }]);
     } catch (error) {
       setMessages(prev => [...prev, {
         id: (Date.now() + 1).toString(),
-        text: '<p>¡Ups! 😔 Parece que tuve un problemita. Por favor intenta de nuevo en un momento. Si el problema persiste, puedes contactarnos por <a href="https://wa.me/525590207001" target="_blank" rel="noopener">WhatsApp</a> o <a href="https://increscendofintech.com/contacto" target="_blank" rel="noopener">formulario de contacto</a>. ¡Gracias por tu paciencia!</p>',
+        text: sanitizeHtml('<p>¡Ups! Parece que tuve un problemita. Por favor intenta de nuevo en un momento. Si el problema persiste, puedes contactarnos por <a href="https://wa.me/525590207001" target="_blank" rel="noopener">WhatsApp</a> o <a href="https://increscendofintech.com/contacto" target="_blank" rel="noopener">formulario de contacto</a>. ¡Gracias por tu paciencia!</p>'),
         sender: 'bot',
         timestamp: new Date()
       }]);

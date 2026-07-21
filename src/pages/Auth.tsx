@@ -136,7 +136,6 @@ const Auth = () => {
         await supabase.auth.signOut();
         try {
           localStorage.removeItem('increscendo_user');
-          localStorage.removeItem('increscendo_session');
         } catch (lsErr) {
           console.warn('[Auth] failed to clear local storage', lsErr);
         }
@@ -157,10 +156,6 @@ const Auth = () => {
           const avatar = (profileRow as any)?.avatar_url ?? null;
           const profile = { id: user.id, email: user.email ?? null, name, firstName: firstNameVal, lastName: lastNameVal, role, avatar };
           localStorage.setItem('increscendo_user', JSON.stringify(profile));
-        }
-        const sessionObj = data.session ?? null;
-        if (sessionObj) {
-          localStorage.setItem('increscendo_session', JSON.stringify(sessionObj));
         }
       } catch (e) {
         console.warn('[Auth] failed to store profile', e);
@@ -235,7 +230,6 @@ const Auth = () => {
         console.warn('[Auth] signOut after signUp failed', signOutErr);
       }
       try {
-        localStorage.removeItem('increscendo_session');
         localStorage.removeItem('increscendo_user');
       } catch (lsErr) {
         console.warn('[Auth] clear local storage after signUp failed', lsErr);

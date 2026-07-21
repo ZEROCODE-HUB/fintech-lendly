@@ -2,17 +2,19 @@ import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 
-export const PageLoader: React.FC = () => (
+export const PageLoader: React.FC = React.memo(() => (
   <div className="flex items-center justify-center h-full min-h-[200px]">
     <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
   </div>
-);
+));
+PageLoader.displayName = 'PageLoader';
 
-export const FullScreenLoader: React.FC = () => (
+export const FullScreenLoader: React.FC = React.memo(() => (
   <div className="flex items-center justify-center min-h-screen">
     <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
   </div>
-);
+));
+FullScreenLoader.displayName = 'FullScreenLoader';
 
 interface RequireAuthProps {
   children: React.ReactNode;
@@ -96,10 +98,10 @@ export const RoleGuard: React.FC<RoleGuardProps> = ({
   loadingComponent,
   fallbackPath = '/dashboard'
 }) => {
-  const { user, isLoading, userRole } = useAuth();
+  const { user, isLoading, isRoleLoading, userRole } = useAuth();
   const location = useLocation();
 
-  if (isLoading) {
+  if (isLoading || isRoleLoading) {
     return loadingComponent ? <>{loadingComponent}</> : <FullScreenLoader />;
   }
 
@@ -107,19 +109,7 @@ export const RoleGuard: React.FC<RoleGuardProps> = ({
     return <Navigate to="/auth" state={{ from: location }} replace />;
   }
 
-  // Check role from localStorage as fallback for quick redirect on page reload
-  let effectiveRole = userRole;
-  if (!effectiveRole) {
-    try {
-      const stored = localStorage.getItem('increscendo_user');
-      if (stored) {
-        const data = JSON.parse(stored);
-        effectiveRole = data.role;
-      }
-    } catch (e) { /* ignore */ }
-  }
-
-  const hasRole = effectiveRole && allowedRoles.includes(effectiveRole as Role);
+  const hasRole = userRole && allowedRoles.includes(userRole as Role);
   if (!hasRole) {
     return <Navigate to={fallbackPath} replace />;
   }

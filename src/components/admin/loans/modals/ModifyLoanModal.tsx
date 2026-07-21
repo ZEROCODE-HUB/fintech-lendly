@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ChevronDown } from "lucide-react";
-import * as XLSX from 'xlsx';
+
 import { PendingLoan } from "@/types/loans";
 import { supabase } from "@/lib/supabase";
 
@@ -256,8 +256,9 @@ export const ModifyLoanModal = ({ open, onOpenChange, loan, onSend, onSave }: Mo
             <CollapsibleContent className="mt-4">
                 <div className="border rounded-lg max-h-[300px] overflow-auto">
                   <div className="p-3 flex justify-end">
-                    <Button variant="outline" size="sm" onClick={() => {
+                    <Button variant="outline" size="sm" onClick={async () => {
                       if (!schedule || schedule.length === 0) return;
+                      const XLSX = await import("xlsx");
                       const headers = ['#','Fecha','Pago (MXN)','Capital (MXN)','Interés (MXN)','Saldo (MXN)','Estado'];
                       const rows = schedule.map((r:any) => [r.number, r.date, r.payment, r.principal, r.interest, r.balance, r.status === 'paid' ? 'Pagado' : 'Pendiente']);
                       const aoa = [headers, ...rows];

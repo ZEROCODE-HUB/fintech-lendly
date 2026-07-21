@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef, memo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,7 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 import { ColumnConfig, PendingLoan, ContractLoan, DisbursementLoan, OverdueLoan } from "@/types/loans";
 import { useAdminPendingLoans, useAdminContractLoans, useAdminDisbursementLoans, useAdminActiveLoans, useAdminOverdueLoans, useAdminHistoryLoans } from "@/hooks/useLoans";
 import { supabase } from "@/lib/supabase";
-import { authService } from '@/utils/auth';
+import { useAuth } from "@/contexts/AuthContext";
 import { increscendoApiFetch } from "@/lib/increscendoApi";
 import { sendEmail } from "@/lib/emailService";
 import { loanApprovedTemplate, loanRejectedTemplate, paymentReminderTemplate, disbursementConfirmedTemplate } from "@/lib/emailTemplates";
@@ -27,7 +27,6 @@ import { ResendContractModal, AttachContractModal } from "@/components/admin/loa
 import { ConsentRenewModal } from "@/components/admin/loans/modals/ConsentRenewModal";
 import { ModifyDisbursementModal, ConfirmDisbursementModal } from "@/components/admin/loans/modals/DisbursementModals";
 import { SendReminderModal, SellPortfolioModal, UpdateInstallmentsModal } from "@/components/admin/loans/modals/OverdueModals";
-import { jsPDF } from "jspdf";
 import * as XLSX from "xlsx";
 
 const BANK_LIST = [
@@ -253,7 +252,8 @@ const buildFrenchSchedule = (principal: number, monthlyRate: number, months: num
   return rows;
 };
 
-const generateLoanSchedulePdfBase64 = (loan: any) => {
+const generateLoanSchedulePdfBase64 = async (loan: any) => {
+  const { jsPDF } = await import("jspdf");
   const principal = Number(loan.amount ?? loan.raw?.amount ?? 0);
   const months = Number(loan.installments ?? loan.raw?.installments ?? 0);
   const storedAnnualRate = Number(loan.raw?.interest_rate ?? 0.42);
@@ -398,9 +398,65 @@ const generateLoanSchedulePdfBase64 = (loan: any) => {
   return dataUri.split(',')[1] ?? '';
 };
 
+const SignatureStatusBadge = memo(({ status }: { status: string }) => {
+  switch (status) {
+    case 'Firmado': return <Badge className="bg-success/20 text-success border-success whitespace-nowrap">{status}</Badge>;
+    case 'Espera': return <Badge className="bg-warning/20 text-warning border-warning whitespace-nowrap">{status}</Badge>;
+    case 'Error': return <Badge className="bg-danger/20 text-danger border-danger whitespace-nowrap">{status}</Badge>;
+    default: return <Badge variant="outline" className="whitespace-nowrap">{status}</Badge>;
+  }
+});
+SignatureStatusBadge.displayName = 'SignatureStatusBadge';
+
+const ConsentBadge = memo(({ status: rawStatus }: { status?: string }) => {
+  const status = (rawStatus || '').toString();
+  const key = status.toLowerCase();
+
+  switch (key) {
+    case 'awaiting_information':
+      return <Badge className="bg-warning/20 text-warning border-warning whitespace-nowrap" title="Waiting for file uploads">Esperando archivos</Badge>;
+    case 'submitted':
+      return <Badge className="bg-info/20 text-info border-info whitespace-nowrap" title="All files uploaded, under review">En revisión</Badge>;
+    case 'processing':
+      return <Badge className="bg-info/20 text-info border-info whitespace-nowrap">KYC en progreso</Badge>;
+    case 'incomplete_information':
+      return <Badge className="bg-destructive/20 text-destructive border-destructive whitespace-nowrap" title="Missing required files">Archivos faltantes</Badge>;
+    case 'confirmed':
+      return <Badge className="bg-success/20 text-success border-success whitespace-nowrap" title="Approved - you can now create payment requests">Aprobado</Badge>;
+    case 'rejected':
+      return <Badge className="bg-destructive/20 text-destructive border-destructive whitespace-nowrap" title="Denied - check rejection reason and resubmit">Rechazado</Badge>;
+    case 'received_chargeback':
+      return <Badge className="bg-destructive/20 text-destructive border-destructive whitespace-nowrap">Chargeback</Badge>;
+    default:
+      return <Badge className="bg-warning/20 text-warning border-warning whitespace-nowrap">Pendiente</Badge>;
+  }
+});
+ConsentBadge.displayName = 'ConsentBadge';
+
+const StatusBadge = memo(({ status }: { status: string }) => {
+  switch (status) {
+    case 'pending': return <Badge className="bg-warning/20 text-warning border-warning whitespace-nowrap">Pendiente</Badge>;
+    case 'approved': return <Badge className="bg-success/20 text-success border-success whitespace-nowrap">Aprobado</Badge>;
+    case 'contract': return <Badge className="bg-info/20 text-info border-info whitespace-nowrap">En Firma</Badge>;
+    case 'signed': return <Badge className="bg-info/20 text-info border-info whitespace-nowrap">Firmado</Badge>;
+    case 'disbursed': return <Badge className="bg-success/20 text-success border-success whitespace-nowrap">Desembolsado</Badge>;
+    case 'active': return <Badge className="bg-success/20 text-success border-success whitespace-nowrap">Activo</Badge>;
+    case 'Al día': return <Badge className="bg-success/20 text-success border-success whitespace-nowrap">{status}</Badge>;
+    case 'Atrasado': return <Badge className="bg-warning/20 text-warning border-warning whitespace-nowrap">{status}</Badge>;
+    case 'Urgente': return <Badge className="bg-danger/20 text-danger border-danger whitespace-nowrap">{status}</Badge>;
+    case 'Liquidado': return <Badge className="bg-success/20 text-success border-success whitespace-nowrap">{status}</Badge>;
+    case 'Cartera Vendida': return <Badge className="bg-muted text-muted-foreground whitespace-nowrap">{status}</Badge>;
+    case 'Rechazado': return <Badge className="bg-danger/20 text-danger border-danger whitespace-nowrap">{status}</Badge>;
+    default: return <Badge variant="outline" className="whitespace-nowrap">{status}</Badge>;
+  }
+});
+StatusBadge.displayName = 'StatusBadge';
+
 const LoanManagement = () => {
   const { toast } = useToast();
+  const { userId } = useAuth();
   const queryClient = useQueryClient();
+  const isProcessingRef = useRef(false);
 
   const [activeTab, setActiveTab] = useState<string>('pending');
   const pageSize = 5;
@@ -721,7 +777,8 @@ const LoanManagement = () => {
     }
   }, [detailsModal.open]);
 
-  const exportToExcel = () => {
+  const exportToExcel = async () => {
+    const XLSX = await import("xlsx");
     const tabNames: Record<string, string> = {
       pending: 'Pendientes',
       contract: 'Firma',
@@ -780,8 +837,10 @@ const LoanManagement = () => {
   ];
 
   const handleApproveLoan = async () => {
+    if (isProcessingRef.current) return;
+    isProcessingRef.current = true;
     const loan = approveDialog.loan;
-    if (!loan) return;
+    if (!loan) { isProcessingRef.current = false; return; }
     const loanId = loan.uuid ?? loan.raw?.id ?? loan.id;
 
     setApproveDialog({ open: false, loan: null });
@@ -798,12 +857,12 @@ const LoanManagement = () => {
 
     try {
       setApprovingState(prev => ({ ...prev, message: 'Actualizando estado del préstamo...' }));
-      const { error } = await supabase
-        .from('loans')
-        .update({ status: 'approved', approved_at: new Date().toISOString() })
-        .eq('id', loanId);
-
-      if (error) throw error;
+      const { data: rpcResult, error: rpcError } = await supabase.rpc('admin_update_loan_status', {
+        p_loan_id: loanId,
+        p_action: 'approve',
+      });
+      if (rpcError) throw rpcError;
+      if (rpcResult?.error) throw new Error(rpcResult.error);
 
       if (loan.user_id) {
         try {
@@ -825,7 +884,7 @@ const LoanManagement = () => {
       if (loan.email) {
         try {
           setApprovingState(prev => ({ ...prev, message: 'Preparando documento de contrato...' }));
-          const optionalPdfBase64 = generateLoanSchedulePdfBase64(loan);
+          const optionalPdfBase64 = await generateLoanSchedulePdfBase64(loan);
           const optionalPdfName = `tabla-amortizacion-${loan.id ?? loan.uuid ?? 'prestamo'}.pdf`;
           setApprovingState(prev => ({ ...prev, message: 'Enviando invitación de firma...' }));
           const resp = await increscendoApiFetch('/signnow-invite', {
@@ -884,6 +943,8 @@ const LoanManagement = () => {
       console.error('Error aprobando solicitud', err);
       setApprovingState({ open: false, message: '' });
       toast({ title: 'Error', description: 'No se pudo aprobar la solicitud.', variant: 'destructive' });
+    } finally {
+      isProcessingRef.current = false;
     }
   };
 
@@ -947,8 +1008,10 @@ const LoanManagement = () => {
   ];
 
   const handleRejectLoan = async () => {
+    if (isProcessingRef.current) return;
+    isProcessingRef.current = true;
     const loan = rejectDialog.loan;
-    if (!loan) return;
+    if (!loan) { isProcessingRef.current = false; return; }
     setRejectDialog({ open: false, loan: null });
     setRejectingState({ open: true, message: REJECT_MESSAGES[0] });
 
@@ -959,12 +1022,12 @@ const LoanManagement = () => {
     }, 2000);
 
     try {
-      const { error } = await supabase
-        .from('loans')
-        .update({ status: 'cancelled', cancelled_at: new Date().toISOString() })
-        .eq('id', loan.uuid ?? loan.raw?.id);
-
-      if (error) throw error;
+      const { data: rpcResult, error: rpcError } = await supabase.rpc('admin_update_loan_status', {
+        p_loan_id: loan.uuid ?? loan.raw?.id,
+        p_action: 'reject',
+      });
+      if (rpcError) throw rpcError;
+      if (rpcResult?.error) throw new Error(rpcResult.error);
 
       await reloadCurrentTab();
 
@@ -1010,12 +1073,15 @@ const LoanManagement = () => {
       toast({ title: 'Error', description: 'No se pudo rechazar la solicitud.' });
     } finally {
       clearInterval(msgInterval);
+      isProcessingRef.current = false;
     }
   };
 
   const handleConfirmDisbursement = async (file: File | null) => {
+    if (isProcessingRef.current) return;
+    isProcessingRef.current = true;
     const loan = confirmDisbursementModal.loan;
-    if (!loan) return;
+    if (!loan) { isProcessingRef.current = false; return; }
     try {
       toast({ title: 'Procesando', description: 'Confirmando desembolso...' });
 
@@ -1044,11 +1110,10 @@ const LoanManagement = () => {
 
       // insert loan_documents if we uploaded a file
       if (publicUrl) {
-        const uploader = authService.getCurrentUser();
         const docPayload = {
           loan_id: loan.uuid ?? loan.raw?.id,
           type: 'voucher',
-          uploader_id: uploader?.id ?? null,
+          uploader_id: userId ?? null,
           file_url: publicUrl,
           file_name: file?.name ?? null,
           mime_type: file?.type ?? null,
@@ -1058,8 +1123,12 @@ const LoanManagement = () => {
       }
 
       // update loan status to active and set disbursed_at
-      const { error: loanErr } = await supabase.from('loans').update({ status: 'active', disbursed_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq('id', loan.uuid ?? loan.raw?.id);
-      if (loanErr) throw loanErr;
+      const { data: rpcResult, error: rpcError } = await supabase.rpc('admin_update_loan_status', {
+        p_loan_id: loan.uuid ?? loan.raw?.id,
+        p_action: 'disburse',
+      });
+      if (rpcError) throw rpcError;
+      if (rpcResult?.error) throw new Error(rpcResult.error);
 
       toast({ title: 'Desembolso confirmado', description: 'El préstamo se marcó como activo y el voucher fue subido.' });
       setConfirmDisbursementModal({ open: false, loan: null });
@@ -1089,6 +1158,8 @@ const LoanManagement = () => {
     } catch (err) {
       console.error('Error confirmando desembolso', err);
       toast({ title: 'Error', description: 'No se pudo confirmar el desembolso.', variant: 'destructive' });
+    } finally {
+      isProcessingRef.current = false;
     }
   };
 
@@ -1126,95 +1197,6 @@ const LoanManagement = () => {
     } catch (err) {
       console.error('Error enviando recordatorio', err);
       toast({ title: 'Error', description: 'No se pudo enviar el recordatorio.' });
-    }
-  };
-
-  const getSignatureStatusBadge = (status: string) => {
-    switch (status) {
-      case 'Firmado': return <Badge className="bg-success/20 text-success border-success whitespace-nowrap">{status}</Badge>;
-      case 'Espera': return <Badge className="bg-warning/20 text-warning border-warning whitespace-nowrap">{status}</Badge>;
-      case 'Error': return <Badge className="bg-danger/20 text-danger border-danger whitespace-nowrap">{status}</Badge>;
-      default: return <Badge variant="outline" className="whitespace-nowrap">{status}</Badge>;
-    }
-  };
-
-  const getConsentBadge = (rawStatus?: string) => {
-    const status = (rawStatus || '').toString();
-    const key = status.toLowerCase();
-
-    switch (key) {
-      case 'awaiting_information':
-        return (
-          <Badge className="bg-warning/20 text-warning border-warning whitespace-nowrap" title="Waiting for file uploads">
-            Esperando archivos
-          </Badge>
-        );
-
-      case 'submitted':
-        return (
-          <Badge className="bg-info/20 text-info border-info whitespace-nowrap" title="All files uploaded, under review">
-            En revisión
-          </Badge>
-        );
-
-      case 'processing':
-        return (
-          <Badge className="bg-info/20 text-info border-info whitespace-nowrap">
-            KYC en progreso
-          </Badge>
-        );
-
-      case 'incomplete_information':
-        return (
-          <Badge className="bg-destructive/20 text-destructive border-destructive whitespace-nowrap" title="Missing required files">
-            Archivos faltantes
-          </Badge>
-        );
-
-      case 'confirmed':
-        return (
-          <Badge className="bg-success/20 text-success border-success whitespace-nowrap" title="Approved - you can now create payment requests">
-            Aprobado
-          </Badge>
-        );
-
-      case 'rejected':
-        return (
-          <Badge className="bg-destructive/20 text-destructive border-destructive whitespace-nowrap" title="Denied - check rejection reason and resubmit">
-            Rechazado
-          </Badge>
-        );
-
-      case 'received_chargeback':
-        return (
-          <Badge className="bg-destructive/20 text-destructive border-destructive whitespace-nowrap">
-            Chargeback
-          </Badge>
-        );
-
-      default:
-        return (
-          <Badge className="bg-warning/20 text-warning border-warning whitespace-nowrap">
-            Pendiente
-          </Badge>
-        );
-    }
-  };
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'pending': return <Badge className="bg-warning/20 text-warning border-warning whitespace-nowrap">Pendiente</Badge>;
-      case 'approved': return <Badge className="bg-success/20 text-success border-success whitespace-nowrap">Aprobado</Badge>;
-      case 'contract': return <Badge className="bg-info/20 text-info border-info whitespace-nowrap">En Firma</Badge>;
-      case 'signed': return <Badge className="bg-info/20 text-info border-info whitespace-nowrap">Firmado</Badge>;
-      case 'disbursed': return <Badge className="bg-success/20 text-success border-success whitespace-nowrap">Desembolsado</Badge>;
-      case 'active': return <Badge className="bg-success/20 text-success border-success whitespace-nowrap">Activo</Badge>;
-      case 'Al día': return <Badge className="bg-success/20 text-success border-success whitespace-nowrap">{status}</Badge>;
-      case 'Atrasado': return <Badge className="bg-warning/20 text-warning border-warning whitespace-nowrap">{status}</Badge>;
-      case 'Urgente': return <Badge className="bg-danger/20 text-danger border-danger whitespace-nowrap">{status}</Badge>;
-      case 'Liquidado': return <Badge className="bg-success/20 text-success border-success whitespace-nowrap">{status}</Badge>;
-      case 'Cartera Vendida': return <Badge className="bg-muted text-muted-foreground whitespace-nowrap">{status}</Badge>;
-      case 'Rechazado': return <Badge className="bg-danger/20 text-danger border-danger whitespace-nowrap">{status}</Badge>;
-      default: return <Badge variant="outline" className="whitespace-nowrap">{status}</Badge>;
     }
   };
 
@@ -1303,7 +1285,7 @@ const LoanManagement = () => {
                           {isColumnVisible(pendingColumns, 'preApproval') && (
                             <TableCell>
                               {loan?.raw?.status === 'cancelled' || loan?.status === 'Rechazado' ? (
-                                getStatusBadge('Rechazado')
+                                <StatusBadge status="Rechazado" />
                               ) : (
                                 <Badge variant="outline" className="bg-warning/10 text-warning border-warning whitespace-nowrap">{loan.preApproval}</Badge>
                               )}
@@ -1343,7 +1325,7 @@ const LoanManagement = () => {
                           )}
                           {isColumnVisible(pendingColumns, 'consent') && (
                             <TableCell>
-                              {getConsentBadge(loan.status_consent || loan.raw?.status_consent || loan.statusConsent)}
+                              <ConsentBadge status={loan.status_consent || loan.raw?.status_consent || loan.statusConsent} />
                             </TableCell>
                           )}
                           {isColumnVisible(pendingColumns, 'requestDate') && <TableCell className="whitespace-nowrap">{formatDisplayDate(loan.requestDate)}</TableCell>}
@@ -1468,7 +1450,7 @@ const LoanManagement = () => {
                           )}
                           {isColumnVisible(contractColumns, 'ine') && <TableCell>{loan.ineNumber?.slice(0, 10) ?? 'N/A'}...</TableCell>}
                           {isColumnVisible(contractColumns, 'consent') && (
-                            <TableCell>{getConsentBadge(loan.status_consent || loan.raw?.status_consent || loan.statusConsent)}</TableCell>
+                            <TableCell><ConsentBadge status={loan.status_consent || loan.raw?.status_consent || loan.statusConsent} /></TableCell>
                           )}
                           {isColumnVisible(contractColumns, 'curp') && <TableCell>{loan.curpNumber?.slice(0, 10) ?? 'N/A'}...</TableCell>}
                           {isColumnVisible(contractColumns, 'preApproval') && (
@@ -1477,7 +1459,7 @@ const LoanManagement = () => {
                             </TableCell>
                           )}
                           {isColumnVisible(contractColumns, 'signatureStatus') && (
-                            <TableCell>{getSignatureStatusBadge(loan.signatureStatus)}</TableCell>
+                            <TableCell><SignatureStatusBadge status={loan.signatureStatus} /></TableCell>
                           )}
                           {isColumnVisible(contractColumns, 'actions') && (
                             <TableCell>
@@ -1583,7 +1565,7 @@ const LoanManagement = () => {
                           {isColumnVisible(disbursementColumns, 'bank') && <TableCell>{getBankName(loan.bank)}</TableCell>}
                           {isColumnVisible(disbursementColumns, 'accountNumber') && <TableCell>{loan.accountNumber}</TableCell>}
                           {isColumnVisible(disbursementColumns, 'consent') && (
-                            <TableCell>{getConsentBadge(loan.status_consent || loan.raw?.status_consent || loan.statusConsent)}</TableCell>
+                            <TableCell><ConsentBadge status={loan.status_consent || loan.raw?.status_consent || loan.statusConsent} /></TableCell>
                           )}
                           {isColumnVisible(disbursementColumns, 'ine') && <TableCell>{loan.ineNumber?.slice(0, 10) ?? 'N/A'}...</TableCell>}
                           {isColumnVisible(disbursementColumns, 'curp') && <TableCell>{loan.curpNumber?.slice(0, 10) ?? 'N/A'}...</TableCell>}
@@ -1693,9 +1675,9 @@ const LoanManagement = () => {
                           {isColumnVisible(activeColumns, 'installments') && <TableCell>{loan.installments}</TableCell>}
                           {isColumnVisible(activeColumns, 'paidInstallments') && <TableCell>{loan.paidInstallments}/{loan.installments}</TableCell>}
                           {isColumnVisible(activeColumns, 'ine') && <TableCell>{loan.ineNumber?.slice(0, 10) ?? 'N/A'}...</TableCell>}
-                          {isColumnVisible(activeColumns, 'consent') && <TableCell>{getConsentBadge(loan.status_consent || loan.raw?.status_consent || loan.statusConsent)}</TableCell>}
+                          {isColumnVisible(activeColumns, 'consent') && <TableCell><ConsentBadge status={loan.status_consent || loan.raw?.status_consent || loan.statusConsent} /></TableCell>}
                           {isColumnVisible(activeColumns, 'lastPaymentDate') && <TableCell className="whitespace-nowrap">{formatDisplayDate(loan.lastPaymentDate)}</TableCell>}
-                          {isColumnVisible(activeColumns, 'status') && <TableCell>{getStatusBadge(loan.status)}</TableCell>}
+                          {isColumnVisible(activeColumns, 'status') && <TableCell><StatusBadge status={loan.status} /></TableCell>}
                           {isColumnVisible(activeColumns, 'actions') && (
                             <TableCell>
                               <div className="flex gap-1">
@@ -1807,10 +1789,10 @@ const LoanManagement = () => {
                           {isColumnVisible(overdueColumns, 'installments') && <TableCell>{loan.installments}</TableCell>}
                           {isColumnVisible(overdueColumns, 'paidInstallments') && <TableCell>{loan.paidInstallments}/{loan.installments}</TableCell>}
                           {isColumnVisible(overdueColumns, 'ine') && <TableCell>{loan.ineNumber?.slice(0, 10) ?? 'N/A'}...</TableCell>}
-                          {isColumnVisible(overdueColumns, 'consent') && <TableCell>{getConsentBadge(loan.status_consent || loan.raw?.status_consent || loan.statusConsent)}</TableCell>}
+                          {isColumnVisible(overdueColumns, 'consent') && <TableCell><ConsentBadge status={loan.status_consent || loan.raw?.status_consent || loan.statusConsent} /></TableCell>}
                           {isColumnVisible(overdueColumns, 'lastPaymentDate') && <TableCell className="whitespace-nowrap">{formatDisplayDate(loan.lastPaymentDate)}</TableCell>}
                           {isColumnVisible(overdueColumns, 'nextPaymentDate') && <TableCell className="whitespace-nowrap">{formatDisplayDate(loan.nextPaymentDate)}</TableCell>}
-                          {isColumnVisible(overdueColumns, 'status') && <TableCell>{getStatusBadge('Atrasado')}</TableCell>}
+                          {isColumnVisible(overdueColumns, 'status') && <TableCell><StatusBadge status="Atrasado" /></TableCell>}
                           {isColumnVisible(overdueColumns, 'actions') && (
                             <TableCell>
                               <DropdownMenu>
@@ -1925,9 +1907,9 @@ const LoanManagement = () => {
                           {isColumnVisible(historyColumns, 'installments') && <TableCell>{loan.installments}</TableCell>}
                           {isColumnVisible(historyColumns, 'paidInstallments') && <TableCell>{loan.paidInstallments}/{loan.installments}</TableCell>}
                           {isColumnVisible(historyColumns, 'ine') && <TableCell>{loan.ineNumber?.slice(0, 10) ?? 'N/A'}...</TableCell>}
-                          {isColumnVisible(historyColumns, 'consent') && <TableCell>{getConsentBadge(loan.status_consent || loan.raw?.status_consent || loan.statusConsent)}</TableCell>}
+                          {isColumnVisible(historyColumns, 'consent') && <TableCell><ConsentBadge status={loan.status_consent || loan.raw?.status_consent || loan.statusConsent} /></TableCell>}
                           {isColumnVisible(historyColumns, 'lastPaymentDate') && <TableCell className="whitespace-nowrap">{formatDisplayDate(loan.lastPaymentDate)}</TableCell>}
-                          {isColumnVisible(historyColumns, 'status') && <TableCell>{getStatusBadge(loan.status)}</TableCell>}
+                          {isColumnVisible(historyColumns, 'status') && <TableCell><StatusBadge status={loan.status} /></TableCell>}
                           {isColumnVisible(historyColumns, 'actions') && (
                             <TableCell>
                               <Button size="sm" variant="ghost" onClick={() => setDetailsModal({ open: true, loan, sourceTab: 'history' })} title="Ver Detalles">
@@ -2054,7 +2036,7 @@ const LoanManagement = () => {
                   </div>
                   <div className="border border-gray-200 rounded-lg p-2.5 text-center bg-white">
                     <p className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wider mb-0.5">Estatus</p>
-                    <p className="text-sm font-bold">{getStatusBadge(loan?.status || '-')}</p>
+                    <p className="text-sm font-bold"><StatusBadge status={loan?.status || '-'} /></p>
                   </div>
                 </div>
 

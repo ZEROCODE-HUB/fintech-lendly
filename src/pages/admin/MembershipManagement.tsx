@@ -29,7 +29,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Plus, Edit, Trash2, Users, CreditCard, Percent } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { authService } from "@/utils/auth";
+import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from '@/lib/supabase';
 import { increscendoApiFetch } from "@/lib/increscendoApi";
 import { Skeleton } from '@/components/ui/skeleton';
@@ -91,8 +91,10 @@ const MembershipManagement = () => {
     benefits: ''
   });
 
+  const { isAdmin, isLoading: authLoading } = useAuth();
+
   useEffect(() => {
-    if (!authService.isAdmin()) {
+    if (!authLoading && !isAdmin) {
       toast({
         title: "Acceso denegado",
         description: "No tienes permisos para acceder a esta página",
