@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { CreditCard, Building2, Plus, Edit, Trash2, CheckCircle, Star, ArrowLeft } from "lucide-react";
+import { CreditCard, Building2, Plus, Edit, Trash2, CheckCircle, Star, ArrowLeft, AlertTriangle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
@@ -237,6 +237,9 @@ const PaymentMethods = () => {
         if (!/^\d{18}$/.test(formData.clabe)) {
           toast({ title: "CLABE inválida", description: "La CLABE debe tener exactamente 18 dígitos", variant: "destructive" }); return;
         }
+        if (formData.bankName?.toLowerCase().includes('santander') && /^814/.test(formData.clabe)) {
+          toast({ title: "CLABE inválida", description: "El prefijo 814 no está permitido para Santander. Usa la CLABE con prefijo 014.", variant: "destructive" }); return;
+        }
         const lastDigits = formData.clabe.slice(-4);
         const { error } = await supabase.from('payment_methods').insert({
           user_id: user.id, type: 'bank', bank_name: formData.bankName, last_digits: lastDigits, clabe: formData.clabe, holder_name: formData.accountHolder, validation_status: 'pendiente',
@@ -374,7 +377,7 @@ const PaymentMethods = () => {
         </CardContent>
       </Card>
 
-      <div className="flex justify-between items-center mt-3">
+      <div className="flex justify-between items-center mt-3 mb-6">
         {fromCheckout && (
           <Button variant="outline" onClick={() => navigate(returnTo!, { state: checkoutState })} className="gap-2">
             <ArrowLeft className="h-4 w-4" />Volver
@@ -395,7 +398,7 @@ const PaymentMethods = () => {
           </Card>
         ) : (
           paymentMethods.map((method) => (
-            <Card key={method.id} className={`shadow-soft flex flex-col ${method.is_default ? 'border-2 border-primary' : ''}`}>
+            <Card key={method.id} className={`shadow-soft flex flex-col overflow-hidden ${method.is_default ? 'border-2 border-primary' : ''}`}>
               {method.is_default && (
                 <div className="bg-primary text-primary-foreground text-xs font-semibold px-3 py-1.5 flex items-center gap-1.5">
                   <Star className="h-3 w-3 fill-primary-foreground" />
@@ -523,6 +526,11 @@ const PaymentMethods = () => {
                     <Input id="clabe" placeholder="18 dígitos" maxLength={CLABE_LENGTH} value={formData.clabe} onChange={(e) => setFormData({ ...formData, clabe: e.target.value.replace(/\D/g, "").slice(0, CLABE_LENGTH) })} />
                     {clabeInvalid && <p className="text-xs text-destructive mt-1">La CLABE debe tener 18 dígitos ({formData.clabe.length}/18)</p>}
                     {clabeError && <p className="text-xs text-destructive mt-1">La CLABE solo debe contener números</p>}
+                    {!clabeInvalid && !clabeError && formData.clabe.length >= 3 && formData.bankName?.toLowerCase().includes('santander') && /^814/.test(formData.clabe) && (
+                      <p className="text-xs text-warning mt-1 flex items-center gap-1">
+                        <AlertTriangle className="h-3 w-3" /> El prefijo 814 no está permitido para Santander. Usa la CLABE con prefijo 014.
+                      </p>
+                    )}
                   </div>
                   <div>
                     <Label htmlFor="account-holder">Nombre del Titular</Label>

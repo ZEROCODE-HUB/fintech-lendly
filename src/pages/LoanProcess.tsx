@@ -27,7 +27,9 @@ import {
   Crown,
   Star,
   Building2,
-  Mail
+  Mail,
+  Clock,
+  TriangleAlert
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { defaultMemberships } from "@/data/memberships";
@@ -96,6 +98,11 @@ const isOfMinimumAge = (value: string, minAge = 18) => {
 const isValidCurp = (value: string) => value ? /^[A-Z0-9Ñ]{18}$/.test(value.trim().toUpperCase()) : false;
 const isValidIne = (value: string) => value ? /^[A-Z0-9]{6,20}$/.test(value.trim().toUpperCase()) : false;
 const isValidClabe = (value: string) => value ? /^\d{18}$/.test(value.trim()) : false;
+const isSantanderBank = (bankId: string) => {
+  const name = bankId?.toLowerCase() || '';
+  return name.includes('santander');
+};
+const hasForbiddenClabePrefix = (value: string, bankId: string) => isSantanderBank(bankId) && /^814/.test(value.trim());
 const isValidRfc = (value: string) => /^[A-Z0-9]{12,13}$/.test(value.trim().toUpperCase());
 const hasDocumentSource = (file: File | null, url: string) => Boolean(file || normalizeText(url));
 
@@ -452,6 +459,7 @@ const LoanProcess = () => {
     } else {
       if (!normalizeText(depositData.bank)) nextErrors.bank = "Selecciona un banco.";
       if (!isValidClabe(depositData.clabe)) nextErrors.clabe = "La CLABE debe tener 18 dígitos.";
+      else if (hasForbiddenClabePrefix(depositData.clabe, depositData.bank)) nextErrors.clabe = "El prefijo 814 no está permitido para Santander. Usa la CLABE con prefijo 014.";
     }
 
     if (depositSource === 'saved' && !isValidClabe(depositData.clabe)) {
@@ -477,6 +485,7 @@ const LoanProcess = () => {
     if (!useSameAccount) {
       if (!normalizeText(disbursementData.bank)) nextErrors.disbursementBank = "Selecciona un banco para el desembolso.";
       if (!isValidClabe(disbursementData.clabe)) nextErrors.disbursementClabe = "La CLABE de desembolso debe tener 18 dígitos.";
+      else if (hasForbiddenClabePrefix(disbursementData.clabe, disbursementData.bank)) nextErrors.disbursementClabe = "El prefijo 814 no está permitido para Santander. Usa la CLABE con prefijo 014.";
     }
 
     return nextErrors;
@@ -1618,6 +1627,11 @@ const LoanProcess = () => {
               }
 
               {validationErrors.clabe && <p className="text-xs text-destructive">{validationErrors.clabe}</p>}
+              {!validationErrors.clabe && depositData.clabe.length >= 3 && hasForbiddenClabePrefix(depositData.clabe, depositData.bank) && (
+                <p className="text-xs text-warning flex items-center gap-1">
+                  <TriangleAlert className="h-3 w-3" /> El prefijo 814 no está permitido para Santander. Usa la CLABE con prefijo 014.
+                </p>
+              )}
             </div>
 
           </div>
@@ -1659,17 +1673,23 @@ const LoanProcess = () => {
                       <button
                         key={method.id}
                         type="button"
+                        disabled={!isValidated}
                         onClick={() => {
                           handleDepositMethodChange(method.id);
                           setDepositSource('saved');
                           setIsDepositMethodModalOpen(false);
                         }}
-                        className={`w-full rounded-2xl border p-4 text-left transition-all ${isSelected ? 'border-primary bg-primary/5 shadow-sm' : 'border-border hover:border-primary/40 hover:bg-muted/40'}`}
+                        className={`w-full rounded-2xl border p-4 text-left transition-all ${isSelected ? 'border-primary bg-primary/5 shadow-sm' : isValidated ? 'border-border hover:border-primary/40 hover:bg-muted/40' : 'border-border/50 bg-muted/30 opacity-60 cursor-not-allowed'}`}
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div className="space-y-1">
-                            <p className="font-medium text-foreground">{method.bank_name || 'Banco'}</p>
+                            <p className={`font-medium ${isValidated ? 'text-foreground' : 'text-muted-foreground'}`}>{method.bank_name || 'Banco'}</p>
                             <p className="text-xs text-muted-foreground">CLABE •••• {clabeLastDigits}</p>
+                            {!isValidated && (
+                              <p className="text-xs text-warning flex items-center gap-1 mt-1">
+                                <Clock className="h-3 w-3" /> Esta cuenta está en revisión
+                              </p>
+                            )}
                           </div>
                           <Badge variant={isValidated ? 'secondary' : 'outline'} className="text-[10px] uppercase tracking-wide">
                             {isValidated ? 'Validado' : 'Pendiente'}
@@ -1739,6 +1759,11 @@ const LoanProcess = () => {
                 />
                   <p className="text-xs text-muted-foreground">Ingresa los 18 dígitos de tu CLABE</p>
                   {validationErrors.disbursementClabe && <p className="text-xs text-destructive">{validationErrors.disbursementClabe}</p>}
+                  {!validationErrors.disbursementClabe && disbursementData.clabe.length >= 3 && hasForbiddenClabePrefix(disbursementData.clabe, disbursementData.bank) && (
+                    <p className="text-xs text-warning flex items-center gap-1">
+                      <TriangleAlert className="h-3 w-3" /> El prefijo 814 no está permitido para Santander. Usa la CLABE con prefijo 014.
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
