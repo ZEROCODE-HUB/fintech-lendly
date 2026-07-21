@@ -6,33 +6,15 @@ import { MessageCircle, X, Send, Bot, User } from "lucide-react";
 
 const CHAT_API_URL = 'https://increscendo-api.vercel.app/api/chat';
 
-const ALLOWED_TAGS = ['P','STRONG','B','EM','I','A','BR','UL','OL','LI','H1','H2','H3','H4','H5','H6','SPAN','DIV'];
+import DOMPurify from 'dompurify';
 
 function sanitizeHtml(dirty: string): string {
-  const doc = new DOMParser().parseFromString(dirty, 'text/html');
-  const walk = (node: Node) => {
-    for (const child of Array.from(node.childNodes)) {
-      if (child.nodeType === Node.ELEMENT_NODE) {
-        const el = child as HTMLElement;
-        const tag = el.tagName.toUpperCase();
-        if (!ALLOWED_TAGS.includes(tag)) {
-          el.replaceWith(...el.childNodes);
-          walk(node);
-          continue;
-        }
-        for (const attr of Array.from(el.attributes)) {
-          if (attr.name.startsWith('on')) el.removeAttribute(attr.name);
-          if (tag === 'A' && attr.name === 'href') {
-            const v = attr.value.toLowerCase().trim();
-            if (v.startsWith('javascript:') || v.startsWith('data:')) el.removeAttribute(attr.name);
-          }
-        }
-        walk(el);
-      }
-    }
-  };
-  walk(doc.body);
-  return doc.body.innerHTML;
+  return DOMPurify.sanitize(dirty, {
+    ALLOWED_TAGS: ['p', 'strong', 'b', 'em', 'i', 'a', 'br', 'ul', 'ol', 'li',
+      'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'span', 'div'],
+    ALLOWED_ATTR: ['href', 'target', 'rel', 'class'],
+    ALLOW_DATA_ATTR: false,
+  });
 }
 
 interface Message {

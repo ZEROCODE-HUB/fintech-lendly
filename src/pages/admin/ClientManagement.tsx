@@ -13,6 +13,7 @@ import { AddUserModal, ModifyClientModal, DeleteClientModal, ViewPhotoModal, Vie
 import { AddMembershipModal, ViewHistoryModal, ExpireMembershipModal } from "@/components/admin/clients/modals/MembershipModals";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Pagination,
@@ -26,6 +27,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const ClientManagement = () => {
+  const { toast } = useToast();
   // Data state
   const [clients, setClients] = useState<Client[]>([]);
   const [memberships, setMemberships] = useState<ClientMembership[]>([]);
@@ -990,9 +992,24 @@ const ClientManagement = () => {
           open={deleteClientOpen} 
           onOpenChange={setDeleteClientOpen} 
           client={selectedClient}
-          onConfirm={() => {
-            if (selectedClient) {
+          onConfirm={async () => {
+            if (!selectedClient) return;
+            try {
+              const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/delete-user`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+                },
+                body: JSON.stringify({ user_id: selectedClient.id }),
+              });
+              const result = await resp.json();
+              if (!resp.ok) throw new Error(result.error || 'Error al eliminar usuario');
               setClients(clients.filter(c => c.id !== selectedClient.id));
+              toast({ title: 'Usuario eliminado', description: `${selectedClient.firstName} ${selectedClient.lastName} fue eliminado del sistema.` });
+            } catch (err) {
+              console.error('[ClientManagement] Error deleting client', err);
+              toast({ title: 'Error', description: err instanceof Error ? err.message : 'No se pudo eliminar el usuario', variant: 'destructive' });
             }
           }}
         />

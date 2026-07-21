@@ -102,7 +102,8 @@ const History = () => {
       const allPaymentRequests: any[] = [];
       let currentPage = 1;
 
-      while (true) {
+      const MAX_PAGES = 50;
+      while (currentPage <= MAX_PAGES) {
         const payload = await fetchPaymentRequestsPage(currentPage);
         const rows = Array.isArray(payload?.data) ? payload.data : [];
         allPaymentRequests.push(...rows);

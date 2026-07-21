@@ -218,16 +218,20 @@ interface DeleteClientModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   client: Client | null;
-  onConfirm: () => void;
+  onConfirm: () => Promise<void> | void;
 }
 
 export const DeleteClientModal = ({ open, onOpenChange, client, onConfirm }: DeleteClientModalProps) => {
-  const { toast } = useToast();
+  const [isDeleting, setIsDeleting] = useState(false);
 
-  const handleConfirm = () => {
-    onConfirm();
-    toast({ title: "Usuario eliminado", description: "El usuario ha sido eliminado del sistema.", variant: "destructive" });
-    onOpenChange(false);
+  const handleConfirm = async () => {
+    setIsDeleting(true);
+    try {
+      await onConfirm();
+    } finally {
+      setIsDeleting(false);
+      onOpenChange(false);
+    }
   };
 
   return (
@@ -240,9 +244,9 @@ export const DeleteClientModal = ({ open, onOpenChange, client, onConfirm }: Del
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>Cancelar</AlertDialogCancel>
-          <AlertDialogAction onClick={handleConfirm} className="bg-danger hover:bg-danger/90">
-            Eliminar
+          <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
+          <AlertDialogAction onClick={handleConfirm} className="bg-danger hover:bg-danger/90" disabled={isDeleting}>
+            {isDeleting ? 'Eliminando...' : 'Eliminar'}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
