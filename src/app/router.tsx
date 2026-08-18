@@ -2,6 +2,7 @@ import React, { Suspense } from 'react';
 import { createBrowserRouter } from 'react-router-dom';
 import { PrivateLayout, PublicLayout, AdminLayout, AuthLayout } from '@/components/layouts/Layouts';
 import { RequireAuth, RequireGuest, RoleGuard, PageLoader } from '@/components/guards';
+import type { UserRole } from '@/types/users';
 
 const LoadingFallback: React.FC = () => (
   <div className="flex items-center justify-center min-h-screen">
@@ -49,6 +50,7 @@ const UsuarioNuevoMarketing = React.lazy(() => import('@/pages/UsuarioNuevoMarke
 const ForgotPassword = React.lazy(() => import('@/pages/ForgotPassword'));
 const ResetPassword = React.lazy(() => import('@/pages/ResetPassword'));
 const DashboardPage = React.lazy(() => import('@/pages/Dashboard'));
+const ServicesEmbed = React.lazy(() => import('@/pages/ServicesEmbed'));
 
 const RequireAuthRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <RequireAuth loadingComponent={<LoadingFallback />}>{children}</RequireAuth>
@@ -58,13 +60,14 @@ const RequireGuestRoute: React.FC<{ children: React.ReactNode }> = ({ children }
   <RequireGuest loadingComponent={<LoadingFallback />}>{children}</RequireGuest>
 );
 
-const RoleGuardRoute: React.FC<{ children: React.ReactNode; allowedRoles: string[] }> = ({ children, allowedRoles }) => (
-  <RoleGuard allowedRoles={allowedRoles} loadingComponent={<LoadingFallback />}>{children}</RoleGuard>
+const RoleGuardRoute: React.FC<{ children: React.ReactNode; allowedRoles: UserRole[]; fallbackPath?: string }> = ({ children, allowedRoles, fallbackPath }) => (
+  <RoleGuard allowedRoles={allowedRoles} loadingComponent={<LoadingFallback />} fallbackPath={fallbackPath}>{children}</RoleGuard>
 );
 
 export const router = createBrowserRouter([
   { path: 'forgot-password', element: wrapSuspense(<ForgotPassword />) },
   { path: 'reset-password', element: wrapSuspense(<ResetPassword />) },
+  { path: 'servicios-recargas', element: <RequireAuthRoute><Suspense fallback={<LoadingFallback />}><ServicesEmbed /></Suspense></RequireAuthRoute> },
   {
     element: <AuthLayout />,
     children: [

@@ -6,6 +6,7 @@ import logoFull from "@/assets/logo-full.png";
 import { increscendoApiFetch } from "@/lib/increscendoApi";
 import { useAuth } from "@/contexts/AuthContext";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { SERVICES_EMBED_STORAGE_KEY } from "@/pages/ServicesEmbed";
 
 const ServiceSelection = () => {
   const navigate = useNavigate();
@@ -48,7 +49,8 @@ const ServiceSelection = () => {
       }
 
       setIsLoadingServicios(false);
-      window.open(finalUrl, '_blank', 'noopener,noreferrer');
+      sessionStorage.setItem(SERVICES_EMBED_STORAGE_KEY, finalUrl);
+      navigate('/servicios-recargas');
 
     } catch (err) {
       console.error('[ServiceSelection] Error:', err);
