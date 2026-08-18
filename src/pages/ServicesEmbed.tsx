@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, ExternalLink, Loader } from "lucide-react";
+import { ArrowLeft, Loader } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import logoFull from "@/assets/logo-full.png";
 
@@ -20,10 +20,6 @@ const ServicesEmbed = () => {
     }
   }, [navigate]);
 
-  const openInNewTab = () => {
-    if (url) window.open(url, "_blank", "noopener,noreferrer");
-  };
-
   return (
     <div className="h-screen flex flex-col bg-muted/30">
       <header className="flex items-center justify-between gap-3 bg-background border-b px-4 sm:px-6 py-2.5 shadow-sm z-10 shrink-0">
@@ -35,9 +31,6 @@ const ServicesEmbed = () => {
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <Button variant="outline" size="sm" onClick={openInNewTab} className="hidden sm:inline-flex">
-            <ExternalLink className="h-4 w-4 mr-1.5" /> Abrir en otra pestaña
-          </Button>
           <Button variant="ghost" size="sm" onClick={() => navigate("/service-selection")}>
             <ArrowLeft className="h-4 w-4 mr-1.5" /> Volver
           </Button>
