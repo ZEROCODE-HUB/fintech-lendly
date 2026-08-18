@@ -41,7 +41,7 @@ export const clientService = {
 
     const { data, error, count } = await supabase
       .from('users')
-      .select('id, role, email, first_name, last_name, phone, address, birth_date, curp, ine_key, created_at, ine_front_url, ine_back_url, curp_url, avatar_url', { count: 'exact' })
+      .select('id, code, role, email, first_name, last_name, phone, address, birth_date, curp, ine_key, created_at, ine_front_url, ine_back_url, curp_url, avatar_url', { count: 'exact' })
       .eq('role', 'client')
       .order('created_at', { ascending: false })
       .range(from, to);
@@ -83,6 +83,7 @@ export const clientService = {
       const loanCounts = loanCountsByUser.get(u.id) || { total: 0, active: 0 };
       return {
         id: u.id,
+        code: u.code || '',
         role: u.role === 'admin' ? 'Admin' : 'Usuario',
         firstName: u.first_name || '',
         lastName: u.last_name || '',
@@ -118,6 +119,7 @@ export const clientService = {
 
     return {
       id: u.id,
+      code: u.code || '',
       role: u.role === 'admin' ? 'Admin' : 'Usuario',
       firstName: u.first_name || '',
       lastName: u.last_name || '',

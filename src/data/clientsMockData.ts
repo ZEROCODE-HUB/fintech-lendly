@@ -3,6 +3,7 @@ import { Client, ClientMembership } from "@/types/clients";
 export const clientsMockData: Client[] = [
   {
     id: "CLI-001",
+    code: "INC-000001",
     role: "Usuario",
     firstName: "María",
     lastName: "González Hernández",
@@ -20,6 +21,7 @@ export const clientsMockData: Client[] = [
   },
   {
     id: "CLI-002",
+    code: "INC-000002",
     role: "Usuario",
     firstName: "Carlos",
     lastName: "Ramírez López",
@@ -37,6 +39,7 @@ export const clientsMockData: Client[] = [
   },
   {
     id: "CLI-003",
+    code: "INC-000003",
     role: "Admin",
     firstName: "Ana",
     lastName: "López Martínez",
@@ -54,6 +57,7 @@ export const clientsMockData: Client[] = [
   },
   {
     id: "CLI-004",
+    code: "INC-000004",
     role: "Usuario",
     firstName: "Juan",
     lastName: "Pérez Sánchez",

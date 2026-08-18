@@ -75,7 +75,7 @@ const ClientManagement = () => {
         const [usersRes, userMembershipsRes, plansRes] = await Promise.all([
           supabase
             .from('users')
-            .select('id, role, email, first_name, last_name, phone, address, birth_date, curp, ine_key, created_at, ine_front_url, ine_back_url, curp_url, avatar_url', { count: 'exact' })
+            .select('id, code, role, email, first_name, last_name, phone, address, birth_date, curp, ine_key, created_at, ine_front_url, ine_back_url, curp_url, avatar_url', { count: 'exact' })
             .eq('role', 'client')
             .order('created_at', { ascending: false })
             .range(from, to),
@@ -174,6 +174,7 @@ const ClientManagement = () => {
           const loanCounts = loanCountsByUser.get(u.id as string) ?? { total: 0, active: 0 };
           return {
             id: u.id as string,
+            code: u.code ?? '',
             role: u.role === 'admin' ? 'Admin' : 'Usuario',
             firstName: u.first_name ?? '',
             lastName: u.last_name ?? '',
@@ -218,6 +219,7 @@ const ClientManagement = () => {
         c.firstName.toLowerCase().includes(search) ||
         c.lastName.toLowerCase().includes(search) ||
         c.email.toLowerCase().includes(search) ||
+        (c.code || '').toLowerCase().includes(search) ||
         c.id.toLowerCase().includes(search)
       );
     }
@@ -279,7 +281,7 @@ const ClientManagement = () => {
       let query = supabase
         .from("users")
         .select(
-          "id, role, email, first_name, last_name, phone, address, birth_date, curp, ine_key, created_at, ine_front_url, ine_back_url, curp_url",
+          "id, code, role, email, first_name, last_name, phone, address, birth_date, curp, ine_key, created_at, ine_front_url, ine_back_url, curp_url",
         )
         .eq("role", "client");
 
@@ -287,7 +289,7 @@ const ClientManagement = () => {
         const search = clientSearch.trim();
         if (search) {
           query = query.or(
-            `first_name.ilike.%${search}%,last_name.ilike.%${search}%,email.ilike.%${search}%,id.ilike.%${search}%`,
+            `first_name.ilike.%${search}%,last_name.ilike.%${search}%,email.ilike.%${search}%,code.ilike.%${search}%,id.ilike.%${search}%`,
           );
         }
       }
@@ -332,6 +334,7 @@ const ClientManagement = () => {
         const membership = membershipSummary.get(u.id as string);
         return {
           id: u.id as string,
+          code: u.code ?? "",
           role: u.role === "admin" ? "Admin" : "Usuario",
           firstName: u.first_name ?? "",
           lastName: u.last_name ?? "",
@@ -356,7 +359,7 @@ const ClientManagement = () => {
           let value: any = "";
           switch (col.key) {
             case "id":
-              value = String(client.id).split("-")[0];
+              value = client.code || String(client.id).split("-")[0];
               break;
             case "loans":
               value = `Total: ${client.totalLoans}, Activos: ${client.activeLoans}`;
@@ -579,7 +582,7 @@ const ClientManagement = () => {
                             <TableRow key={client.id}>
                               {isColumnVisible(clientColumns, "id") && (
                                 <TableCell className="font-medium text-xs sm:text-sm whitespace-nowrap">
-                                  {String(client.id).split("-")[0]}
+                                  {client.code || String(client.id).split("-")[0]}
                                 </TableCell>
                               )}
                               {isColumnVisible(clientColumns, "role") && <TableCell className="text-xs sm:text-sm"><Badge variant="outline" className="text-xs">{client.role}</Badge></TableCell>}
@@ -902,6 +905,7 @@ const ClientManagement = () => {
 
               const newClient: Client = {
                 id: (row.id as string) || userId || `local-${Date.now()}`,
+                code: row.code ?? '',
                 role: (row.role === 'admin' ? 'Admin' : 'Usuario') || (payload.role === 'admin' ? 'Admin' : 'Usuario'),
                 firstName: row.first_name ?? (data.firstName || ''),
                 lastName: row.last_name ?? (data.lastName || ''),
@@ -962,6 +966,7 @@ const ClientManagement = () => {
 
               const newClient: Client = {
                 id: data.id as string,
+                code: (data as any).code ?? existing?.code ?? '',
                 role: data.role === "admin" ? "Admin" : "Usuario",
                 firstName: data.first_name ?? "",
                 lastName: data.last_name ?? "",

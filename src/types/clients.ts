@@ -1,5 +1,6 @@
 export interface Client {
   id: string;
+  code: string;
   role: string;
   firstName: string;
   lastName: string;

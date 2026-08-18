@@ -25,6 +25,7 @@ const MyAccount = () => {
     birthDate: "",
     curp: "",
     ineKey: "",
+    code: "",
   });
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [ineFrontFile, setIneFrontFile] = useState<File | null>(null);
@@ -227,7 +228,7 @@ const MyAccount = () => {
         }
 
         setIsLoadingProfile(true);
-        let { data, error } = await supabase.from('users').select('first_name,last_name,email,phone,phone_country_code,avatar_url,role,metadata,terms_accepted,address,birth_date,curp,ine_key,ine_front_url,ine_back_url,created_at,updated_at').eq('id', userId).limit(1).single();
+        let { data, error } = await supabase.from('users').select('first_name,last_name,email,phone,phone_country_code,avatar_url,role,metadata,terms_accepted,address,birth_date,curp,ine_key,code,ine_front_url,ine_back_url,created_at,updated_at').eq('id', userId).limit(1).single();
         if (error) {
           console.warn('[MyAccount] user row fetch error', error);
         }
@@ -286,6 +287,7 @@ const MyAccount = () => {
             birthDate: data.birth_date ?? prev.birthDate,
             curp: data.curp || prev.curp,
             ineKey: data.ine_key || prev.ineKey,
+            code: data.code || prev.code,
           }));
           setAvatarUrl(data.avatar_url || null);
           setIneFrontPreview(data.ine_front_url || null);
@@ -524,6 +526,9 @@ const MyAccount = () => {
               <div className="min-w-0">
                 <CardTitle className="text-base sm:text-lg truncate">{personalData.firstName} {personalData.lastName}</CardTitle>
                 <CardDescription className="text-xs truncate">{personalData.email}</CardDescription>
+                {personalData.code && (
+                  <p className="font-mono text-xs font-semibold text-primary mt-1">{personalData.code}</p>
+                )}
               </div>
             </div>
           </div>
