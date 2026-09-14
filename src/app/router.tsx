@@ -1,7 +1,8 @@
 import React, { Suspense } from 'react';
 import { createBrowserRouter } from 'react-router-dom';
-import { PrivateLayout, PublicLayout, AdminLayout, AuthLayout } from '@/components/layouts/Layouts';
+import { PrivateLayout, PublicLayout, AdminLayout, AuthLayout, WebMaintenanceLayout } from '@/components/layouts/Layouts';
 import { RequireAuth, RequireGuest, RoleGuard, PageLoader } from '@/components/guards';
+import { webMaintenanceLoader, adminMaintenanceLoader } from '@/lib/maintenanceLoaders';
 import type { UserRole } from '@/types/users';
 
 const LoadingFallback: React.FC = () => (
@@ -65,9 +66,6 @@ const RoleGuardRoute: React.FC<{ children: React.ReactNode; allowedRoles: UserRo
 );
 
 export const router = createBrowserRouter([
-  { path: 'forgot-password', element: wrapSuspense(<ForgotPassword />) },
-  { path: 'reset-password', element: wrapSuspense(<ResetPassword />) },
-  { path: 'servicios-recargas', element: <RequireAuthRoute><Suspense fallback={<LoadingFallback />}><ServicesEmbed /></Suspense></RequireAuthRoute> },
   {
     element: <AuthLayout />,
     children: [
@@ -76,24 +74,18 @@ export const router = createBrowserRouter([
   },
   {
     element: <PublicLayout />,
+    loader: webMaintenanceLoader,
     children: [
       { index: true, element: wrapSuspense(<Index />) },
       { path: 'usuario-nuevo-marketing', element: wrapSuspense(<UsuarioNuevoMarketing />) },
       { path: 'prontipagos-sso', element: wrapSuspense(<ProntipagosSSO />) },
     ],
   },
-  { path: 'aviso-legal', element: wrapSuspense(<AvisoLegal />) },
-  { path: 'politicas-privacidad', element: wrapSuspense(<PoliticasPrivacidad />) },
-  { path: 'terminos-y-condiciones', element: wrapSuspense(<TerminosCondiciones />) },
-  { path: 'privacidad-empleo', element: wrapSuspense(<PrivacidadEmpleo />) },
-  { path: 'tips-seguridad', element: wrapSuspense(<TipsSeguridad />) },
-  { path: 'bolsa-trabajo', element: wrapSuspense(<BolsaTrabajo />) },
-  { path: 'centro-ayuda', element: wrapSuspense(<CentroAyuda />) },
-  { path: 'contacto', element: wrapSuspense(<Contacto />) },
-  { path: 'terminos-cancelacion', element: wrapSuspense(<CancelacionTerminos />) },
   {
     element: <PrivateLayout />,
+    loader: webMaintenanceLoader,
     children: [
+      { path: 'servicios-recargas', element: <RequireAuthRoute><Suspense fallback={<LoadingFallback />}><ServicesEmbed /></Suspense></RequireAuthRoute> },
       { path: 'service-selection', element: <RequireAuthRoute><Suspense fallback={<LoadingFallback />}><ServiceSelection /></Suspense></RequireAuthRoute> },
       { path: 'dashboard', element: <RequireAuthRoute><RoleGuardRoute allowedRoles={['client']} fallbackPath="/admin/dashboard"><Suspense fallback={<LoadingFallback />}><DashboardPage /></Suspense></RoleGuardRoute></RequireAuthRoute> },
       { path: 'loan-request', element: <RequireAuthRoute><RoleGuardRoute allowedRoles={['client']} fallbackPath="/admin/dashboard"><Suspense fallback={<LoadingFallback />}><LoanRequest /></Suspense></RoleGuardRoute></RequireAuthRoute> },
@@ -111,6 +103,7 @@ export const router = createBrowserRouter([
   },
   {
     element: <AdminLayout />,
+    loader: adminMaintenanceLoader,
     children: [
       { path: 'admin/dashboard', element: <RoleGuardRoute allowedRoles={['admin']}><Suspense fallback={<LoadingFallback />}><AdminDashboard /></Suspense></RoleGuardRoute> },
       { path: 'admin/loans', element: <RoleGuardRoute allowedRoles={['admin']}><Suspense fallback={<LoadingFallback />}><LoanManagement /></Suspense></RoleGuardRoute> },
@@ -120,7 +113,24 @@ export const router = createBrowserRouter([
       { path: 'admin/coupons', element: <RoleGuardRoute allowedRoles={['admin']}><Suspense fallback={<LoadingFallback />}><CouponManagement /></Suspense></RoleGuardRoute> },
     ],
   },
-  { path: '*', element: wrapSuspense(<NotFound />) },
+  {
+    element: <WebMaintenanceLayout />,
+    loader: webMaintenanceLoader,
+    children: [
+      { path: 'forgot-password', element: wrapSuspense(<ForgotPassword />) },
+      { path: 'reset-password', element: wrapSuspense(<ResetPassword />) },
+      { path: 'aviso-legal', element: wrapSuspense(<AvisoLegal />) },
+      { path: 'politicas-privacidad', element: wrapSuspense(<PoliticasPrivacidad />) },
+      { path: 'terminos-y-condiciones', element: wrapSuspense(<TerminosCondiciones />) },
+      { path: 'privacidad-empleo', element: wrapSuspense(<PrivacidadEmpleo />) },
+      { path: 'tips-seguridad', element: wrapSuspense(<TipsSeguridad />) },
+      { path: 'bolsa-trabajo', element: wrapSuspense(<BolsaTrabajo />) },
+      { path: 'centro-ayuda', element: wrapSuspense(<CentroAyuda />) },
+      { path: 'contacto', element: wrapSuspense(<Contacto />) },
+      { path: 'terminos-cancelacion', element: wrapSuspense(<CancelacionTerminos />) },
+      { path: '*', element: wrapSuspense(<NotFound />) },
+    ],
+  },
 ]);
 
 export default router;
